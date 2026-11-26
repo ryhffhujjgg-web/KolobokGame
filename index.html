@@ -46,11 +46,10 @@
     const player = {
         x: 50, y: 300, width: 40, height: 40, 
         speed: 5, vy: 0, gravity: 0.6, jumpPower: -12,
-        grounded: false, cooldown: 0
+        grounded: false, cooldown: 0, facingRight: true
     };
 
     let bullets = [];
-    // Заяц (эмодзи)
     let enemies = [{ x: 600, y: 300, width: 40, height: 40, speed: 1.5, type: '🐇' }];
     let coins = [{ x: 300, y: 250, width: 20, height: 20 }, { x: 500, y: 200, width: 20, height: 20 }];
     
@@ -58,17 +57,15 @@
         { x: 0, y: 340, width: 800, height: 60 }
     ];
 
-    // Запуск игры
     startBtn.addEventListener('click', () => {
         startScreen.style.display = 'none';
         gameStarted = true;
     });
 
-    // Управление
     window.addEventListener('keydown', (e) => {
         if (!gameStarted) return;
-        if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
-        if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = true; player.facingRight = true; }
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keys.left = true; player.facingRight = false; }
         if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
             if (player.grounded) { player.vy = player.jumpPower; player.grounded = false; }
         }
@@ -79,9 +76,9 @@
         if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
     });
 
-    document.getElementById('btnRight').addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; });
+    document.getElementById('btnRight').addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; player.facingRight = true; });
     document.getElementById('btnRight').addEventListener('touchend', (e) => { e.preventDefault(); keys.right = false; });
-    document.getElementById('btnLeft').addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; });
+    document.getElementById('btnLeft').addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; player.facingRight = false; });
     document.getElementById('btnLeft').addEventListener('touchend', (e) => { e.preventDefault(); keys.left = false; });
     document.getElementById('btnShoot').addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); });
     
@@ -92,7 +89,10 @@
     function shoot() {
         if (gameOver || !gameStarted) return;
         if (player.cooldown <= 0) {
-            bullets.push({ x: player.x + player.width, y: player.y + 20, width: 15, height: 8, speed: 10 });
+            // Пуля летит в ту сторону, куда смотрит колобок
+            let startX = player.facingRight ? player.x + player.width : player.x - 15;
+            let speed = player.facingRight ? 10 : -10;
+            bullets.push({ x: startX, y: player.y + 20, width: 15, height: 8, speed: speed });
             player.cooldown = 15;
         }
     }
@@ -124,7 +124,7 @@
 
         bullets.forEach((b, index) => {
             b.x += b.speed;
-            if (b.x > canvas.width) bullets.splice(index, 1);
+            if (b.x > canvas.width || b.x < 0) bullets.splice(index, 1);
         });
 
         enemies.forEach((e, index) => {
@@ -158,10 +158,63 @@
         });
     }
 
+    // Функция для рисования Колобка в кожаной куртке
+    function drawKolobok(x, y, w, h, facingRight) {
+        ctx.save();
+        
+        // Тело (круг)
+        ctx.fillStyle = '#D2B48C'; // Цвет теста
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2, w/2, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Контур
+        ctx.strokeStyle = '#8B4513';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Кожаная куртка (нижняя половина круга)
+        ctx.fillStyle = '#333333'; // Темно-серый/черный
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2, w/2 - 1, 0, Math.PI, false);
+        ctx.fill();
+        
+        // Блики на куртке (молния)
+        ctx.strokeStyle = '#CCCCCC';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + w/2, y + h/2 + 5);
+        ctx.lineTo(x + w/2, y + h - 5);
+        ctx.stroke();
+
+        // Глаза
+        ctx.fillStyle = '#000';
+        if (facingRight) {
+            ctx.beginPath(); ctx.arc(x + w/2 + 5, y + h/2 - 5, 3, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x + w/2 + 12, y + h/2 - 5, 3, 0, Math.PI*2); ctx.fill();
+        } else {
+            ctx.beginPath(); ctx.arc(x + w/2 - 12, y + h/2 - 5, 3, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x + w/2 - 5, y + h/2 - 5, 3, 0, Math.PI*2); ctx.fill();
+        }
+
+        // Рот (ухмылка)
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2 + 2, 6, 0.1, Math.PI - 0.1);
+        ctx.stroke();
+
+        // Дробовик
+        ctx.fillStyle = '#555555'; // Темно-серый металл
+        ctx.fillRect(facingRight ? x + w - 5 : x - 15, y + h/2 + 2, 20, 6); // Ствол
+        ctx.fillStyle = '#8B4513'; // Деревянный приклад
+        ctx.fillRect(facingRight ? x + w - 15 : x + 5, y + h/2 + 4, 10, 8); 
+
+        ctx.restore();
+    }
+
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Фон (Небо и земля)
+        // Фон
         ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#8B4513';
         platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
@@ -170,13 +223,13 @@
         ctx.fillStyle = '#228B22';
         ctx.fillRect(0, 340, canvas.width, 10);
 
-        // Монеты (эмодзи)
+        // Монеты
         ctx.font = '24px Arial';
         coins.forEach(c => {
             ctx.fillText('🪙', c.x - 5, c.y + 20);
         });
 
-        // Враги (эмодзи)
+        // Враги
         ctx.font = '40px Arial';
         enemies.forEach(e => {
             ctx.fillText(e.type, e.x, e.y + 35);
@@ -186,9 +239,8 @@
         ctx.fillStyle = '#FF0000';
         bullets.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
 
-        // Колобок (эмодзи)
-        ctx.font = '40px Arial';
-        ctx.fillText('🥯', player.x, player.y + 35);
+        // Колобок
+        drawKolobok(player.x, player.y, player.width, player.height, player.facingRight);
 
         // Интерфейс
         ctx.fillStyle = '#000'; ctx.font = 'bold 24px "Courier New", Courier, monospace';
