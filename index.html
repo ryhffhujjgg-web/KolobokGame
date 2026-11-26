@@ -6,7 +6,7 @@
 <title>Колобок: Большое приключение</title>
 <style>
 * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; margin: 0; padding: 0; }
-html, body { width: 100%; height: 100%; overflow: hidden; background: #17283c; color: white; font-family: Arial, sans-serif; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #111; color: white; font-family: Arial, sans-serif; }
 body { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; touch-action: none; }
 
 #rotate-hint {
@@ -21,12 +21,13 @@ body { display: flex; flex-direction: column; align-items: center; justify-conte
   position: relative; width: 100vw; flex: 1;
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
+  background: #111;
 }
 canvas {
   display: block;
-  width: 100%;         /* растягиваем по ширине */
-  height: 100%;        /* и по высоте — но с object-fit: fill обрежет/растянет; используем contain чтобы сохранить пропорции */
-  object-fit: fill;    /* растянем сцену на весь экран, чтобы не было полей */
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* СОХРАНЯЕМ ПРОПОРЦИИ, НЕ РАСТЯГИВАЕМ */
   background: #8bd7f5;
   touch-action: none;
 }
@@ -67,7 +68,7 @@ button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(178,14
 </div>
 
 <div id="game-wrap">
-  <canvas id="game" width="900" height="440"></canvas>
+  <canvas id="game" width="1100" height="440"></canvas>
 
   <div id="topbar">
     <div id="info">Мир 1 | ⭐ 0 | ❤️ 3</div>
@@ -94,14 +95,14 @@ const ctx = canvas.getContext("2d");
 const info = document.getElementById("info");
 const message = document.getElementById("message");
 
-const W = canvas.width;
-const H = canvas.height;
+const W = canvas.width;   // 1100
+const H = canvas.height;  // 440
 const LEVEL_WIDTH = 2400;
 const GRAVITY = 0.55;
 const GROUND_Y = 385;
 
 const TOTAL_LEVELS = 10;
-const SAVE_KEY = "kolobok_adventure_save_v6";
+const SAVE_KEY = "kolobok_adventure_save_v7";
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"🐰"},
@@ -141,11 +142,11 @@ let lastSafeX = 70;
 let gameLoopRunning = false;
 let isTransitioning = false;
 
-/* ===== СОХРАНЕНИЕ ===== */
+/* ===== СОХРАНЕНИЕ (без изменений) ===== */
 function saveProgress() {
   try {
     const data = {
-      version: 6, world, totalStars, lastSafeX,
+      version: 7, world, totalStars, lastSafeX,
       player: { x: player.x, y: player.y, health: player.health, facing: player.facing },
       enemies: enemies.map(e => ({ x: e.x, y: e.y, vx: e.vx, vy: e.vy, alive: e.alive, jumpTimer: e.jumpTimer, onGround: e.onGround })),
       witches: witches.map(w => ({ x: w.x, baseY: w.baseY, vx: w.vx, alive: w.alive, shootTimer: w.shootTimer, phase: w.phase })),
@@ -164,10 +165,8 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 6 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
-    world = data.world;
-    totalStars = Math.max(0, Number(data.totalStars) || 0);
-    lastSafeX = Number(data.lastSafeX) || 70;
+    if (!data || data.version !== 7 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
+    world = data.world; totalStars = Math.max(0, Number(data.totalStars) || 0); lastSafeX = Number(data.lastSafeX) || 70;
     makeLevel();
     if (data.player) {
       player.x = Math.max(19, Math.min(LEVEL_WIDTH - 20, Number(data.player.x) || 70));
@@ -200,56 +199,25 @@ function say(text) {
   }
 }
 
-/* Звук выстрела как у пистолета (резкий хлопок + низкий бас) */
 function soundShoot() {
   try {
     soundContext = soundContext || new (window.AudioContext || window.webkitAudioContext)();
     const t = soundContext.currentTime;
-
-    // 1. Резкий высокочастотный щелчок (пороховой хлопок)
     const crack = soundContext.createBufferSource();
     const bufferSize = soundContext.sampleRate * 0.05;
     const buffer = soundContext.createBuffer(1, bufferSize, soundContext.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
     crack.buffer = buffer;
-
-    const crackFilter = soundContext.createBiquadFilter();
-    crackFilter.type = "highpass";
-    crackFilter.frequency.value = 1500;
-
-    const crackGain = soundContext.createGain();
-    crackGain.gain.setValueAtTime(0.3, t);
-    crackGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-
-    crack.connect(crackFilter); crackFilter.connect(crackGain); crackGain.connect(soundContext.destination);
-    crack.start(t);
-
-    // 2. Низкий «бум» (корпус пистолета)
-    const boom = soundContext.createOscillator();
-    boom.type = "sine";
-    boom.frequency.setValueAtTime(120, t);
-    boom.frequency.exponentialRampToValueAtTime(40, t + 0.15);
-
-    const boomGain = soundContext.createGain();
-    boomGain.gain.setValueAtTime(0.4, t);
-    boomGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-
-    boom.connect(boomGain); boomGain.connect(soundContext.destination);
-    boom.start(t); boom.stop(t + 0.2);
-
-    // 3. Металлический отзвук (средние частоты)
-    const metal = soundContext.createOscillator();
-    metal.type = "triangle";
-    metal.frequency.setValueAtTime(600, t + 0.01);
-    metal.frequency.exponentialRampToValueAtTime(200, t + 0.1);
-
-    const metalGain = soundContext.createGain();
-    metalGain.gain.setValueAtTime(0.15, t + 0.01);
-    metalGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-
-    metal.connect(metalGain); metalGain.connect(soundContext.destination);
-    metal.start(t + 0.01); metal.stop(t + 0.13);
+    const crackFilter = soundContext.createBiquadFilter(); crackFilter.type = "highpass"; crackFilter.frequency.value = 1500;
+    const crackGain = soundContext.createGain(); crackGain.gain.setValueAtTime(0.3, t); crackGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    crack.connect(crackFilter); crackFilter.connect(crackGain); crackGain.connect(soundContext.destination); crack.start(t);
+    const boom = soundContext.createOscillator(); boom.type = "sine"; boom.frequency.setValueAtTime(120, t); boom.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+    const boomGain = soundContext.createGain(); boomGain.gain.setValueAtTime(0.4, t); boomGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    boom.connect(boomGain); boomGain.connect(soundContext.destination); boom.start(t); boom.stop(t + 0.2);
+    const metal = soundContext.createOscillator(); metal.type = "triangle"; metal.frequency.setValueAtTime(600, t + 0.01); metal.frequency.exponentialRampToValueAtTime(200, t + 0.1);
+    const metalGain = soundContext.createGain(); metalGain.gain.setValueAtTime(0.15, t + 0.01); metalGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    metal.connect(metalGain); metalGain.connect(soundContext.destination); metal.start(t + 0.01); metal.stop(t + 0.13);
   } catch(e) {}
 }
 
@@ -290,12 +258,7 @@ function makeLevel() {
     stars.push({ x:sx, y:i%2===0?245:335, taken:false });
   }
 
-  // Избушка в конце уровня
-  const hutX = LEVEL_WIDTH - 120;
-  const hut = { x: hutX, w: 100, h: 90, y: GROUND_Y - 90 };
-
   boss = { x:2180, y:335, vx:1.2, vy:0, hp:10, maxHp:10, alive:true, shootTimer:100, jumpTimer:90, isBossLevel: (world === TOTAL_LEVELS - 1) };
-
   updateInfo();
 }
 function updateInfo() {
@@ -305,23 +268,89 @@ function updateInfo() {
 /* ===== ПРОПАСТЬ ===== */
 function isOverGap(x) { return gaps.some(g => x + player.r * 0.5 > g.x && x - player.r * 0.5 < g.x + g.w); }
 
-/* ===== ФОН ===== */
-function drawCloud(x,y,s=1) { ctx.save(); ctx.translate(x,y); ctx.scale(s,s); ctx.fillStyle="rgba(255,255,255,0.85)"; ctx.beginPath(); ctx.arc(0,10,20,0,7); ctx.arc(22,0,25,0,7); ctx.arc(48,12,19,0,7); ctx.arc(25,17,24,0,7); ctx.fill(); ctx.restore(); }
-function drawMountain(x,y,w,h,c) { ctx.fillStyle=c; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+w/2,y-h); ctx.lineTo(x+w,y); ctx.closePath(); ctx.fill(); }
-function drawTree(x,y,s=1) { ctx.save(); ctx.translate(x,y); ctx.scale(s,s); ctx.fillStyle="#68452b"; ctx.fillRect(-7,-55,14,58); ctx.fillStyle="#276b3c"; ctx.beginPath(); ctx.arc(0,-65,27,0,7); ctx.arc(-18,-48,19,0,7); ctx.arc(18,-48,19,0,7); ctx.fill(); ctx.restore(); }
+/* ===== ФОН С ГЛУБИНОЙ ===== */
+function drawCloud(x,y,s=1) {
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.fillStyle="rgba(255,255,255,0.85)";
+  ctx.beginPath(); ctx.arc(0,10,20,0,7); ctx.arc(22,0,25,0,7); ctx.arc(48,12,19,0,7); ctx.arc(25,17,24,0,7); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,0.5)";
+  ctx.beginPath(); ctx.arc(5,18,15,0,7); ctx.arc(30,18,18,0,7); ctx.fill();
+  ctx.restore();
+}
+
+function drawMountain(x,y,w,h,c,shadow) {
+  // Основная гора
+  ctx.fillStyle=c;
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+w/2,y-h); ctx.lineTo(x+w,y); ctx.closePath(); ctx.fill();
+  // Тень на левой стороне (глубина)
+  ctx.fillStyle=shadow;
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+w/2,y-h); ctx.lineTo(x+w/2,y); ctx.closePath(); ctx.fill();
+  // Снежная шапка
+  ctx.fillStyle="rgba(255,255,255,0.9)";
+  ctx.beginPath(); ctx.moveTo(x+w/2-15,y-h+22); ctx.lineTo(x+w/2,y-h); ctx.lineTo(x+w/2+15,y-h+22); ctx.closePath(); ctx.fill();
+}
+
+function drawTree(x,y,s=1) {
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  // Ствол
+  ctx.fillStyle="#5a3a1a"; ctx.fillRect(-7,-55,14,58);
+  ctx.fillStyle="#8b5a2b"; ctx.fillRect(-5,-55,4,58);
+  // Крона (3 слоя для глубины)
+  ctx.fillStyle="#1b5e20"; ctx.beginPath(); ctx.arc(0,-65,27,0,7); ctx.arc(-18,-48,19,0,7); ctx.arc(18,-48,19,0,7); ctx.fill();
+  ctx.fillStyle="#2e7d32"; ctx.beginPath(); ctx.arc(-5,-68,22,0,7); ctx.arc(-22,-50,16,0,7); ctx.arc(14,-50,16,0,7); ctx.fill();
+  ctx.fillStyle="#43a047"; ctx.beginPath(); ctx.arc(-8,-70,15,0,7); ctx.arc(-22,-52,10,0,7); ctx.arc(10,-52,10,0,7); ctx.fill();
+  ctx.restore();
+}
+
+function drawBush(x,y,s=1) {
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.fillStyle="#1b5e20"; ctx.beginPath(); ctx.arc(0,0,22,0,7); ctx.arc(-18,5,16,0,7); ctx.arc(18,5,16,0,7); ctx.fill();
+  ctx.fillStyle="#2e7d32"; ctx.beginPath(); ctx.arc(-5,-3,16,0,7); ctx.arc(-20,2,12,0,7); ctx.arc(14,2,12,0,7); ctx.fill();
+  ctx.restore();
+}
 
 function drawBackground() {
   const theme = worlds[world];
-  const g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,theme.sky); g.addColorStop(1,"#e8f5d4");
+  const g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,theme.sky); g.addColorStop(0.6,"#d4eecf"); g.addColorStop(1,"#e8f5d4");
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  for (let i=0;i<7;i++) drawCloud(((i*190 - camera*0.12)%1100+1100)%1100-80, 55+(i%3)*40, 0.8+(i%2)*0.2);
-  for (let i=0;i<8;i++) drawMountain(i*180-(camera*0.2%180), 290, 190, 125, world%4===3?"#dba36c":"#83b5a0");
+
+  // Слой 1: Солнце
+  ctx.fillStyle="rgba(255,255,200,0.8)"; ctx.beginPath(); ctx.arc(W-100, 70, 40, 0, 7); ctx.fill();
+  ctx.fillStyle="rgba(255,255,200,0.3)"; ctx.beginPath(); ctx.arc(W-100, 70, 55, 0, 7); ctx.fill();
+
+  // Слой 2: Дальние облака (медленный)
+  for (let i=0;i<6;i++) drawCloud(((i*250 - camera*0.08)%1500+1500)%1500-150, 40+(i%3)*30, 0.6+(i%2)*0.2);
+
+  // Слой 3: Дальние горы (тёмные, синеватые)
+  for (let i=0;i<10;i++) {
+    const mx = i*200 - (camera*0.15 % 200);
+    drawMountain(mx, 300, 220, 160, "#6b8f9e", "#4a6a78");
+  }
+
+  // Слой 4: Средние горы (светлее)
+  for (let i=0;i<8;i++) {
+    const mx = i*250 - (camera*0.25 % 250);
+    drawMountain(mx, 320, 200, 120, world%4===3?"#dba36c":"#83b5a0", world%4===3?"#a87040":"#5a8a70");
+  }
+
+  // Слой 5: Средние облака (быстрее)
+  for (let i=0;i<5;i++) drawCloud(((i*300 - camera*0.3)%1600+1600)%1600-200, 100+(i%2)*50, 0.8+(i%2)*0.2);
+
+  // Слой 6: Холмы
   ctx.fillStyle=world%4===3?"#a8bd62":"#70ad68"; ctx.beginPath(); ctx.moveTo(0,350);
   for(let x=0;x<=W+20;x+=20) { const wx=x+camera*0.42; ctx.lineTo(x, 325+Math.sin(wx*0.008)*20+Math.sin(wx*0.018)*9); }
   ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.fill();
-  for(let i=0;i<13;i++) drawTree(((i*125-camera*0.48)%1250+1250)%1250-100, 360, 0.65);
-  ctx.fillStyle=world%4===3?"#598c39":"#347b3d";
-  for(let i=0;i<18;i++) { const x=((i*85-camera*0.72)%1100+1100)%1100-70; ctx.beginPath(); ctx.arc(x,382,24,Math.PI,0); ctx.fill(); }
+  // Тень на холмах
+  ctx.fillStyle="rgba(0,0,0,0.15)";
+  for(let x=0;x<=W+20;x+=20) { const wx=x+camera*0.42; const y=325+Math.sin(wx*0.008)*20+Math.sin(wx*0.018)*9; ctx.fillRect(x, y+10, 20, 4); }
+
+  // Слой 7: Деревья (средний план)
+  for(let i=0;i<15;i++) drawTree(((i*120-camera*0.48)%1500+1500)%1500-100, 370, 0.55);
+
+  // Слой 8: Кусты (ближний план)
+  for(let i=0;i<20;i++) drawBush(((i*90-camera*0.72)%1400+1400)%1400-70, 385, 0.8);
+
+  // Земля с пропастями
   const sorted = gaps.slice().sort((a,b)=>a.x-b.x);
   for (const gap of sorted) {
     const gx = gap.x - camera;
@@ -334,56 +363,110 @@ function drawBackground() {
   for (const gap of sorted) { if (gap.x > cursor) drawGroundSegment(cursor, gap.x-cursor, theme); cursor = gap.x + gap.w; }
   if (cursor < LEVEL_WIDTH) drawGroundSegment(cursor, LEVEL_WIDTH-cursor, theme);
 }
+
 function drawGroundSegment(startX, width, theme) {
   const sx = startX - camera; if (sx + width < -50 || sx > W + 50) return;
+  
+  // Основная земля
   ctx.fillStyle=theme.ground; ctx.fillRect(sx, GROUND_Y, width, H-GROUND_Y);
-  ctx.fillStyle="#7bd66a"; ctx.fillRect(sx, GROUND_Y, width, 6);
-  ctx.fillStyle="#2e5c2a"; ctx.fillRect(sx, GROUND_Y+6, width, 4);
-  const lg = ctx.createLinearGradient(0, GROUND_Y+10, 0, H); lg.addColorStop(0,"rgba(0,0,0,0)"); lg.addColorStop(1,"rgba(0,0,0,0.45)");
-  ctx.fillStyle=lg; ctx.fillRect(sx, GROUND_Y+10, width, H-GROUND_Y-10);
+  
+  // Верхний слой травы (яркий)
+  ctx.fillStyle="#7bd66a"; ctx.fillRect(sx, GROUND_Y, width, 8);
+  
+  // Тёмная полоса
+  ctx.fillStyle="#2e5c2a"; ctx.fillRect(sx, GROUND_Y+8, width, 6);
+  
+  // Травинки
+  ctx.fillStyle="#a8e88e";
+  for(let i = 0; i < width; i += 12) {
+    const tx = sx + i;
+    if (tx < -20 || tx > W + 20) continue;
+    ctx.fillRect(tx, GROUND_Y - 4, 2, 4);
+    ctx.fillRect(tx + 4, GROUND_Y - 6, 2, 6);
+    ctx.fillRect(tx + 8, GROUND_Y - 3, 2, 3);
+  }
+  
+  // Текстура земли (камни, корни)
+  ctx.fillStyle="rgba(0,0,0,0.15)";
+  for(let i = 0; i < width; i += 30) {
+    const tx = sx + i;
+    if (tx < -20 || tx > W + 20) continue;
+    ctx.beginPath(); ctx.arc(tx, GROUND_Y + 20 + (i%3)*8, 4, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(tx + 15, GROUND_Y + 35, 3, 0, 7); ctx.fill();
+  }
+  
+  // Глубина (тёмный низ)
+  const lg = ctx.createLinearGradient(0, GROUND_Y+14, 0, H); lg.addColorStop(0,"rgba(0,0,0,0)"); lg.addColorStop(1,"rgba(0,0,0,0.5)");
+  ctx.fillStyle=lg; ctx.fillRect(sx, GROUND_Y+14, width, H-GROUND_Y-14);
+  
+  // Края обрыва
   const sortedGaps = gaps.slice().sort((a,b)=>a.x-b.x);
   for (const gap of sortedGaps) {
-    if (Math.abs(gap.x - (startX+width)) < 1) { ctx.fillStyle="#8b5a2b"; ctx.fillRect(sx+width-8, GROUND_Y, 8, H-GROUND_Y); ctx.fillStyle="#c98a4b"; ctx.fillRect(sx+width-8, GROUND_Y, 8, 8); }
-    if (Math.abs(gap.x + gap.w - startX) < 1) { ctx.fillStyle="#8b5a2b"; ctx.fillRect(sx, GROUND_Y, 8, H-GROUND_Y); ctx.fillStyle="#c98a4b"; ctx.fillRect(sx, GROUND_Y, 8, 8); }
+    if (Math.abs(gap.x - (startX+width)) < 1) { 
+      ctx.fillStyle="#8b5a2b"; ctx.fillRect(sx+width-8, GROUND_Y, 8, H-GROUND_Y); 
+      ctx.fillStyle="#c98a4b"; ctx.fillRect(sx+width-8, GROUND_Y, 8, 8); 
+    }
+    if (Math.abs(gap.x + gap.w - startX) < 1) { 
+      ctx.fillStyle="#8b5a2b"; ctx.fillRect(sx, GROUND_Y, 8, H-GROUND_Y); 
+      ctx.fillStyle="#c98a4b"; ctx.fillRect(sx, GROUND_Y, 8, 8); 
+    }
   }
 }
 
 /* ===== ОТРИСОВКА ===== */
-function drawPlatforms() { for(const p of platforms) { const x=p.x-camera; if(x<-180||x>W+180) continue; ctx.fillStyle="#80552f"; ctx.fillRect(x,p.y,p.w,p.h); ctx.fillStyle="#55a84c"; ctx.fillRect(x,p.y,p.w,5); } }
+function drawPlatforms() {
+  for(const p of platforms) {
+    const x=p.x-camera; if(x<-180||x>W+180) continue;
+    // Тень под платформой
+    ctx.fillStyle="rgba(0,0,0,0.2)";
+    ctx.fillRect(x+3, p.y+p.h, p.w, 5);
+    // Платформа
+    ctx.fillStyle="#80552f"; ctx.fillRect(x,p.y,p.w,p.h);
+    // Трава сверху
+    ctx.fillStyle="#55a84c"; ctx.fillRect(x,p.y,p.w,5);
+    ctx.fillStyle="#7bd66a"; ctx.fillRect(x,p.y,p.w,2);
+    // Текстура (доски)
+    ctx.fillStyle="rgba(0,0,0,0.15)";
+    for(let i=0; i<p.w; i+=20) ctx.fillRect(x+i, p.y, 2, p.h);
+  }
+}
 
 function drawHut() {
   const hutX = LEVEL_WIDTH - 120;
   const x = hutX - camera;
   if (x < -150 || x > W + 150) return;
   
+  // Тень
+  ctx.fillStyle="rgba(0,0,0,0.2)"; ctx.fillRect(x-5, GROUND_Y-5, 110, 8);
   // Стены
-  ctx.fillStyle = "#8b5a2b";
-  ctx.fillRect(x, GROUND_Y - 90, 100, 90);
+  ctx.fillStyle = "#8b5a2b"; ctx.fillRect(x, GROUND_Y - 90, 100, 90);
+  ctx.fillStyle = "#a06b3b"; ctx.fillRect(x+2, GROUND_Y - 88, 96, 86);
+  // Деревянные доски
+  ctx.fillStyle = "rgba(0,0,0,0.1)";
+  for(let i=0; i<90; i+=15) ctx.fillRect(x+2, GROUND_Y - 88 + i, 96, 2);
   // Крыша
   ctx.fillStyle = "#a8322b";
-  ctx.beginPath();
-  ctx.moveTo(x - 10, GROUND_Y - 90);
-  ctx.lineTo(x + 50, GROUND_Y - 140);
-  ctx.lineTo(x + 110, GROUND_Y - 90);
-  ctx.closePath();
-  ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x - 10, GROUND_Y - 90); ctx.lineTo(x + 50, GROUND_Y - 150); ctx.lineTo(x + 110, GROUND_Y - 90); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#c94a42";
+  ctx.beginPath(); ctx.moveTo(x - 5, GROUND_Y - 90); ctx.lineTo(x + 50, GROUND_Y - 145); ctx.lineTo(x + 105, GROUND_Y - 90); ctx.closePath(); ctx.fill();
   // Дверь
-  ctx.fillStyle = "#3b2414";
-  ctx.fillRect(x + 35, GROUND_Y - 60, 30, 60);
+  ctx.fillStyle = "#3b2414"; ctx.fillRect(x + 35, GROUND_Y - 65, 30, 65);
+  ctx.fillStyle = "#5a3a1a"; ctx.fillRect(x + 38, GROUND_Y - 60, 24, 55);
   // Окно
-  ctx.fillStyle = "#f4cf43";
-  ctx.fillRect(x + 10, GROUND_Y - 70, 20, 20);
-  ctx.fillStyle = "#263238";
-  ctx.fillRect(x + 19, GROUND_Y - 70, 2, 20);
-  ctx.fillRect(x + 10, GROUND_Y - 61, 20, 2);
+  ctx.fillStyle = "#f4cf43"; ctx.fillRect(x + 10, GROUND_Y - 70, 20, 20);
+  ctx.fillStyle = "#263238"; ctx.fillRect(x + 19, GROUND_Y - 70, 2, 20); ctx.fillRect(x + 10, GROUND_Y - 61, 20, 2);
   // Труба
-  ctx.fillStyle = "#555";
-  ctx.fillRect(x + 70, GROUND_Y - 130, 15, 30);
+  ctx.fillStyle = "#555"; ctx.fillRect(x + 70, GROUND_Y - 130, 15, 30);
+  ctx.fillStyle = "#777"; ctx.fillRect(x + 68, GROUND_Y - 132, 19, 4);
 }
 
 function drawPlayer() {
   const x=player.x-camera, y=player.y;
   if(player.invincible>0 && Math.floor(frame/5)%2===0) return;
+  // Тень
+  if(player.onGround) {
+    ctx.fillStyle="rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.ellipse(x, GROUND_Y+2, 22, 5, 0, 0, 7); ctx.fill();
+  }
   ctx.fillStyle="#4b3025"; ctx.fillRect(x-12,y+11,10,12); ctx.fillRect(x+3,y+11,10,12);
   ctx.fillStyle="#70452c"; ctx.beginPath(); ctx.roundRect(x-17,y-5,34,25,8); ctx.fill();
   ctx.fillStyle="#e7a72f"; ctx.beginPath(); ctx.arc(x,y-9,19,0,7); ctx.fill();
@@ -396,11 +479,13 @@ function drawPlayer() {
   ctx.fillStyle="#a7a7a7"; ctx.fillRect(34,-9,8,2);
   ctx.restore();
 }
+
 function drawEnemy(e) {
   const x=e.x-camera; if(x<-60||x>W+60||!e.alive) return;
+  if(e.onGround) { ctx.fillStyle="rgba(0,0,0,0.15)"; ctx.beginPath(); ctx.ellipse(x, GROUND_Y+2, 15, 4, 0, 0, 7); ctx.fill(); }
   ctx.font="34px Arial"; ctx.textAlign="center"; ctx.fillText(worlds[world].enemy, x, e.y+5);
-  if(Math.abs(e.vy)>1) { ctx.fillStyle="rgba(0,0,0,0.12)"; ctx.beginPath(); ctx.ellipse(x,GROUND_Y,17,4,0,0,7); ctx.fill(); }
 }
+
 function drawLizard(l) {
   const x=l.x-camera; if(x<-70||x>W+70||!l.alive) return;
   const f=l.facing, bob=l.onGround&&Math.abs(l.vx)>0.3?Math.sin(frame*0.25)*2:0;
@@ -416,6 +501,7 @@ function drawLizard(l) {
   ctx.strokeStyle="#0a4a0a"; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(20,0); ctx.lineTo(26,0); ctx.stroke();
   ctx.restore();
 }
+
 function drawBear(b) {
   const x=b.x-camera; if(x<-80||x>W+80||!b.alive) return;
   const f=b.facing, flash=b.hurtFlash>0&&Math.floor(frame/4)%2===0;
@@ -435,6 +521,7 @@ function drawBear(b) {
   ctx.restore();
   if (b.hp < b.maxHp) { const hx=x-20, hy=b.y-58; ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(hx-2,hy-2,44,8); for(let i=0;i<b.maxHp;i++){ ctx.fillStyle=i<b.hp?"#e33":"#444"; ctx.fillRect(hx+i*14,hy,12,4); } }
 }
+
 function drawWitch(w) {
   const x=w.x-camera; if(x<-80||x>W+80||!w.alive) return;
   ctx.fillStyle="#5a3a22"; ctx.beginPath(); ctx.ellipse(x,w.y+22,20,26,0,0,7); ctx.fill();
@@ -444,6 +531,7 @@ function drawWitch(w) {
   ctx.font="36px Arial"; ctx.textAlign="center"; ctx.fillText("🧙‍♀️",x,w.y);
   ctx.fillStyle="rgba(255,0,0,0.7)"; ctx.beginPath(); ctx.arc(x,w.y-28,3,0,7); ctx.fill();
 }
+
 function drawBoss() {
   if(!boss || !boss.isBossLevel || !bossBattle || !boss.alive) return;
   const x=boss.x-camera;
@@ -452,13 +540,16 @@ function drawBoss() {
   ctx.fillStyle="#e33"; ctx.fillRect(x-32,boss.y-49,64*(boss.hp/boss.maxHp),8);
   ctx.fillStyle="white"; ctx.font="13px Arial"; ctx.fillText("БОСС",x,boss.y-55);
 }
+
 function drawBullets() {
   ctx.fillStyle="#292929"; for(const b of bullets){ ctx.beginPath(); ctx.arc(b.x-camera,b.y,5,0,7); ctx.fill(); }
   ctx.fillStyle="#ffdb45"; for(const b of enemyBullets){ ctx.save(); ctx.translate(b.x-camera,b.y); ctx.rotate(b.angle||0); if(b.rock){ ctx.fillStyle="#8b5a2b"; ctx.beginPath(); ctx.arc(0,0,6,0,7); ctx.fill(); ctx.fillStyle="#5a3a1a"; ctx.beginPath(); ctx.arc(-2,-1,2,0,7); ctx.fill(); } else { ctx.fillRect(-8,-3,16,6); } ctx.restore(); }
 }
+
 function drawStars() {
   for(const s of stars){ if(s.taken) continue; const x=s.x-camera; if(x<-30||x>W+30) continue; ctx.font="24px Arial"; ctx.textAlign="center"; ctx.fillText("⭐",x,s.y); }
 }
+
 function draw() {
   drawBackground(); drawPlatforms(); drawHut(); drawStars();
   for(const e of enemies) drawEnemy(e);
@@ -480,7 +571,7 @@ function shoot() {
   if(gameOver||victory||isTransitioning) return;
   const now=Date.now(); if(now-(player.lastShot||0)<260) return; player.lastShot=now;
   bullets.push({ x:player.x+player.facing*25, y:player.y-7, vx:player.facing*8, life:100 });
-  soundShoot(); // Звук выстрела как пистолет
+  soundShoot();
 }
 function hurtPlayer() {
   if(player.invincible>0||gameOver||victory||isTransitioning) return;
@@ -619,34 +710,18 @@ function updateStars() {
 
 function checkLevelEnd() {
   if (isTransitioning || gameOver || victory) return;
-
-  // Вход в избушку
   const hutX = LEVEL_WIDTH - 120;
   if (player.x > hutX + 30 && player.x < hutX + 70) {
-    isTransitioning = true;
-    say("В избушку!");
-    sound(880, 0.3, "sine");
-    
+    isTransitioning = true; say("В избушку!"); sound(880, 0.3, "sine");
     setTimeout(() => {
       if (world < TOTAL_LEVELS - 1) {
-        world++;
-        makeLevel();
-        say("Мир " + (world+1) + ": " + worlds[world].name);
-        saveProgress();
-        isTransitioning = false;
+        world++; makeLevel(); say("Мир " + (world+1) + ": " + worlds[world].name); saveProgress(); isTransitioning = false;
       } else {
-        victory = true;
-        say("Победа! Колобок спас лес!");
-        saveProgress();
-        isTransitioning = false;
+        victory = true; say("Победа! Колобок спас лес!"); saveProgress(); isTransitioning = false;
       }
     }, 1000);
   }
-
-  // Блокировка прохода мимо живого босса
-  if (boss && boss.isBossLevel && bossBattle && boss.alive && player.x > 2110) {
-    player.x = 2110;
-  }
+  if (boss && boss.isBossLevel && bossBattle && boss.alive && player.x > 2110) { player.x = 2110; }
 }
 
 /* ===== ЦИКЛ ===== */
