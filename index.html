@@ -2,28 +2,27 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Колобок: Побег</title>
     <style>
         body { margin: 0; padding: 0; background: #111; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
-        canvas { display: block; width: 100vw; height: 100vh; touch-action: none; image-rendering: pixelated; }
+        canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
         
         #controls { position: absolute; bottom: 20px; display: flex; width: 100%; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; }
-        .btn { background: rgba(255,255,255,0.4); border: 2px solid #fff; border-radius: 15px; width: 70px; height: 70px; font-size: 30px; font-weight: bold; color: #000; display: flex; justify-content: center; align-items: center; user-select: none; pointer-events: auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
+        .btn { background: rgba(255,255,255,0.4); border: 2px solid #fff; border-radius: 15px; width: 70px; height: 70px; font-size: 30px; font-weight: bold; color: #000; display: flex; justify-content: center; align-items: center; user-select: none; pointer-events: auto; }
         .btn:active { background: rgba(255,255,255,0.8); transform: translateY(2px); }
         #btnShoot { position: absolute; right: 20px; bottom: 100px; background: rgba(255,0,0,0.6); color: white; border-color: white; }
         
-        #startScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; z-index: 10; }
-        h1 { font-size: 32px; margin-bottom: 10px; color: #FFD700; text-shadow: 2px 2px #000; }
-        p { font-size: 16px; line-height: 1.5; margin-bottom: 20px; max-width: 400px; }
-        #startBtn { padding: 15px 30px; font-size: 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; box-shadow: 0 4px #2E7D32; }
-        #startBtn:active { transform: translateY(4px); box-shadow: 0 0 #2E7D32; }
+        #startScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; z-index: 10; }
+        h1 { font-size: 32px; margin-bottom: 10px; color: #FFD700; }
+        p { font-size: 16px; line-height: 1.5; margin-bottom: 20px; }
+        #startBtn { padding: 15px 30px; font-size: 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-weight: bold; }
     </style>
 </head>
 <body>
     <div id="startScreen">
         <h1>КОЛОБОК: ПОБЕГ</h1>
-        <p>Бабушка и дедушка хотели тебя съесть!<br>Хватай дробовик, собирай монеты и беги к заправке, чтобы уехать в закат.</p>
+        <p>Бабушка и дедушка хотели тебя съесть!<br>Хватай дробовик, собирай монеты и беги к заправке.</p>
         <button id="startBtn">НАЧАТЬ ИГРУ</button>
     </div>
 
@@ -41,25 +40,10 @@
     const startScreen = document.getElementById('startScreen');
     const startBtn = document.getElementById('startBtn');
 
-    let canvasWidth = window.innerWidth;
-    let canvasHeight = window.innerHeight;
-
-    function resizeCanvas() {
-        canvasWidth = window.innerWidth;
-        canvasHeight = window.innerHeight;
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-        
-        if (gameStarted && platforms.length > 0) {
-            platforms[0].y = canvasHeight - 80;
-            if (player.y > canvasHeight - 150) {
-                player.y = canvasHeight - 130;
-            }
-        }
-    }
-    window.addEventListener('resize', resizeCanvas);
-    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
-    resizeCanvas();
+    let cw = window.innerWidth;
+    let ch = window.innerHeight;
+    canvas.width = cw;
+    canvas.height = ch;
 
     let keys = { right: false, left: false };
     let score = 0;
@@ -82,7 +66,7 @@
 
     function setupLevel(lvl) {
         player.x = 100;
-        player.y = canvasHeight - 130; 
+        player.y = ch - 130; 
         bullets = [];
         enemies = [];
         coins = [];
@@ -90,52 +74,37 @@
         cameraX = 0;
         levelGoal = 1500 * lvl; 
 
-        platforms.push({ x: -2000, y: canvasHeight - 80, width: 10000, height: 100 });
+        platforms.push({ x: -2000, y: ch - 80, width: 10000, height: 100 });
 
         if (lvl === 1) {
-            enemies.push({ x: canvasWidth + 300, y: canvasHeight - 110, width: 40, height: 40, speed: 1.5, type: '🐇' });
+            enemies.push({ x: cw + 300, y: ch - 110, width: 40, height: 40, speed: 1.5, type: '🐇' });
         } else if (lvl === 2) {
-            enemies.push({ x: canvasWidth + 300, y: canvasHeight - 110, width: 40, height: 40, speed: 1.8, type: '🐺' });
-            enemies.push({ x: canvasWidth + 800, y: canvasHeight - 110, width: 40, height: 40, speed: 1.8, type: '🐻' });
+            enemies.push({ x: cw + 300, y: ch - 110, width: 40, height: 40, speed: 1.8, type: '🐺' });
+            enemies.push({ x: cw + 800, y: ch - 110, width: 40, height: 40, speed: 1.8, type: '🐻' });
         } else if (lvl === 3) {
-            enemies.push({ x: canvasWidth + 300, y: canvasHeight - 110, width: 40, height: 40, speed: 2.2, type: '🦊' });
-            enemies.push({ x: canvasWidth + 800, y: canvasHeight - 110, width: 40, height: 40, speed: 2.2, type: '🐺' });
+            enemies.push({ x: cw + 300, y: ch - 110, width: 40, height: 40, speed: 2.2, type: '🦊' });
+            enemies.push({ x: cw + 800, y: ch - 110, width: 40, height: 40, speed: 2.2, type: '🐺' });
         }
 
         for (let i = 0; i < 15; i++) {
-            coins.push({ x: 400 + i * 150, y: canvasHeight - 150 - Math.random() * 50, width: 20, height: 20 });
+            coins.push({ x: 400 + i * 150, y: ch - 150 - Math.random() * 50, width: 20, height: 20 });
         }
     }
 
     startBtn.addEventListener('click', () => {
         startScreen.style.display = 'none';
         gameStarted = true;
-        level = 1;
-        score = 0;
-        resizeCanvas(); 
         setupLevel(level);
     });
 
-    window.addEventListener('keydown', (e) => {
-        if (!gameStarted) return;
-        if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = true; player.facingRight = true; }
-        if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keys.left = true; player.facingRight = false; }
-        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
-            if (player.grounded) { player.vy = player.jumpPower; player.grounded = false; }
-        }
-        if (e.code === 'KeyF') shoot();
-    });
-    window.addEventListener('keyup', (e) => {
-        if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
-        if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
-    });
-
+    // Кнопки управления
     document.getElementById('btnRight').addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; player.facingRight = true; });
     document.getElementById('btnRight').addEventListener('touchend', (e) => { e.preventDefault(); keys.right = false; });
     document.getElementById('btnLeft').addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; player.facingRight = false; });
     document.getElementById('btnLeft').addEventListener('touchend', (e) => { e.preventDefault(); keys.left = false; });
     document.getElementById('btnShoot').addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); });
     
+    // Прыжок по тапу на экран
     canvas.addEventListener('touchstart', (e) => { 
         if (gameStarted && player.grounded) { player.vy = player.jumpPower; player.grounded = false; }
     });
@@ -158,8 +127,8 @@
         if (keys.right) player.x += player.speed;
         if (keys.left) player.x -= player.speed;
 
-        if (player.x > canvasWidth / 2) {
-            cameraX = player.x - canvasWidth / 2;
+        if (player.x > cw / 2) {
+            cameraX = player.x - cw / 2;
         } else {
             cameraX = 0;
         }
@@ -181,7 +150,7 @@
 
         bullets.forEach((b, index) => {
             b.x += b.speed;
-            if (b.x > player.x + canvasWidth || b.x < player.x - canvasWidth) bullets.splice(index, 1);
+            if (b.x > player.x + cw || b.x < player.x - cw) bullets.splice(index, 1);
         });
 
         enemies.forEach((e, index) => {
@@ -218,31 +187,8 @@
                 alert(`Уровень ${level}!`);
             } else {
                 gameOver = true; 
-                showWinScreen();
             }
         }
-    }
-
-    function showWinScreen() {
-        ctx.fillStyle = '#FF8C00'; 
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        ctx.fillStyle = '#FFFF00'; 
-        ctx.beginPath(); ctx.arc(canvasWidth / 2, canvasHeight / 2, 80, 0, Math.PI * 2); ctx.fill();
-        
-        ctx.font = '100px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('🚗', canvasWidth / 2, canvasHeight - 100);
-        ctx.fillText('🥯', canvasWidth / 2 - 60, canvasHeight - 100);
-
-        ctx.fillStyle = '#FFF'; ctx.font = 'bold 40px "Courier New", Courier, monospace';
-        ctx.fillText('ПОБЕГ УДАЛСЯ!', canvasWidth / 2, 100);
-        ctx.font = '24px "Courier New", Courier, monospace';
-        ctx.fillText('Колобок уехал в закат', canvasWidth / 2, 150);
-
-        ctx.fillStyle = '#000'; ctx.fillRect(canvasWidth / 2 - 100, canvasHeight - 50, 200, 40);
-        ctx.fillStyle = '#FFF'; ctx.font = '20px Arial';
-        ctx.fillText('Играть снова', canvasWidth / 2, canvasHeight - 25);
-        ctx.textAlign = 'left';
     }
 
     function drawKolobok(x, y, w, h, facingRight) {
@@ -271,11 +217,11 @@
     }
 
     function draw() {
-        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        ctx.clearRect(0, 0, cw, ch);
 
-        if (level === 1) { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, canvasWidth, canvasHeight); }
-        else if (level === 2) { ctx.fillStyle = '#2E8B57'; ctx.fillRect(0, 0, canvasWidth, canvasHeight); }
-        else { ctx.fillStyle = '#FF8C00'; ctx.fillRect(0, 0, canvasWidth, canvasHeight); }
+        if (level === 1) { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, cw, ch); }
+        else if (level === 2) { ctx.fillStyle = '#2E8B57'; ctx.fillRect(0, 0, cw, ch); }
+        else { ctx.fillStyle = '#FF8C00'; ctx.fillRect(0, 0, cw, ch); }
 
         ctx.save();
         ctx.translate(-cameraX, 0);
@@ -284,7 +230,7 @@
         platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
 
         ctx.fillStyle = '#228B22';
-        ctx.fillRect(-2000, canvasHeight - 80, 10000, 15);
+        ctx.fillRect(-2000, ch - 80, 10000, 15);
 
         ctx.font = '30px Arial';
         coins.forEach(c => { ctx.fillText('🪙', c.x, c.y + 30); });
@@ -303,12 +249,12 @@
         ctx.fillText(`Уровень: ${level} / 3`, 20, 70);
 
         if (gameOver && level < 3) {
-            ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, cw, ch);
             ctx.fillStyle = '#FFF'; ctx.textAlign = 'center';
             ctx.font = '48px "Courier New", Courier, monospace';
-            ctx.fillText('ИГРА ОКОНЧЕНА', canvasWidth / 2, canvasHeight / 2 - 50);
+            ctx.fillText('ИГРА ОКОНЧЕНА', cw / 2, ch / 2 - 50);
             ctx.font = '24px "Courier New", Courier, monospace';
-            ctx.fillText('Нажмите чтобы перезапустить', canvasWidth / 2, canvasHeight / 2);
+            ctx.fillText('Нажмите чтобы перезапустить', cw / 2, ch / 2);
             ctx.textAlign = 'left';
         }
     }
