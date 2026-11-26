@@ -85,7 +85,7 @@ const LEVEL_WIDTH = 2400;
 const GRAVITY = 0.55;
 const GROUND_Y = 470;
 const TOTAL_LEVELS = 10;
-const SAVE_KEY = "kolobok_adventure_polish_v2";
+const SAVE_KEY = "kolobok_adventure_polish_v3";
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"rabbit", weather:"leaves"},
@@ -116,7 +116,7 @@ function addFloatingText(x, y, text, color) {
 function saveProgress() {
   try {
     const data = {
-      version: 2, world, totalStars, lastSafeX,
+      version: 3, world, totalStars, lastSafeX,
       player: { x: player.x, y: player.y, health: player.health, facing: player.facing },
       bossBattle, gameOver, victory
     };
@@ -129,7 +129,7 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 2 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
+    if (!data || data.version !== 3 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
     world = data.world; totalStars = Math.max(0, Number(data.totalStars) || 0); lastSafeX = Number(data.lastSafeX) || 70;
     makeLevel();
     if (data.player) {
@@ -193,6 +193,7 @@ function makeLevel() {
   for (let i=0; i<5; i++) {
     const x = 390 + i*370;
     if (gaps.some(g => x > g.x - 20 && x < g.x + g.w + 20)) continue;
+    // ВАЖНО: y = GROUND_Y - 20 (чтобы стоять на земле)
     enemies.push({ x, y:GROUND_Y - 20, vx:0.8 + (world%4)*0.12, vy:0, min:x-95, max:x+95, alive:true, onGround:true, jumpTimer:60 + i*27, hp:1 });
   }
   
@@ -221,7 +222,7 @@ function updateInfo() { info.textContent = "Мир " + (world+1) + "/" + TOTAL_L
 /* ===== ПРОПАСТЬ ===== */
 function isOverGap(x) { return gaps.some(g => x + player.r * 0.5 > g.x && x - player.r * 0.5 < g.x + g.w); }
 
-/* ===== ОТРИСОВКИ ВРАГОВ ===== */
+/* ===== ВРАГИ ===== */
 function drawFrog(x, y, isMoving, facing) {
   const hop = isMoving ? Math.abs(Math.sin(frame * 0.2)) * 10 : 0;
   ctx.save(); ctx.translate(x, y - hop); ctx.scale(facing, 1);
@@ -501,46 +502,15 @@ function drawBear(b) {
   if (b.hp < b.maxHp) { const hx=x-22, hy=b.y-65; ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(hx-2,hy-2,48,10); for(let i=0;i<b.maxHp;i++){ ctx.fillStyle=i<b.hp?"#e33":"#444"; ctx.fillRect(hx+i*15,hy,13,5); } }
 }
 
-/* ===== БАБА-ЯГА В СТУПЕ (ИСПРАВЛЕНО) ===== */
 function drawWitch(w) {
   const x = w.x - camera;
   if (x < -100 || x > W + 100 || !w.alive) return;
-  
-  // 1. Ступа (основание)
-  ctx.fillStyle = "#5a3a22";
-  ctx.beginPath();
-  ctx.ellipse(x, w.y + 25, 22, 28, 0, 0, 7);
-  ctx.fill();
-  
-  // Тёмная окантовка ступы
-  ctx.fillStyle = "#3b2414";
-  ctx.fillRect(x - 24, w.y + 5, 48, 7);
-  
-  // 2. Помело (метла)
-  ctx.strokeStyle = "#c9a26b";
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(x + 14, w.y + 18);
-  ctx.lineTo(x + 38, w.y - 7);
-  ctx.stroke();
-  
-  // Кисточка помела
-  ctx.fillStyle = "#d9b87c";
-  ctx.beginPath();
-  ctx.arc(x + 40, w.y - 9, 7, 0, 7);
-  ctx.fill();
-  
-  // 3. Сама Баба-Яга (эмодзи)
-  ctx.font = "40px Arial";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("🧙‍♀️", x, w.y);
-  
-  // 4. Красный огонёк (индикатор врага)
-  ctx.fillStyle = "#ff0000";
-  ctx.beginPath();
-  ctx.arc(x, w.y - 32, 3, 0, 7);
-  ctx.fill();
+  ctx.fillStyle = "#5a3a22"; ctx.beginPath(); ctx.ellipse(x, w.y + 25, 22, 28, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#3b2414"; ctx.fillRect(x - 24, w.y + 5, 48, 7);
+  ctx.strokeStyle = "#c9a26b"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x + 14, w.y + 18); ctx.lineTo(x + 38, w.y - 7); ctx.stroke();
+  ctx.fillStyle = "#d9b87c"; ctx.beginPath(); ctx.arc(x + 40, w.y - 9, 7, 0, 7); ctx.fill();
+  ctx.font = "40px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🧙‍♀️", x, w.y);
+  ctx.fillStyle = "#ff0000"; ctx.beginPath(); ctx.arc(x, w.y - 32, 3, 0, 7); ctx.fill();
 }
 
 function drawBoss() {
@@ -601,7 +571,7 @@ function draw() {
   drawStars();
   drawPickups();
   for(const e of enemies) drawEnemy(e);
-  for(const w of witches) drawWitch(w); // <-- ИСПРАВЛЕНА ОТРИСОВКА БАБЫ-ЯГИ
+  for(const w of witches) drawWitch(w);
   for(const l of lizards) drawLizard(l);
   for(const b of bears) drawBear(b);
   drawBoss(); 
@@ -705,7 +675,21 @@ function updateEnemies() {
     else { if(e.x<e.min) e.vx=Math.abs(e.vx); if(e.x>e.max) e.vx=-Math.abs(e.vx); }
     e.x+=e.vx; e.y+=e.vy; e.vy+=GRAVITY;
     if(e.y>=GROUND_Y - 20){ e.y=GROUND_Y - 20; e.vy=0; e.onGround=true; }
-    if(Math.abs(player.x-e.x)<35&&Math.abs(player.y-e.y)<35) hurtPlayer();
+    
+    // Прыжок на голову (как в Марио)
+    if (Math.abs(player.x - e.x) < 30 && player.y + player.r > e.y - 40 && player.y + player.r < e.y + 10) {
+      if (player.vy > 0) {
+        // Игрок прыгает сверху — убиваем врага
+        e.alive = false;
+        player.vy = -8; // Отскок
+        sound(600, 0.1, "square");
+        addFloatingText(player.x - camera, player.y - 40, "ПРЫЖОК!", "#fff");
+        totalStars += 1;
+        saveProgress();
+      } else {
+        hurtPlayer();
+      }
+    }
   }
 }
 function updateLizards() {
@@ -716,7 +700,14 @@ function updateLizards() {
     else { l.vx=l.facing*l.speed; if(l.x<80) l.facing=1; if(l.x>LEVEL_WIDTH-80) l.facing=-1; }
     l.x+=l.vx; l.y+=l.vy; l.vy+=GRAVITY;
     if(l.y>=GROUND_Y - 15){ l.y=GROUND_Y - 15; l.vy=0; l.onGround=true; } else l.onGround=false;
-    if(Math.abs(player.x-l.x)<35&&Math.abs(player.y-l.y)<35) hurtPlayer();
+    
+    if(Math.abs(player.x-l.x)<35&&Math.abs(player.y-l.y)<35) {
+       if (player.vy > 0 && player.y < l.y) {
+         l.alive = false; player.vy = -8; sound(600,0.1,"square"); addFloatingText(player.x-camera, player.y-40, "ПРЫЖОК!", "#fff"); totalStars+=1; saveProgress();
+       } else {
+         hurtPlayer();
+       }
+    }
   }
 }
 function updateBears() {
@@ -732,7 +723,15 @@ function updateBears() {
       enemyBullets.push({ x:b.x, y:b.y-30, vx:dx/len*3.2, vy:dy/len*3.2-1.2, angle:Math.atan2(dy,dx), life:180 });
       b.throwTimer=150+Math.random()*80; sound(200,0.1,"square");
     }
-    if(Math.abs(player.x-b.x)<45&&Math.abs(player.y-b.y)<45) hurtPlayer();
+    if(Math.abs(player.x-b.x)<45&&Math.abs(player.y-b.y)<45) {
+       if (player.vy > 0 && player.y < b.y) {
+         b.hp--; b.hurtFlash = 20; player.vy = -8; sound(300,0.1,"square"); 
+         if(b.hp <= 0) { b.alive=false; totalStars+=5; addFloatingText(player.x-camera, player.y-40, "БОСС УБИТ!", "#ff0"); }
+         saveProgress();
+       } else {
+         hurtPlayer();
+       }
+    }
   }
 }
 function updateWitches() {
@@ -747,7 +746,13 @@ function updateWitches() {
       enemyBullets.push({ x:w.x, y:w.y, vx:dx/len*3.4, vy:dy/len*3.4, angle:Math.atan2(dy,dx), life:150 });
       w.shootTimer=130+Math.random()*60; sound(300,0.08,"sawtooth");
     }
-    if(Math.abs(player.x-w.x)<40&&Math.abs(player.y-w.y)<40) hurtPlayer();
+    if(Math.abs(player.x-w.x)<40&&Math.abs(player.y-w.y)<40) {
+       if (player.vy > 0 && player.y < w.y) {
+         w.alive = false; player.vy = -8; sound(600,0.1,"square"); totalStars+=3; saveProgress();
+       } else {
+         hurtPlayer();
+       }
+    }
   }
 }
 function updateBoss() {
@@ -771,7 +776,7 @@ function updateBoss() {
 function updateBullets() {
   for(const b of bullets){
     b.x+=b.vx; b.life--;
-    for(const e of enemies) if(e.alive&&Math.abs(b.x-e.x)<30&&Math.abs(b.y-e.y)<35){ 
+    for(const e of enemies) if(e.alive && Math.abs(b.x-e.x) < 35 && Math.abs(b.y-e.y) < 35){ 
       e.alive=false; b.life=0; 
       if(Math.random() < 0.2) pickups.push({ x: e.x, y: e.y - 20, type: ["apple", "lightning", "shield"][Math.floor(Math.random()*3)] });
       say("Ай, блядь!"); sound(330,0.12); saveProgress(); 
