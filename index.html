@@ -142,7 +142,7 @@
     let levelGoal = 2500;
 
     const player = {
-        x: 0, y: 0, width: 30, height: 30, // Стартуем с x=0
+        x: 50, y: 0, width: 30, height: 30, // Начинаем с левого края (x = 50)
         speed: 5, vy: 0, gravity: 0.6, jumpPower: -11,
         grounded: false, cooldown: 0, facingRight: true
     };
@@ -154,7 +154,6 @@
     let cameraX = 0;
 
     function setupLevel(lvl) {
-        // При старте уровня ставим Колобка в самое начало
         player.x = 50; 
         let groundY = ch - 80;
         player.y = groundY - 30; 
@@ -163,7 +162,7 @@
         enemies = [];
         coins = [];
         platforms = [];
-        cameraX = 0; // Камера в самом начале
+        cameraX = 0; 
         levelGoal = 2500 * lvl; 
 
         platforms.push({ x: -2000, y: groundY, width: 10000, height: 100 });
@@ -248,10 +247,11 @@
         // Ограничение, чтобы не уйти за левый край экрана
         if (player.x < 0) player.x = 0;
 
-        // Камера: начинает двигаться, только когда игрок доходит до середины экрана
+        // Камера: двигается только тогда, когда игрок доходит до правого края экрана
+        // До этого экран стоит на месте, и мы видим левую часть
         if (!gameOver) {
             if (player.x > cw / 2) {
-                cameraX = player.x - cw / 2;
+                cameraX = player.x - cw / 2; 
             } else {
                 cameraX = 0;
             }
