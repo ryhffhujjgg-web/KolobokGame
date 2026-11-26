@@ -8,8 +8,8 @@
         body { margin: 0; padding: 0; background: #111; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
         canvas { display: block; width: 100vw; height: 100vh; touch-action: none; image-rendering: pixelated; }
         
-        /* Подсказка "Поверните телефон" */
-        #rotateMsg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #222; color: #FFD700; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; z-index: 20; font-size: 24px; padding: 20px; box-sizing: border-box; }
+        /* Подсказка "Поверните телефон" (не блокирует игру) */
+        #rotateMsg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(34, 34, 34, 0.9); color: #FFD700; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; z-index: 20; font-size: 24px; padding: 20px; box-sizing: border-box; pointer-events: none; }
         #rotateMsg span { font-size: 60px; margin-bottom: 20px; animation: rotate 2s infinite ease-in-out; }
         @keyframes rotate { 0% { transform: rotate(0deg); } 50% { transform: rotate(90deg); } 100% { transform: rotate(0deg); } }
 
@@ -57,8 +57,8 @@
     let canvasWidth = window.innerWidth;
     let canvasHeight = window.innerHeight;
 
+    // Эта функция только показывает/скрывает подсказку, но НЕ блокирует игру
     function checkOrientation() {
-        // Показываем подсказку, только если игра уже запущена и телефон вертикально
         if (gameStarted && window.innerHeight > window.innerWidth) {
             rotateMsg.style.display = 'flex';
         } else {
@@ -73,11 +73,9 @@
         canvas.height = canvasHeight;
         checkOrientation();
         
+        // Если игра уже идет и земля где-то далеко, обновляем её под новый экран
         if (gameStarted && platforms.length > 0) {
             platforms[0].y = canvasHeight - 80;
-            if (player.y > canvasHeight - 150) {
-                player.y = canvasHeight - 130;
-            }
         }
     }
     window.addEventListener('resize', resizeCanvas);
@@ -106,7 +104,6 @@
 
     function setupLevel(lvl) {
         player.x = 100;
-        // Ставим игрока на землю, даже если экран горизонтальный
         player.y = canvasHeight - 130; 
         bullets = [];
         enemies = [];
@@ -137,8 +134,9 @@
         gameStarted = true;
         level = 1;
         score = 0;
+        resizeCanvas(); // Принудительно обновляем размеры перед стартом
         setupLevel(level);
-        checkOrientation(); // Проверяем ориентацию сразу после старта
+        checkOrientation();
     });
 
     window.addEventListener('keydown', (e) => {
@@ -176,7 +174,8 @@
     }
 
     function update() {
-        if (gameOver || !gameStarted || window.innerHeight > window.innerWidth) return; // Пауза, если вертикально
+        // Убрали проверку на вертикальность здесь, чтобы игра не вставала на паузу
+        if (gameOver || !gameStarted) return;
         
         if (player.cooldown > 0) player.cooldown--;
 
