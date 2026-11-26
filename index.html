@@ -5,54 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Колобок: Побег</title>
     <style>
-        body { margin: 0; padding: 0; background: #222; overflow: hidden; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; }
+        body { margin: 0; padding: 0; background: #111; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
+        canvas { display: block; width: 100vw; height: 100vh; touch-action: none; image-rendering: pixelated; }
         
-        #gameContainer {
-            position: relative;
-            width: 100vw;
-            height: 50vh; /* Игра ровно по центру */
-            background: #87CEEB;
-            overflow: hidden;
-            border-top: 2px solid #000;
-            border-bottom: 2px solid #000;
-        }
+        #controls { position: absolute; bottom: 20px; display: flex; width: 100%; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; }
+        .btn { background: rgba(255,255,255,0.4); border: 2px solid #fff; border-radius: 15px; width: 70px; height: 70px; font-size: 30px; font-weight: bold; color: #000; display: flex; justify-content: center; align-items: center; user-select: none; pointer-events: auto; }
+        .btn:active { background: rgba(255,255,255,0.8); transform: translateY(2px); }
+        #btnShoot { position: absolute; right: 20px; bottom: 100px; background: rgba(255,0,0,0.6); color: white; border-color: white; }
         
-        canvas { display: block; width: 100%; height: 100%; touch-action: none; image-rendering: pixelated; }
-        
-        /* Кнопки управления */
-        #controls { position: absolute; bottom: 20px; display: flex; width: 100%; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; z-index: 5; }
-        .btn { background: rgba(200,200,200,0.8); border: 2px solid #fff; border-radius: 15px; width: 80px; height: 80px; font-size: 30px; font-weight: bold; color: #000; display: flex; justify-content: center; align-items: center; user-select: none; pointer-events: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
-        .btn:active { background: rgba(255,255,255,1); transform: translateY(2px); }
-        #btnShoot { position: absolute; right: 20px; bottom: 100px; background: rgba(220,20,60,0.9); color: white; border-color: white; }
-        
-        /* Стартовый экран */
-        #startScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; z-index: 10; }
-        h1 { font-size: 32px; margin-bottom: 10px; color: #FFD700; text-shadow: 2px 2px #000; }
-        p { font-size: 16px; line-height: 1.5; margin-bottom: 20px; max-width: 400px; }
-        #startBtn { padding: 15px 30px; font-size: 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-weight: bold; box-shadow: 0 4px #2E7D32; }
-        #startBtn:active { transform: translateY(4px); box-shadow: 0 0 #2E7D32; }
+        #startScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; z-index: 10; }
+        h1 { font-size: 32px; margin-bottom: 10px; color: #FFD700; }
+        p { font-size: 16px; line-height: 1.5; margin-bottom: 20px; }
+        #startBtn { padding: 15px 30px; font-size: 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div style="width: 100vw; height: 25vh; background: #222;"></div>
-
-    <div id="gameContainer">
-        <div id="startScreen">
-            <h1>КОЛОБОК: ПОБЕГ</h1>
-            <p>Бабушка и дедушка хотели тебя съесть!<br>Хватай дробовик, собирай монеты и беги к заправке.</p>
-            <button id="startBtn">НАЧАТЬ ИГРУ</button>
-        </div>
-
-        <canvas id="gameCanvas"></canvas>
+    <div id="startScreen">
+        <h1>КОЛОБОК: ПОБЕГ</h1>
+        <p>Бабушка и дедушка хотели тебя съесть!<br>Хватай дробовик, собирай монеты и беги к заправке.</p>
+        <button id="startBtn">НАЧАТЬ ИГРУ</button>
     </div>
 
-    <div style="position: absolute; bottom: 0; width: 100vw; height: 25vh; background: #222;">
-        <div id="controls">
-            <div class="btn" id="btnLeft">◀</div>
-            <div class="btn" id="btnRight">▶</div>
-        </div>
-        <div class="btn" id="btnShoot">🔫</div>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="controls">
+        <div class="btn" id="btnLeft">◀</div>
+        <div class="btn" id="btnRight">▶</div>
     </div>
+    <div class="btn" id="btnShoot">🔫</div>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
@@ -61,25 +41,18 @@
     const startBtn = document.getElementById('startBtn');
 
     let cw = window.innerWidth;
-    let ch = window.innerHeight / 2; 
-
-    function resizeCanvas() {
-        cw = window.innerWidth;
-        ch = window.innerHeight / 2;
-        canvas.width = cw;
-        canvas.height = ch;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+    let ch = window.innerHeight;
+    canvas.width = cw;
+    canvas.height = ch;
 
     let keys = { right: false, left: false };
     let score = 0;
     let gameOver = false;
     let gameStarted = false;
     let level = 1;
-    let levelGoal = 2000; // Увеличили дистанцию из-за большего обзора
+    let levelGoal = 2000;
 
-    // УМЕНЬШИЛИ РАЗМЕРЫ ПЕРСОНАЖЕЙ (с 50 до 30)
+    // УМЕНЬШЕННЫЙ ПЕРСОНАЖ
     const player = {
         x: 100, y: 0, width: 30, height: 30, 
         speed: 5, vy: 0, gravity: 0.6, jumpPower: -11,
@@ -94,7 +67,7 @@
 
     function setupLevel(lvl) {
         player.x = 100;
-        player.y = ch - 100; // Ставим на землю (чуть выше из-за меньшего размера)
+        player.y = ch - 100; 
         bullets = [];
         enemies = [];
         coins = [];
@@ -102,10 +75,10 @@
         cameraX = 0;
         levelGoal = 2000 * lvl; 
 
-        // Земля стала чуть тоньше
+        // Земля
         platforms.push({ x: -2000, y: ch - 60, width: 10000, height: 100 });
 
-        // Враги уменьшены (с 40 до 30)
+        // Враги (уменьшенные)
         if (lvl === 1) {
             enemies.push({ x: cw + 300, y: ch - 80, width: 30, height: 30, speed: 1.5, type: '🐇' });
             enemies.push({ x: cw + 900, y: ch - 80, width: 30, height: 30, speed: 1.6, type: '🐇' });
@@ -123,7 +96,7 @@
             enemies.push({ x: cw + 2200, y: ch - 80, width: 30, height: 30, speed: 2.6, type: '🐺' });
         }
 
-        // Монеты уменьшены (с 20 до 15)
+        // Монеты
         for (let i = 0; i < 30; i++) {
             coins.push({ x: 400 + i * 100, y: ch - 120 - Math.random() * 60, width: 15, height: 15 });
         }
@@ -132,7 +105,6 @@
     startBtn.addEventListener('click', () => {
         startScreen.style.display = 'none';
         gameStarted = true;
-        resizeCanvas();
         setupLevel(level);
     });
 
@@ -178,7 +150,6 @@
         if (keys.right) player.x += player.speed;
         if (keys.left) player.x -= player.speed;
 
-        // Камера центрируется на игроке
         if (player.x > cw / 2) {
             cameraX = player.x - cw / 2;
         } else {
@@ -307,11 +278,9 @@
         ctx.fillStyle = '#228B22';
         ctx.fillRect(-2000, ch - 60, 10000, 15);
 
-        // Монеты меньше
         ctx.font = '20px Arial';
         coins.forEach(c => { ctx.fillText('🪙', c.x, c.y + 20); });
 
-        // Враги меньше
         ctx.font = '35px Arial';
         enemies.forEach(e => { ctx.fillText(e.type, e.x, e.y + 35); });
 
@@ -321,7 +290,6 @@
         drawKolobok(player.x, player.y, player.width, player.height, player.facingRight);
         ctx.restore();
 
-        // Интерфейс
         ctx.fillStyle = '#000'; ctx.font = 'bold 18px "Courier New", Courier, monospace';
         ctx.fillText(`Счет: ${score}`, 10, 25);
         ctx.fillText(`Уровень: ${level} / 3`, 10, 45);
