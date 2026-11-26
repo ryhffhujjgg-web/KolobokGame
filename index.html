@@ -16,12 +16,12 @@ body { display: flex; flex-direction: column; align-items: center; justify-conte
 #menu-screen p { font-size: 18px; color: #a8d8f0; margin-bottom: 20px; text-align: center; }
 
 /* Выбор оружия */
-.weapon-select { display: flex; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; justify-content: center; }
-.weapon-btn { padding: 12px 20px; font-size: 16px; font-weight: bold; border: 3px solid transparent; border-radius: 15px; background: rgba(255,255,255,0.1); color: white; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.weapon-select { display: flex; gap: 20px; margin-bottom: 30px; }
+.weapon-btn { padding: 15px 30px; font-size: 18px; font-weight: bold; border: 3px solid transparent; border-radius: 15px; background: rgba(255,255,255,0.1); color: white; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .weapon-btn.active { border-color: #f4cf43; background: rgba(244, 207, 67, 0.2); transform: scale(1.05); }
 .weapon-btn:active { transform: scale(0.95); }
-.weapon-icon { font-size: 28px; }
-.weapon-name { font-size: 13px; color: #a8d8f0; }
+.weapon-icon { font-size: 32px; }
+.weapon-name { font-size: 14px; color: #a8d8f0; }
 
 .menu-btn { padding: 15px 40px; font-size: 20px; font-weight: bold; border: none; border-radius: 50px; margin: 10px; cursor: pointer; box-shadow: 0 6px 0 rgba(0,0,0,0.3); transition: transform 0.1s; }
 .menu-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.3); }
@@ -65,6 +65,7 @@ button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 #b28d20; }
   <h1>КОЛОБОК</h1>
   <p>Большое приключение</p>
   
+  <!-- Выбор оружия -->
   <div class="weapon-select">
     <button class="weapon-btn active" id="wpn-shotgun" data-weapon="shotgun">
       <span class="weapon-icon">🔫</span>
@@ -73,10 +74,6 @@ button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 #b28d20; }
     <button class="weapon-btn" id="wpn-minigun" data-weapon="minigun">
       <span class="weapon-icon">💥</span>
       <span class="weapon-name">Миниган</span>
-    </button>
-    <button class="weapon-btn" id="wpn-ak47" data-weapon="ak47">
-      <span class="weapon-icon">🔫</span>
-      <span class="weapon-name">АК-47</span>
     </button>
   </div>
 
@@ -109,9 +106,10 @@ const menuScreen = document.getElementById("menu-screen");
 const W = canvas.width;
 const H = canvas.height;
 const LEVEL_WIDTH = 2400;
+const GRAVITY = 0.55;
 const GROUND_Y = 470;
-const TOTAL_LEVELS = 12;
-const SAVE_KEY = "kolobok_adventure_polish_v6";
+const TOTAL_LEVELS = 12; // Теперь 12 уровней
+const SAVE_KEY = "kolobok_adventure_polish_v4"; // Обновлен ключ
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"rabbit", weather:"leaves"},
@@ -124,8 +122,8 @@ const worlds = [
   {name:"Гора Дракона", sky:"#ff9a76", ground:"#7a4a3a", enemy:"dragon", weather:"ash"},
   {name:"Тёмный бор", sky:"#5b6d8b", ground:"#2e4a3a", enemy:"goblin", weather:"rain"},
   {name:"Огненная пустошь", sky:"#ff7e5f", ground:"#8b3a2a", enemy:"fire", weather:"ash"},
-  {name:"Подводное царство", sky:"#006699", ground:"#ccaa55", enemy:"mermaid", weather:"bubbles"},
-  {name:"Дремучий лес", sky:"#2b4a2b", ground:"#1a3a1a", enemy:"tree", weather:"rain"}
+  {name:"Подводное царство", sky:"#006699", ground:"#ccaa55", enemy:"mermaid", weather:"bubbles"}, // 11
+  {name:"Дремучий лес", sky:"#2b4a2b", ground:"#1a3a1a", enemy:"tree", weather:"rain"} // 12
 ];
 
 let world = 0; let camera = 0; let player; let enemies = []; let witches = []; let lizards = []; let bears = []; let bullets = []; let enemyBullets = []; let stars = []; let platforms = []; let gaps = []; let boss;
@@ -135,20 +133,22 @@ let pickups = []; let particles = []; let floatingTexts = []; let shakeTime = 0;
 let playerDashing = 0; let playerDashCooldown = 0;
 
 let currentWeapon = "shotgun"; 
-let autoFireInterval = null;
-let isHoldingShoot = false;
+let minigunInterval = null; // Для автоматической стрельбы
 
+// Спец. враги для новых уровней
 let mermaids = [];
 let sharks = [];
 let trees = [];
-let gopniks = [];
 
-function getGravity() { return world === 10 ? 0.15 : 0.55; }
+/* ===== ВСТРЯСКА ЭКРАНА ===== */
+function triggerShake(intensity) { shakeTime = intensity; }
 
+/* ===== ВСПЛЫВАЮЩИЙ ТЕКСТ ===== */
 function addFloatingText(x, y, text, color) {
   floatingTexts.push({ x, y, text, color, life: 60, maxLife: 60 });
 }
 
+/* ===== СИСТЕМА ЧАСТИЦ ===== */
 function spawnParticles(x, y, color, count) {
   for (let i = 0; i < count; i++) {
     particles.push({
@@ -168,7 +168,7 @@ function updateParticles() {
     let p = particles[i];
     p.x += p.vx;
     p.y += p.vy;
-    p.vy += (world === 10 ? 0.05 : 0.2);
+    p.vy += 0.2;
     p.life--;
     if (p.life <= 0) particles.splice(i, 1);
   }
@@ -185,10 +185,11 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
+/* ===== СОХРАНЕНИЕ ===== */
 function saveProgress() {
   try {
     const data = {
-      version: 6, world, totalStars, lastSafeX, currentWeapon,
+      version: 4, world, totalStars, lastSafeX, currentWeapon,
       player: { x: player.x, y: player.y, health: player.health, facing: player.facing },
       bossBattle, gameOver, victory
     };
@@ -201,9 +202,9 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 6 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
+    if (!data || data.version !== 4 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
     world = data.world; totalStars = Math.max(0, Number(data.totalStars) || 0); lastSafeX = Number(data.lastSafeX) || 70;
-    if (["minigun", "shotgun", "ak47"].includes(data.currentWeapon)) currentWeapon = data.currentWeapon;
+    if (data.currentWeapon === "minigun" || data.currentWeapon === "shotgun") currentWeapon = data.currentWeapon;
     makeLevel();
     if (data.player) {
       player.x = Math.max(19, Math.min(LEVEL_WIDTH - 20, Number(data.player.x) || 70));
@@ -220,6 +221,7 @@ function loadProgress() {
 
 function deleteSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
 
+/* ===== ЗВУК ===== */
 function say(text) {
   message.textContent = text;
   if ("speechSynthesis" in window) { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = "ru-RU"; u.rate = 1; speechSynthesis.speak(u); }
@@ -243,14 +245,10 @@ function soundShoot() {
       const boom = soundContext.createOscillator(); boom.type = "sine"; boom.frequency.setValueAtTime(120, t); boom.frequency.exponentialRampToValueAtTime(40, t + 0.15);
       const boomGain = soundContext.createGain(); boomGain.gain.setValueAtTime(0.4, t); boomGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
       boom.connect(boomGain); boomGain.connect(soundContext.destination); boom.start(t); boom.stop(t + 0.2);
-    } else if (currentWeapon === "minigun") {
+    } else {
       const osc = soundContext.createOscillator(); osc.type = "square"; osc.frequency.setValueAtTime(300, t); osc.frequency.exponentialRampToValueAtTime(100, t + 0.05);
       const gain = soundContext.createGain(); gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
       osc.connect(gain); gain.connect(soundContext.destination); osc.start(t); osc.stop(t + 0.07);
-    } else if (currentWeapon === "ak47") {
-      const osc = soundContext.createOscillator(); osc.type = "sawtooth"; osc.frequency.setValueAtTime(400, t); osc.frequency.exponentialRampToValueAtTime(80, t + 0.04);
-      const gain = soundContext.createGain(); gain.gain.setValueAtTime(0.15, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-      osc.connect(gain); gain.connect(soundContext.destination); osc.start(t); osc.stop(t + 0.06);
     }
   } catch(e) {}
 }
@@ -266,13 +264,15 @@ function sound(freq=440, duration=0.1, type="square") {
   } catch(e) {}
 }
 
+/* ===== УРОВЕНЬ ===== */
 function makeLevel() {
-  player = { x:70, y:GROUND_Y - 19, vx:0, vy:0, r:19, speed: (world === 10 ? 2.2 : 3.2), facing:1, onGround:false, health:3, invincible:0, jumpsLeft:2, maxJumps:2 };
+  player = { x:70, y:GROUND_Y - 19, vx:0, vy:0, r:19, speed:3.2, facing:1, onGround:false, health:3, invincible:0, jumpsLeft:2, maxJumps:2 };
   lastSafeX = 70; camera = 0; bullets = []; enemyBullets = []; enemies = []; witches = []; lizards = []; bears = []; stars = []; platforms = []; gaps = []; bossBattle = false; isTransitioning = false; pickups = []; particles = []; floatingTexts = []; shakeTime = 0;
-  mermaids = []; sharks = []; trees = []; gopniks = [];
+  mermaids = []; sharks = []; trees = [];
   playerDashing = 0; playerDashCooldown = 0;
   gaps = [{x:760,w:90},{x:1450,w:110},{x:2050,w:90}];
   
+  // Если это 11-й уровень (подводный) или 12-й (лес) - создаем других врагов
   if (world === 10) {
     mermaids.push({ x:650, baseY:220, y:220, vx:1.0, phase:Math.random()*Math.PI*2, shootTimer:110, alive:true });
     mermaids.push({ x:1750, baseY:200, y:200, vx:-0.9, phase:Math.random()*Math.PI*2, shootTimer:160, alive:true });
@@ -283,6 +283,7 @@ function makeLevel() {
     trees.push({ x:1200, y:GROUND_Y - 40, hp:3, maxHp:3, alive:true, shootTimer:140 });
     trees.push({ x:1900, y:GROUND_Y - 40, hp:3, maxHp:3, alive:true, shootTimer:120 });
   } else {
+    // Обычные враги для остальных уровней
     for (let i=0; i<5; i++) {
       const x = 390 + i*370;
       if (gaps.some(g => x > g.x - 20 && x < g.x + g.w + 20)) continue;
@@ -297,10 +298,6 @@ function makeLevel() {
     }
     
     if (world % 4 >= 2) bears.push({ x:1350, y:GROUND_Y - 30, vx:0.6, vy:0, hp:3, maxHp:3, alive:true, onGround:true, facing:1, throwTimer:140, hurtFlash:0 });
-  }
-  
-  for(let i=0; i<3; i++) {
-    gopniks.push({ x: 600 + i*500, y: GROUND_Y - 20, vx: 0.8, vy:0, min: 600 + i*500 - 50, max: 600 + i*500 + 50, alive: true, onGround: true, shootTimer: 120 + i*40 });
   }
   
   platforms = [{x:260,y:GROUND_Y - 75,w:120,h:16},{x:570,y:GROUND_Y - 110,w:135,h:16},{x:900,y:GROUND_Y - 80,w:140,h:16},{x:1250,y:GROUND_Y - 115,w:150,h:16},{x:1590,y:GROUND_Y - 80,w:130,h:16},{x:1900,y:GROUND_Y - 110,w:150,h:16}];
@@ -318,20 +315,10 @@ function updateInfo() {
   info.textContent = "Мир " + (world+1) + "/" + TOTAL_LEVELS + ": " + worlds[world].name + " | ⭐ " + totalStars + " | ❤️ " + (player ? player.health : 3);
 }
 
+/* ===== ПРОПАСТЬ ===== */
 function isOverGap(x) { return gaps.some(g => x + player.r * 0.5 > g.x && x - player.r * 0.5 < g.x + g.w); }
 
-function drawGopnik(g) {
-  const x=g.x-camera; if(x<-50||x>W+50||!g.alive) return;
-  ctx.save(); ctx.translate(x, g.y);
-  ctx.fillStyle = "#222"; ctx.fillRect(-10, -15, 20, 25);
-  ctx.fillStyle = "#d96a1e"; ctx.beginPath(); ctx.arc(0, -20, 12, 0, 7); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(-8, -28); ctx.lineTo(-12, -38); ctx.lineTo(-2, -28); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(8, -28); ctx.lineTo(12, -38); ctx.lineTo(2, -28); ctx.fill();
-  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(0, -25, 13, Math.PI, 0); ctx.fill();
-  ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(12, -5, 3, 0, 7); ctx.fill();
-  ctx.restore();
-}
-
+/* ===== ОТРИСОВКИ ВРАГОВ ===== */
 function drawFrog(x, y, isMoving, facing) {
   const hop = isMoving ? Math.abs(Math.sin(frame * 0.2)) * 10 : 0;
   ctx.save(); ctx.translate(x, y - hop); ctx.scale(facing, 1);
@@ -434,10 +421,11 @@ function drawTreeMonster(x, y, isMoving, facing) {
   ctx.fillStyle = "#3e2723"; ctx.fillRect(-15, -40, 30, 80);
   ctx.fillStyle = "#1b5e20"; ctx.beginPath(); ctx.arc(0, -50, 35, 0, 7); ctx.fill();
   ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-10, -30, 5, 0, 7); ctx.arc(10, -30, 5, 0, 7); ctx.fill();
-  ctx.fillStyle = "#2e7d32"; ctx.beginPath(); ctx.arc(0, -15, 10, 0, 7); ctx.fill();
+  ctx.fillStyle = "#2e7d32"; ctx.beginPath(); ctx.arc(0, -15, 10, 0, 7); ctx.fill(); // Рот
   ctx.restore();
 }
 
+/* ===== ОТРИСОВКА ФОНА ===== */
 function drawCloud(x,y,s=1) {
   ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
   ctx.fillStyle="rgba(100,120,140,0.3)"; ctx.beginPath(); ctx.arc(0,18,22,0,7); ctx.arc(25,8,27,0,7); ctx.arc(52,20,21,0,7); ctx.arc(28,25,26,0,7); ctx.fill();
@@ -474,9 +462,9 @@ function drawBackground() {
   const theme = worlds[world];
   const skyGrad = ctx.createLinearGradient(0,0,0,H);
   
-  if (world === 10) {
+  if (world === 10) { // Подводный
     skyGrad.addColorStop(0, "#002244"); skyGrad.addColorStop(0.5, "#006699"); skyGrad.addColorStop(1, "#33cccc");
-  } else if (world === 11) {
+  } else if (world === 11) { // Дремучий лес
     skyGrad.addColorStop(0, "#1a2a1a"); skyGrad.addColorStop(0.5, "#2b4a2b"); skyGrad.addColorStop(1, "#3e5c3e");
   } else {
     skyGrad.addColorStop(0, theme.sky); skyGrad.addColorStop(0.4, "#a8d8f0"); skyGrad.addColorStop(0.8, "#d4eecf"); skyGrad.addColorStop(1, "#e8f5d4");
@@ -485,6 +473,7 @@ function drawBackground() {
   ctx.fillStyle=skyGrad; ctx.fillRect(0,0,W,H);
   
   if (world === 10) {
+    // Пузыри для подводного уровня
     ctx.fillStyle = "rgba(255,255,255,0.2)";
     for(let i=0; i<20; i++) {
       const bx = (i*100 - camera*0.5 + frame*0.5) % W;
@@ -492,6 +481,7 @@ function drawBackground() {
       ctx.beginPath(); ctx.arc(bx, by, 5 + (i%3)*5, 0, 7); ctx.fill();
     }
   } else {
+    // Обычное небо, солнце и горы
     const sunGrad = ctx.createRadialGradient(W-150, 100, 10, W-150, 100, 80); sunGrad.addColorStop(0, "#fff8c0"); sunGrad.addColorStop(1, "rgba(255, 251, 208, 0)");
     ctx.fillStyle=sunGrad; ctx.beginPath(); ctx.arc(W-150, 100, 80, 0, 7); ctx.fill();
     ctx.fillStyle="#fff8c0"; ctx.beginPath(); ctx.arc(W-150, 100, 50, 0, 7); ctx.fill();
@@ -532,6 +522,7 @@ function drawGroundSegment(startX, width, theme) {
   ctx.fillStyle=lg; ctx.fillRect(sx, GROUND_Y+18, width, H-GROUND_Y-18);
 }
 
+/* ===== ОТРИСОВКА ПЕРСОНАЖЕЙ (ОСТАЛЬНЫЕ) ===== */
 function drawRabbit(x, y, isMoving, facing) {
   const legSwing = isMoving ? Math.sin(frame * 0.3) * 6 : 0;
   ctx.save(); ctx.translate(x, y); ctx.scale(facing, 1);
@@ -589,6 +580,7 @@ function drawFoxBody(x, y, isMoving, facing) {
   ctx.restore();
 }
 
+/* ===== ОТРИСОВКА ОБЪЕКТОВ ===== */
 function drawPlatforms() {
   for(const p of platforms) {
     const x=p.x-camera; if(x<-200||x>W+200) continue;
@@ -639,15 +631,10 @@ function drawPlayer() {
     ctx.fillStyle="#49382b"; ctx.fillRect(10,-6,30,6); 
     ctx.fillStyle="#222"; ctx.fillRect(30,-10,15,4); 
     ctx.fillStyle="#a7a7a7"; ctx.fillRect(38,-11,10,3);
-  } else if (currentWeapon === "minigun") {
+  } else {
     ctx.fillStyle="#2a2a2a"; ctx.fillRect(10,-8,35,10);
     ctx.fillStyle="#555"; ctx.fillRect(35,-10,20,4); ctx.fillRect(35,-4,20,4);
     ctx.fillStyle="#a7a7a7"; ctx.fillRect(45,-9,5,2); ctx.fillRect(45,-3,5,2);
-  } else if (currentWeapon === "ak47") {
-    ctx.fillStyle="#5c3a21"; ctx.fillRect(10,-5,15,8);
-    ctx.fillStyle="#222"; ctx.fillRect(25,-6,25,4);
-    ctx.fillStyle="#8b4513"; ctx.fillRect(20,-2,10,6);
-    ctx.fillStyle="#555"; ctx.fillRect(35,-7,8,2);
   }
   ctx.restore();
   
@@ -719,10 +706,8 @@ function drawBoss() {
 
 function drawBullets() {
   ctx.fillStyle="#292929"; for(const b of bullets){ ctx.beginPath(); ctx.arc(b.x-camera,b.y,6,0,7); ctx.fill(); }
-  for(const b of enemyBullets){ ctx.save(); ctx.translate(b.x-camera,b.y); ctx.rotate(b.angle||0); 
-    if (b.isGreen) ctx.fillStyle = "#44ff44"; 
-    else if (b.isSeed) { ctx.fillStyle = "#222"; ctx.fillRect(-4,-2,8,4); }
-    else ctx.fillStyle = "#ffdb45";
+  ctx.fillStyle="#ffdb45"; for(const b of enemyBullets){ ctx.save(); ctx.translate(b.x-camera,b.y); ctx.rotate(b.angle||0); 
+    if (b.isGreen) ctx.fillStyle = "#44ff44"; else ctx.fillStyle = "#ffdb45";
     ctx.fillRect(-9,-4,18,8); ctx.restore(); }
 }
 
@@ -770,13 +755,12 @@ function draw() {
   drawHut(); 
   drawStars();
   drawPickups();
-  
-  for(const g of gopniks) drawGopnik(g);
   for(const e of enemies) drawEnemy(e);
   for(const w of witches) drawWitch(w);
   for(const l of lizards) drawLizard(l);
   for(const b of bears) drawBear(b);
   
+  // Новые враги
   if (world === 10) {
     for (const m of mermaids) { if(m.alive) { const x=m.x-camera; if(x>=-100&&x<=W+100) drawMermaid(x, m.y); } }
     for (const s of sharks) { if(s.alive) { const x=s.x-camera; if(x>=-100&&x<=W+100) drawShark(x, s.y, 0, s.vx >= 0 ? 1 : -1); } }
@@ -803,52 +787,44 @@ function draw() {
   }
 }
 
+/* ===== ДЕЙСТВИЯ ===== */
 function jump() { 
   if(gameOver||victory||isTransitioning) return; 
-  if(world === 10) {
-    player.vy = -3.5;
-    player.onGround = false;
-    sound(520,0.08);
-    spawnParticles(player.x, player.y + player.r, "rgba(255,255,255,0.5)", 5);
-  } else {
-    if(player.onGround || player.jumpsLeft > 0){ 
-      player.vy = player.onGround ? -11 : -9; 
-      player.onGround = false; 
-      player.jumpsLeft--; 
-      sound(520,0.08); 
-      spawnParticles(player.x, player.y + player.r, "#d4c9a8", 8);
-    } 
-  }
+  if(player.onGround || player.jumpsLeft > 0){ 
+    player.vy = player.onGround ? -11 : -9; 
+    player.onGround = false; 
+    player.jumpsLeft--; 
+    sound(520,0.08); 
+    spawnParticles(player.x, player.y + player.r, "#d4c9a8", 8);
+  } 
 }
 
 function dash() {
   if(gameOver||victory||isTransitioning) return;
   if (playerDashCooldown <= 0) {
     playerDashing = 15; playerDashCooldown = 45;
-    player.vx = player.facing * (world === 10 ? 8 : 12);
+    player.vx = player.facing * 12;
     sound(300, 0.1, "sawtooth");
   }
 }
 
+// Стрельба
 function startShoot() {
   if(gameOver||victory||isTransitioning) return;
-  isHoldingShoot = true;
   if (currentWeapon === "shotgun") {
     shootShotgun();
   } else {
-    if (!autoFireInterval) {
-      shootAuto();
-      const speed = currentWeapon === "minigun" ? 80 : 100;
-      autoFireInterval = setInterval(shootAuto, speed);
+    if (!minigunInterval) {
+      shootMinigun();
+      minigunInterval = setInterval(shootMinigun, 80); // Автоматическая очередь
     }
   }
 }
 
 function stopShoot() {
-  isHoldingShoot = false;
-  if (autoFireInterval) {
-    clearInterval(autoFireInterval);
-    autoFireInterval = null;
+  if (minigunInterval) {
+    clearInterval(minigunInterval);
+    minigunInterval = null;
   }
 }
 
@@ -860,19 +836,12 @@ function shootShotgun() {
   spawnParticles(player.x + player.facing * 25, player.y - 7, "#ffff99", 5); 
 }
 
-function shootAuto() {
-  if(gameOver||victory) { stopShoot(); return; }
-  const now=Date.now(); if(now-(player.lastShot||0)<50) return; player.lastShot=now;
-  if (currentWeapon === "minigun") {
-    bullets.push({ x:player.x+player.facing*30, y:player.y-7 + (Math.random()-0.5)*5, vx:player.facing*11, life:100 });
-    triggerShake(1);
-    spawnParticles(player.x + player.facing * 30, player.y - 7, "#ffcc00", 2); 
-  } else if (currentWeapon === "ak47") {
-    bullets.push({ x:player.x+player.facing*35, y:player.y-7, vx:player.facing*13, life:100 });
-    triggerShake(2);
-    spawnParticles(player.x + player.facing * 35, player.y - 7, "#ffaa00", 3); 
-  }
+function shootMinigun() {
+  const now=Date.now(); if(now-(player.lastShot||0)<80) return; player.lastShot=now;
+  bullets.push({ x:player.x+player.facing*30, y:player.y-7 + (Math.random()-0.5)*5, vx:player.facing*11, life:100 });
   soundShoot();
+  triggerShake(1);
+  spawnParticles(player.x + player.facing * 30, player.y - 7, "#ffcc00", 2); 
 }
 
 function hurtPlayer() {
@@ -881,22 +850,18 @@ function hurtPlayer() {
   triggerShake(10);
   sound(100,0.2,"sawtooth"); updateInfo();
   spawnParticles(player.x, player.y, "#ff3333", 15);
-  say("Ой-ой-ой!"); 
-  if(player.health<=0){ 
-    gameOver=true; 
-    stopShoot();
-    say("Колобок, попробуй ещё раз!"); 
-  }
+  say("Ой-ой-ой!"); // Новый крик при получении урона
+  if(player.health<=0){ gameOver=true; say("Колобок, попробуй ещё раз!"); }
   saveProgress();
 }
 
 function respawnFromGap() {
   player.x=lastSafeX; player.y=GROUND_Y-19; player.vx=0; player.vy=0; player.invincible=90;
   triggerShake(15);
-  stopShoot();
   hurtPlayer(); if(!gameOver) say("Осторожно, обрыв!");
 }
 
+/* ===== ОБНОВЛЕНИЕ ИГРЫ ===== */
 function updatePlayer() {
   if (isTransitioning) return;
   
@@ -912,77 +877,20 @@ function updatePlayer() {
     player.x+=player.vx;
   }
   
-  if (world === 10) {
-    player.vy += getGravity(); 
-    if (player.vy > 4) player.vy = 4;
-    if (keys.up || isHoldingShoot) player.vy -= 0.4;
-  } else {
-    player.vy+=getGravity(); 
-  }
-  
-  player.y+=player.vy;
+  player.vy+=GRAVITY; player.y+=player.vy;
   
   const overGap=isOverGap(player.x);
-  
-  if (world === 10) {
-    if(player.y > H - player.r) { player.y = H - player.r; player.vy = 0; player.onGround = true; }
-    if(player.y < player.r) { player.y = player.r; player.vy = 0; }
-    player.onGround = false; 
-    player.jumpsLeft = player.maxJumps;
-  } else {
-    if(player.y>H+40){ if(overGap||player.y>H+60){ respawnFromGap(); return; } }
-    if(!overGap && player.y+player.r>=GROUND_Y){ player.y=GROUND_Y-player.r; player.vy=0; player.onGround=true; player.jumpsLeft = player.maxJumps; lastSafeX=player.x; }
-    else { if(player.y+player.r<GROUND_Y) player.onGround=false; }
-    for(const p of platforms){
-      if(player.vy>=0 && player.x+player.r>p.x && player.x-player.r<p.x+p.w && player.y+player.r>=p.y && player.y+player.r<=p.y+15){
-        player.y=p.y-player.r; player.vy=0; player.onGround=true; player.jumpsLeft = player.maxJumps; lastSafeX=player.x;
-      }
+  if(player.y>H+40){ if(overGap||player.y>H+60){ respawnFromGap(); return; } }
+  if(!overGap && player.y+player.r>=GROUND_Y){ player.y=GROUND_Y-player.r; player.vy=0; player.onGround=true; player.jumpsLeft = player.maxJumps; lastSafeX=player.x; }
+  else { if(player.y+player.r<GROUND_Y) player.onGround=false; }
+  for(const p of platforms){
+    if(player.vy>=0 && player.x+player.r>p.x && player.x-player.r<p.x+p.w && player.y+player.r>=p.y && player.y+player.r<=p.y+15){
+      player.y=p.y-player.r; player.vy=0; player.onGround=true; player.jumpsLeft = player.maxJumps; lastSafeX=player.x;
     }
   }
-  
   player.x=Math.max(player.r,Math.min(LEVEL_WIDTH-20,player.x));
   if(player.invincible>0) player.invincible--;
   camera=player.x-W*0.38; camera=Math.max(0,Math.min(LEVEL_WIDTH-W,camera));
-}
-
-function updateGopniks() {
-  for(const g of gopniks) {
-    if(!g.alive) continue;
-    const dist = player.x - g.x;
-    if (Math.abs(dist) < 300) {
-      if (Math.abs(dist) > 100) {
-        g.vx = Math.sign(dist) * 0.8;
-      } else {
-        g.vx = 0;
-      }
-      g.shootTimer--;
-      if(g.shootTimer <= 0) {
-        const dx = player.x - g.x;
-        const dy = player.y - (g.y - 20);
-        const len = Math.sqrt(dx*dx + dy*dy) || 1;
-        enemyBullets.push({ x:g.x, y:g.y-20, vx:dx/len*4, vy:dy/len*4, angle:Math.atan2(dy,dx), life:120, isSeed: true });
-        g.shootTimer = 100 + Math.random()*50;
-        sound(600, 0.05, "square");
-      }
-    } else {
-      if (g.x < g.min) g.vx = Math.abs(g.vx) || 0.8;
-      if (g.x > g.max) g.vx = -Math.abs(g.vx) || -0.8;
-    }
-    g.x += g.vx;
-    
-    if(Math.abs(player.x-g.x)<35 && Math.abs(player.y-g.y)<35) {
-      if (player.vy > 0 && player.y < g.y - 10) {
-        g.alive = false;
-        player.vy = -10;
-        sound(600, 0.1, "square");
-        spawnParticles(g.x, g.y, "#ff5555", 15);
-        totalStars += 1; saveProgress();
-        say("А семки есть?");
-      } else {
-        hurtPlayer();
-      }
-    }
-  }
 }
 
 function updateEnemies() {
@@ -991,7 +899,7 @@ function updateEnemies() {
     if(e.jumpTimer<=0&&e.onGround){ e.vy=-(7+(world%4)*0.5); e.onGround=false; e.jumpTimer=95+Math.random()*85; }
     if(Math.abs(distance)<230){ e.vx+=Math.sign(distance)*0.025; e.vx=Math.max(-2-(world%4)*0.2,Math.min(2+(world%4)*0.2,e.vx)); }
     else { if(e.x<e.min) e.vx=Math.abs(e.vx); if(e.x>e.max) e.vx=-Math.abs(e.vx); }
-    e.x+=e.vx; e.y+=e.vy; e.vy+=getGravity();
+    e.x+=e.vx; e.y+=e.vy; e.vy+=GRAVITY;
     if(e.y>=GROUND_Y - 20){ e.y=GROUND_Y - 20; e.vy=0; e.onGround=true; }
     
     if(Math.abs(player.x-e.x)<35 && Math.abs(player.y-e.y)<35) {
@@ -1001,7 +909,7 @@ function updateEnemies() {
         sound(600, 0.1, "square");
         spawnParticles(e.x, e.y, "#ff5555", 15);
         totalStars += 1; saveProgress();
-        say("Ай!");
+        say("Ай!"); // Просто "Ай" при убийстве
       } else {
         hurtPlayer();
       }
@@ -1015,7 +923,7 @@ function updateLizards() {
     if(l.dashTimer<=0&&l.onGround&&Math.abs(distance)<260){ l.vx=Math.sign(distance)*(3.2+(world%4)*0.2); l.facing=Math.sign(distance)||1; l.dashTimer=160+Math.random()*80; sound(420,0.06,"square"); }
     else if(l.dashTimer>0) l.vx*=0.93;
     else { l.vx=l.facing*l.speed; if(l.x<80) l.facing=1; if(l.x>LEVEL_WIDTH-80) l.facing=-1; }
-    l.x+=l.vx; l.y+=l.vy; l.vy+=getGravity();
+    l.x+=l.vx; l.y+=l.vy; l.vy+=GRAVITY;
     if(l.y>=GROUND_Y - 15){ l.y=GROUND_Y - 15; l.vy=0; l.onGround=true; } else l.onGround=false;
     
     if(Math.abs(player.x-l.x)<35 && Math.abs(player.y-l.y)<35) {
@@ -1038,7 +946,7 @@ function updateBears() {
     if(!b.alive) continue; if(b.hurtFlash>0) b.hurtFlash--;
     const distance=player.x-b.x; b.facing=Math.sign(distance)||1;
     if(Math.abs(distance)>60) b.vx=Math.sign(distance)*0.6; else b.vx=0;
-    b.x+=b.vx; b.y+=b.vy; b.vy+=getGravity();
+    b.x+=b.vx; b.y+=b.vy; b.vy+=GRAVITY;
     if(b.y>=GROUND_Y - 30){ b.y=GROUND_Y - 30; b.vy=0; b.onGround=true; }
     b.throwTimer--;
     if(b.throwTimer<=0&&Math.abs(distance)<380){
@@ -1077,6 +985,7 @@ function updateWitches() {
   }
 }
 
+// Спец-логика для новых врагов
 function updateMermaidsSharks() {
   for(const m of mermaids) {
     if(!m.alive) continue;
@@ -1092,7 +1001,7 @@ function updateMermaidsSharks() {
   }
   for(const s of sharks) {
     if(!s.alive) continue;
-    s.x+=s.vx; s.y = GROUND_Y - 30 + Math.sin(frame*0.1)*20; 
+    s.x+=s.vx; s.y = GROUND_Y - 30 + Math.sin(frame*0.1)*20; // Плавают синусоидой
     if(s.x < 80 || s.x > LEVEL_WIDTH-80) s.vx *= -1;
     if(Math.abs(player.x-s.x)<40 && Math.abs(player.y-s.y)<40) hurtPlayer();
   }
@@ -1103,6 +1012,7 @@ function updateTrees() {
     if(!t.alive) continue;
     t.shootTimer--;
     if(t.shootTimer <= 0) {
+      // Дерево плюется зеленой жидкостью (навесом)
       const dx = player.x - t.x;
       const dy = player.y - (t.y - 50);
       const len = Math.sqrt(dx*dx + dy*dy) || 1;
@@ -1121,7 +1031,7 @@ function updateBoss() {
   const distance=player.x-boss.x; if(Math.abs(distance)>70) boss.vx=Math.sign(distance)*1.1; else boss.vx=0;
   boss.x+=boss.vx; boss.jumpTimer--;
   if(boss.jumpTimer<=0&&boss.y>=GROUND_Y - 45){ boss.vy=-8.5; boss.jumpTimer=100; }
-  boss.y+=boss.vy; boss.vy+=getGravity();
+  boss.y+=boss.vy; boss.vy+=GRAVITY;
   if(boss.y>GROUND_Y - 45){ boss.y=GROUND_Y - 45; boss.vy=0; }
   boss.shootTimer--;
   if(boss.shootTimer<=0){
@@ -1134,7 +1044,7 @@ function updateBoss() {
       boss.hp--; player.vy = -10;
       sound(240, 0.08);
       spawnParticles(boss.x, boss.y, "#ff5555", 8);
-      if(boss.hp<=0){ boss.alive=false; say("Охохонюшки, Хо-Хо!"); totalStars+=10; }
+      if(boss.hp<=0){ boss.alive=false; say("Ай!"); totalStars+=10; }
       saveProgress();
     } else {
       hurtPlayer();
@@ -1145,11 +1055,6 @@ function updateBoss() {
 function updateBullets() {
   for(const b of bullets){
     b.x+=b.vx; b.life--;
-    for(const g of gopniks) if(g.alive&&Math.abs(b.x-g.x)<30&&Math.abs(b.y-g.y)<30){ 
-      g.alive=false; b.life=0; 
-      spawnParticles(g.x, g.y, "#ff5555", 10);
-      say("А семки есть?"); sound(330,0.12); totalStars+=1; saveProgress(); 
-    }
     for(const e of enemies) if(e.alive&&Math.abs(b.x-e.x)<30&&Math.abs(b.y-e.y)<35){ 
       e.alive=false; b.life=0; 
       spawnParticles(e.x, e.y, "#ff5555", 10);
@@ -1168,6 +1073,7 @@ function updateBullets() {
       if(bear.hp<=0){ bear.alive=false; pickups.push({ x: bear.x, y: bear.y - 30, type: "shield" }); say("Ай!"); totalStars+=5; }
       saveProgress();
     }
+    // Попадания по новым врагам
     if (world === 10) {
       for(const m of mermaids) if(m.alive&&Math.abs(b.x-m.x)<30&&Math.abs(b.y-m.y)<30){ m.alive=false; b.life=0; spawnParticles(m.x, m.y, "#ff5555", 10); say("Ай!"); totalStars+=2; saveProgress(); }
       for(const s of sharks) if(s.alive&&Math.abs(b.x-s.x)<40&&Math.abs(b.y-s.y)<30){ s.alive=false; b.life=0; spawnParticles(s.x, s.y, "#ff5555", 10); say("Ай!"); totalStars+=2; saveProgress(); }
@@ -1182,7 +1088,7 @@ function updateBullets() {
     if(boss && boss.isBossLevel && bossBattle && boss.alive && Math.abs(b.x-boss.x)<45 && Math.abs(b.y-boss.y)<50){
       boss.hp--; b.life=0; sound(240,0.08);
       spawnParticles(boss.x, boss.y, "#ff5555", 8);
-      if(boss.hp<=0){ boss.alive=false; say("Охохонюшки, Хо-Хо!"); totalStars+=10; }
+      if(boss.hp<=0){ boss.alive=false; say("Ай!"); totalStars+=10; }
       saveProgress();
     }
   }
@@ -1229,9 +1135,7 @@ function checkLevelEnd() {
   if (isTransitioning || gameOver || victory) return;
   const hutX = LEVEL_WIDTH - 140;
   if (player.x > hutX + 40 && player.x < hutX + 85) {
-    isTransitioning = true; 
-    stopShoot();
-    say("В избушку!"); sound(880, 0.3, "sine");
+    isTransitioning = true; say("В избушку!"); sound(880, 0.3, "sine");
     setTimeout(() => {
       if (world < TOTAL_LEVELS - 1) {
         world++; makeLevel(); say("Мир " + (world+1) + ": " + worlds[world].name); saveProgress(); isTransitioning = false;
@@ -1247,9 +1151,8 @@ function update() {
   if(gameOver||victory){ draw(); gameLoopRunning=false; return; }
   frame++; 
   updatePlayer(); updateEnemies(); updateWitches(); updateLizards(); updateBears(); updateBoss(); updateBullets(); updateStars(); updatePickups();
-  updateMermaidsSharks();
-  updateTrees();
-  updateGopniks();
+  updateMermaidsSharks(); // Новые враги
+  updateTrees(); // Новые враги
   updateParticles();
   checkLevelEnd(); updateInfo(); draw();
   if(frame-lastSaveFrame>=60){ saveProgress(); lastSaveFrame=frame; }
@@ -1263,14 +1166,12 @@ document.addEventListener("keydown",e=>{
   if(e.code==="ArrowLeft"||e.code==="KeyA") keys.left=true;
   if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=true;
   if((e.code==="ArrowUp"||e.code==="Space"||e.code==="KeyW")&&!e.repeat) jump();
-  if(e.code==="ArrowUp"||e.code==="KeyW") keys.up = true;
   if((e.code==="KeyJ"||e.code==="KeyF")&&!e.repeat) startShoot();
   if((e.code==="ShiftLeft"||e.code==="KeyK")&&!e.repeat) dash();
 });
 document.addEventListener("keyup",e=>{
   if(e.code==="ArrowLeft"||e.code==="KeyA") keys.left=false;
   if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=false;
-  if(e.code==="ArrowUp"||e.code==="KeyW") keys.up = false;
   if(e.code==="KeyJ"||e.code==="KeyF") stopShoot();
 });
 
@@ -1284,6 +1185,7 @@ function bindHold(id,key) {
 }
 bindHold("left","left"); bindHold("right","right");
 
+// Обновленная функция привязки кнопки стрельбы
 function bindShoot() {
   const button = document.getElementById("shoot");
   button.addEventListener("pointerdown", e => { 
@@ -1303,43 +1205,21 @@ function bindShoot() {
 }
 bindShoot();
 
-function bindJump() {
-  const button = document.getElementById("jump");
-  button.addEventListener("pointerdown", e => {
-    e.preventDefault();
-    jump();
-    keys.up = true;
-    try{ button.setPointerCapture(e.pointerId); }catch(err){}
-  });
-  const stop = e => {
-    e.preventDefault();
-    keys.up = false;
-  };
-  button.addEventListener("pointerup", stop);
-  button.addEventListener("pointercancel", stop);
-  button.addEventListener("lostpointercapture", stop);
-  button.addEventListener("contextmenu", e => e.preventDefault());
-  button.addEventListener("selectstart", e => e.preventDefault());
-}
-bindJump();
-
 function bindTap(id,action) {
   const button=document.getElementById(id);
   button.addEventListener("pointerdown",e=>{ e.preventDefault(); action(); });
   button.addEventListener("contextmenu",e=>e.preventDefault()); button.addEventListener("selectstart",e=>e.preventDefault());
 }
-bindTap("dash",dash);
+bindTap("jump",jump); bindTap("dash",dash);
 
 /* ===== МЕНЮ И ВЫБОР ОРУЖИЯ ===== */
 const wpnShotgunBtn = document.getElementById("wpn-shotgun");
 const wpnMinigunBtn = document.getElementById("wpn-minigun");
-const wpnAk47Btn = document.getElementById("wpn-ak47");
 
 wpnShotgunBtn.addEventListener("click", () => {
     currentWeapon = "shotgun";
     wpnShotgunBtn.classList.add("active");
     wpnMinigunBtn.classList.remove("active");
-    wpnAk47Btn.classList.remove("active");
     document.getElementById("shoot").textContent = "🔫";
 });
 
@@ -1347,16 +1227,7 @@ wpnMinigunBtn.addEventListener("click", () => {
     currentWeapon = "minigun";
     wpnMinigunBtn.classList.add("active");
     wpnShotgunBtn.classList.remove("active");
-    wpnAk47Btn.classList.remove("active");
     document.getElementById("shoot").textContent = "💥";
-});
-
-wpnAk47Btn.addEventListener("click", () => {
-    currentWeapon = "ak47";
-    wpnAk47Btn.classList.add("active");
-    wpnShotgunBtn.classList.remove("active");
-    wpnMinigunBtn.classList.remove("active");
-    document.getElementById("shoot").textContent = "🔫";
 });
 
 const hasSave = loadProgress();
@@ -1393,8 +1264,8 @@ document.getElementById("restart").addEventListener("click",()=>{
 
 /* ===== ЗАЩИТА ===== */
 document.addEventListener("contextmenu",e=>{ if(e.target.tagName==="BUTTON"||e.target.tagName==="CANVAS") e.preventDefault(); });
-window.addEventListener("blur",()=>{ keys.left=false; keys.right=false; keys.up=false; stopShoot(); saveProgress(); });
-document.addEventListener("visibilitychange",()=>{ if(document.hidden){ keys.left=false; keys.right=false; keys.up=false; stopShoot(); saveProgress(); } });
+window.addEventListener("blur",()=>{ keys.left=false; keys.right=false; stopShoot(); saveProgress(); });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden){ keys.left=false; keys.right=false; stopShoot(); saveProgress(); } });
 window.addEventListener("pagehide",()=>{ saveProgress(); });
 </script>
 </body>
