@@ -8,11 +8,6 @@
         body { margin: 0; padding: 0; background: #111; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
         canvas { display: block; width: 100vw; height: 100vh; touch-action: none; image-rendering: pixelated; }
         
-        /* Подсказка "Поверните телефон" (не блокирует игру) */
-        #rotateMsg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(34, 34, 34, 0.9); color: #FFD700; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; z-index: 20; font-size: 24px; padding: 20px; box-sizing: border-box; pointer-events: none; }
-        #rotateMsg span { font-size: 60px; margin-bottom: 20px; animation: rotate 2s infinite ease-in-out; }
-        @keyframes rotate { 0% { transform: rotate(0deg); } 50% { transform: rotate(90deg); } 100% { transform: rotate(0deg); } }
-
         /* Кнопки управления */
         #controls { position: absolute; bottom: 20px; display: flex; width: 100%; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; }
         .btn { background: rgba(255,255,255,0.4); border: 2px solid #fff; border-radius: 15px; width: 70px; height: 70px; font-size: 30px; font-weight: bold; color: #000; display: flex; justify-content: center; align-items: center; user-select: none; pointer-events: auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
@@ -28,11 +23,6 @@
     </style>
 </head>
 <body>
-    <div id="rotateMsg">
-        <span>📱</span>
-        <p>Пожалуйста, поверните телефон<br>горизонтально для игры</p>
-    </div>
-
     <div id="startScreen">
         <h1>КОЛОБОК: ПОБЕГ</h1>
         <p>Бабушка и дедушка хотели тебя съесть!<br>Хватай дробовик, собирай монеты и беги к заправке, чтобы уехать в закат.</p>
@@ -52,35 +42,22 @@
     const ctx = canvas.getContext('2d');
     const startScreen = document.getElementById('startScreen');
     const startBtn = document.getElementById('startBtn');
-    const rotateMsg = document.getElementById('rotateMsg');
 
     let canvasWidth = window.innerWidth;
     let canvasHeight = window.innerHeight;
-
-    // Эта функция только показывает/скрывает подсказку, но НЕ блокирует игру
-    function checkOrientation() {
-        if (gameStarted && window.innerHeight > window.innerWidth) {
-            rotateMsg.style.display = 'flex';
-        } else {
-            rotateMsg.style.display = 'none';
-        }
-    }
 
     function resizeCanvas() {
         canvasWidth = window.innerWidth;
         canvasHeight = window.innerHeight;
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
-        checkOrientation();
         
-        // Если игра уже идет и земля где-то далеко, обновляем её под новый экран
         if (gameStarted && platforms.length > 0) {
             platforms[0].y = canvasHeight - 80;
         }
     }
     window.addEventListener('resize', resizeCanvas);
     window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
-    
     resizeCanvas();
 
     let keys = { right: false, left: false };
@@ -134,9 +111,8 @@
         gameStarted = true;
         level = 1;
         score = 0;
-        resizeCanvas(); // Принудительно обновляем размеры перед стартом
+        resizeCanvas(); 
         setupLevel(level);
-        checkOrientation();
     });
 
     window.addEventListener('keydown', (e) => {
@@ -174,7 +150,6 @@
     }
 
     function update() {
-        // Убрали проверку на вертикальность здесь, чтобы игра не вставала на паузу
         if (gameOver || !gameStarted) return;
         
         if (player.cooldown > 0) player.cooldown--;
