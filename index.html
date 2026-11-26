@@ -109,7 +109,7 @@ const LEVEL_WIDTH = 2400;
 const GRAVITY = 0.55;
 const GROUND_Y = 470;
 const TOTAL_LEVELS = 10;
-const SAVE_KEY = "kolobok_adventure_polish_v2"; // Изменил ключ сохранения, т.к. добавлены новые механики
+const SAVE_KEY = "kolobok_adventure_polish_v3"; // Обновлен ключ сохранения
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"rabbit", weather:"leaves"},
@@ -130,8 +130,7 @@ let bossBattle = false; let gameOver = false; let victory = false; let totalStar
 let pickups = []; let particles = []; let floatingTexts = []; let shakeTime = 0;
 let playerDashing = 0; let playerDashCooldown = 0;
 
-// Новые переменные для оружия
-let currentWeapon = "shotgun"; // "shotgun" или "minigun"
+let currentWeapon = "shotgun"; 
 let shootCooldown = 0;
 
 /* ===== ВСТРЯСКА ЭКРАНА ===== */
@@ -183,7 +182,7 @@ function drawParticles() {
 function saveProgress() {
   try {
     const data = {
-      version: 2, world, totalStars, lastSafeX, currentWeapon,
+      version: 3, world, totalStars, lastSafeX, currentWeapon,
       player: { x: player.x, y: player.y, health: player.health, facing: player.facing },
       bossBattle, gameOver, victory
     };
@@ -196,7 +195,7 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 2 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
+    if (!data || data.version !== 3 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
     world = data.world; totalStars = Math.max(0, Number(data.totalStars) || 0); lastSafeX = Number(data.lastSafeX) || 70;
     if (data.currentWeapon === "minigun" || data.currentWeapon === "shotgun") currentWeapon = data.currentWeapon;
     makeLevel();
@@ -240,7 +239,6 @@ function soundShoot() {
       const boomGain = soundContext.createGain(); boomGain.gain.setValueAtTime(0.4, t); boomGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
       boom.connect(boomGain); boomGain.connect(soundContext.destination); boom.start(t); boom.stop(t + 0.2);
     } else {
-      // Звук минигана (более трескучий и частый)
       const osc = soundContext.createOscillator(); osc.type = "square"; osc.frequency.setValueAtTime(300, t); osc.frequency.exponentialRampToValueAtTime(100, t + 0.05);
       const gain = soundContext.createGain(); gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
       osc.connect(gain); gain.connect(soundContext.destination); osc.start(t); osc.stop(t + 0.07);
@@ -269,7 +267,7 @@ function makeLevel() {
   for (let i=0; i<5; i++) {
     const x = 390 + i*370;
     if (gaps.some(g => x > g.x - 20 && x < g.x + g.w + 20)) continue;
-    enemies.push({ x, y:GROUND_Y - 20, vx:0.6 + (world%4)*0.1, vy:0, min:x-95, max:x+95, alive:true, onGround:true, jumpTimer:60 + i*27, hp:1 }); // Враги стали чуть медленнее
+    enemies.push({ x, y:GROUND_Y - 20, vx:0.6 + (world%4)*0.1, vy:0, min:x-95, max:x+95, alive:true, onGround:true, jumpTimer:60 + i*27, hp:1 });
   }
   
   if (world % 4 > 0) {
@@ -299,7 +297,7 @@ function updateInfo() {
 /* ===== ПРОПАСТЬ ===== */
 function isOverGap(x) { return gaps.some(g => x + player.r * 0.5 > g.x && x - player.r * 0.5 < g.x + g.w); }
 
-/* ===== ОТРИСОВКИ ВРАГОВ (БЕЗ ИЗМЕНЕНИЙ) ===== */
+/* ===== ОТРИСОВКИ ВРАГОВ ===== */
 function drawFrog(x, y, isMoving, facing) {
   const hop = isMoving ? Math.abs(Math.sin(frame * 0.2)) * 10 : 0;
   ctx.save(); ctx.translate(x, y - hop); ctx.scale(facing, 1);
@@ -350,7 +348,38 @@ function drawDragon(x, y, isMoving, facing) {
   ctx.restore();
 }
 
-/* ===== ОТРИСОВКА ФОНА (БЕЗ ИЗМЕНЕНИЙ) ===== */
+// НОВЫЕ ВРАГИ ДЛЯ 9 И 10 УРОВНЕЙ
+function drawGoblin(x, y, isMoving, facing) {
+  const bob = isMoving ? Math.sin(frame * 0.2) * 3 : 0;
+  ctx.save(); ctx.translate(x, y - bob); ctx.scale(facing, 1);
+  ctx.fillStyle = "#5a7a45"; ctx.beginPath(); ctx.ellipse(0, 0, 18, 22, 0, 0, 7); ctx.fill(); // Тело
+  ctx.fillStyle = "#3d5c2e"; ctx.beginPath(); ctx.arc(0, -20, 16, 0, 7); ctx.fill(); // Голова
+  ctx.fillStyle = "#4a6b38"; ctx.beginPath(); ctx.moveTo(-10, -25); ctx.lineTo(-25, -35); ctx.lineTo(-12, -15); ctx.fill(); // Левое ухо
+  ctx.beginPath(); ctx.moveTo(10, -25); ctx.lineTo(25, -35); ctx.lineTo(12, -15); ctx.fill(); // Правое ухо
+  ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.arc(-6, -22, 4, 0, 7); ctx.arc(6, -22, 4, 0, 7); ctx.fill(); // Глаза
+  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-6, -22, 2, 0, 7); ctx.arc(6, -22, 2, 0, 7); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.fillRect(-6, -12, 4, 4); ctx.fillRect(2, -12, 4, 4); // Клыки
+  ctx.fillStyle = "#2e4a22"; ctx.fillRect(-15, 10, 6, 15); ctx.fillRect(9, 10, 6, 15); // Ноги
+  ctx.restore();
+}
+
+function drawFireMonster(x, y, isMoving, facing) {
+  const flicker = Math.sin(frame * 0.3) * 3;
+  const flicker2 = Math.cos(frame * 0.4) * 4;
+  ctx.save(); ctx.translate(x, y);
+  // Языки пламени
+  ctx.fillStyle = "#ff5722"; ctx.beginPath(); ctx.moveTo(-20, 20); ctx.quadraticCurveTo(-25 + flicker, -10, -10, -25 + flicker2); ctx.quadraticCurveTo(0, -10, 0, 20); ctx.fill();
+  ctx.fillStyle = "#ff9800"; ctx.beginPath(); ctx.moveTo(-5, 20); ctx.quadraticCurveTo(-10 + flicker2, -15, 5, -30 + flicker); ctx.quadraticCurveTo(15, -5, 15, 20); ctx.fill();
+  ctx.fillStyle = "#ffeb3b"; ctx.beginPath(); ctx.ellipse(0, 5, 12, 15, 0, 0, 7); ctx.fill(); // Ядро
+  // Глаза
+  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-5, -2, 3, 0, 7); ctx.arc(5, -2, 3, 0, 7); ctx.fill();
+  // Огоньки вокруг
+  ctx.globalAlpha = 0.6 + Math.random()*0.4;
+  ctx.fillStyle = "#ffeb3b"; ctx.beginPath(); ctx.arc(-15 + flicker, -10, 3, 0, 7); ctx.arc(15 + flicker2, -5, 4, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+/* ===== ОТРИСОВКА ФОНА ===== */
 function drawCloud(x,y,s=1) {
   ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
   ctx.fillStyle="rgba(100,120,140,0.3)"; ctx.beginPath(); ctx.arc(0,18,22,0,7); ctx.arc(25,8,27,0,7); ctx.arc(52,20,21,0,7); ctx.arc(28,25,26,0,7); ctx.fill();
@@ -521,7 +550,6 @@ function drawPlayer() {
   
   ctx.fillStyle="#4b3025"; ctx.fillRect(x-14,y+14,12,14); ctx.fillRect(x+4,y+14,12,14);
   
-  // Безопасная отрисовка тела (исправление ошибки roundRect)
   ctx.fillStyle="#70452c"; ctx.beginPath();
   if (ctx.roundRect) { ctx.roundRect(x-19,y-6,38,28,10); } 
   else { ctx.rect(x-19,y-6,38,28); }
@@ -532,15 +560,14 @@ function drawPlayer() {
   ctx.fillStyle="#382719"; ctx.beginPath(); ctx.arc(x-7,y-14,2.5,0,7); ctx.arc(x+7,y-14,2.5,0,7); ctx.fill();
   ctx.strokeStyle="#6b301b"; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(x,y-5,7,0.15,Math.PI-0.15); ctx.stroke();
   
-  // Отрисовка оружия в зависимости от выбора
   ctx.save(); ctx.translate(x,y-2); ctx.scale(player.facing,1);
   if (currentWeapon === "shotgun") {
     ctx.fillStyle="#49382b"; ctx.fillRect(10,-6,30,6); 
     ctx.fillStyle="#222"; ctx.fillRect(30,-10,15,4); 
     ctx.fillStyle="#a7a7a7"; ctx.fillRect(38,-11,10,3);
   } else {
-    ctx.fillStyle="#2a2a2a"; ctx.fillRect(10,-8,35,10); // Основа минигана
-    ctx.fillStyle="#555"; ctx.fillRect(35,-10,20,4); ctx.fillRect(35,-4,20,4); // Стволы
+    ctx.fillStyle="#2a2a2a"; ctx.fillRect(10,-8,35,10);
+    ctx.fillStyle="#555"; ctx.fillRect(35,-10,20,4); ctx.fillRect(35,-4,20,4);
     ctx.fillStyle="#a7a7a7"; ctx.fillRect(45,-9,5,2); ctx.fillRect(45,-3,5,2);
   }
   ctx.restore();
@@ -565,6 +592,8 @@ function drawEnemy(e) {
   else if (type === "troll") drawTroll(x, e.y, isMoving, facing);
   else if (type === "skeleton") drawSkeleton(x, e.y, isMoving, facing);
   else if (type === "dragon") drawDragon(x, e.y, isMoving, facing);
+  else if (type === "goblin") drawGoblin(x, e.y, isMoving, facing);
+  else if (type === "fire") drawFireMonster(x, e.y, isMoving, facing);
   else {
     ctx.save(); ctx.translate(x, e.y); ctx.scale(facing, 1);
     ctx.fillStyle="#888"; ctx.beginPath(); ctx.arc(0, 0, 20, 0, 7); ctx.fill();
@@ -669,7 +698,7 @@ function draw() {
   for(const b of bears) drawBear(b);
   drawBoss(); 
   drawBullets(); 
-  drawParticles(); // <--- Добавлена отрисовка частиц
+  drawParticles(); 
   drawPlayer();
   drawFloatingTexts();
   
@@ -694,14 +723,14 @@ function jump() {
     player.onGround = false; 
     player.jumpsLeft--; 
     sound(520,0.08); 
-    spawnParticles(player.x, player.y + player.r, "#d4c9a8", 8); // Частицы при прыжке
+    spawnParticles(player.x, player.y + player.r, "#d4c9a8", 8);
   } 
 }
 
 function dash() {
   if(gameOver||victory||isTransitioning) return;
   if (playerDashCooldown <= 0) {
-    playerDashing = 15; playerDashCooldown = 45; // Уменьшили перезарядку до 45
+    playerDashing = 15; playerDashCooldown = 45;
     player.vx = player.facing * 12;
     sound(300, 0.1, "sawtooth");
   }
@@ -715,10 +744,9 @@ function shoot() {
     bullets.push({ x:player.x+player.facing*25, y:player.y-7, vx:player.facing*8, life:100 });
     soundShoot();
     triggerShake(3);
-    spawnParticles(player.x + player.facing * 25, player.y - 7, "#ffff99", 5); // Дымок от выстрела
+    spawnParticles(player.x + player.facing * 25, player.y - 7, "#ffff99", 5); 
   } else {
-    // Миниган
-    const now=Date.now(); if(now-(player.lastShot||0)<80) return; player.lastShot=now; // Быстрая стрельба
+    const now=Date.now(); if(now-(player.lastShot||0)<80) return; player.lastShot=now;
     bullets.push({ x:player.x+player.facing*30, y:player.y-7 + (Math.random()-0.5)*5, vx:player.facing*11, life:100 });
     soundShoot();
     triggerShake(1);
@@ -731,7 +759,7 @@ function hurtPlayer() {
   player.health--; player.invincible=90; player.vy=-6; player.vx=-player.facing*3;
   triggerShake(10);
   sound(100,0.2,"sawtooth"); updateInfo();
-  spawnParticles(player.x, player.y, "#ff3333", 15); // Искры при уроне
+  spawnParticles(player.x, player.y, "#ff3333", 15);
   if(player.health<=0){ gameOver=true; say("Колобок, попробуй ещё раз!"); }
   saveProgress();
 }
@@ -774,6 +802,7 @@ function updatePlayer() {
   camera=player.x-W*0.38; camera=Math.max(0,Math.min(LEVEL_WIDTH-W,camera));
 }
 
+/* ===== ОБНОВЛЕНИЕ ВРАГОВ С ПРЫЖКАМИ НА ГОЛОВУ ===== */
 function updateEnemies() {
   for(const e of enemies){
     if(!e.alive) continue; e.jumpTimer--; const distance=player.x-e.x;
@@ -782,9 +811,22 @@ function updateEnemies() {
     else { if(e.x<e.min) e.vx=Math.abs(e.vx); if(e.x>e.max) e.vx=-Math.abs(e.vx); }
     e.x+=e.vx; e.y+=e.vy; e.vy+=GRAVITY;
     if(e.y>=GROUND_Y - 20){ e.y=GROUND_Y - 20; e.vy=0; e.onGround=true; }
-    if(Math.abs(player.x-e.x)<35&&Math.abs(player.y-e.y)<35) hurtPlayer();
+    
+    // Проверка столкновения
+    if(Math.abs(player.x-e.x)<35 && Math.abs(player.y-e.y)<35) {
+      if (player.vy > 0 && player.y < e.y - 10) { // Если падаем сверху
+        e.alive = false;
+        player.vy = -10; // Отскок
+        sound(600, 0.1, "square");
+        spawnParticles(e.x, e.y, "#ff5555", 15);
+        totalStars += 1; saveProgress();
+      } else {
+        hurtPlayer();
+      }
+    }
   }
 }
+
 function updateLizards() {
   for(const l of lizards){
     if(!l.alive) continue; l.dashTimer--; const distance=player.x-l.x;
@@ -793,9 +835,22 @@ function updateLizards() {
     else { l.vx=l.facing*l.speed; if(l.x<80) l.facing=1; if(l.x>LEVEL_WIDTH-80) l.facing=-1; }
     l.x+=l.vx; l.y+=l.vy; l.vy+=GRAVITY;
     if(l.y>=GROUND_Y - 15){ l.y=GROUND_Y - 15; l.vy=0; l.onGround=true; } else l.onGround=false;
-    if(Math.abs(player.x-l.x)<35&&Math.abs(player.y-l.y)<35) hurtPlayer();
+    
+    // Прыжок на голову ящерице
+    if(Math.abs(player.x-l.x)<35 && Math.abs(player.y-l.y)<35) {
+      if (player.vy > 0 && player.y < l.y - 10) {
+        l.alive = false;
+        player.vy = -10;
+        sound(600, 0.1, "square");
+        spawnParticles(l.x, l.y, "#ff5555", 15);
+        totalStars += 1; saveProgress();
+      } else {
+        hurtPlayer();
+      }
+    }
   }
 }
+
 function updateBears() {
   for(const b of bears){
     if(!b.alive) continue; if(b.hurtFlash>0) b.hurtFlash--;
@@ -809,9 +864,22 @@ function updateBears() {
       enemyBullets.push({ x:b.x, y:b.y-30, vx:dx/len*3.2, vy:dy/len*3.2-1.2, angle:Math.atan2(dy,dx), life:180 });
       b.throwTimer=150+Math.random()*80; sound(200,0.1,"square");
     }
-    if(Math.abs(player.x-b.x)<45&&Math.abs(player.y-b.y)<45) hurtPlayer();
+    
+    // Прыжок на голову медведю
+    if(Math.abs(player.x-b.x)<45 && Math.abs(player.y-b.y)<45) {
+      if (player.vy > 0 && player.y < b.y - 15) {
+        b.hp--; b.hurtFlash=20; player.vy = -10;
+        sound(200, 0.08);
+        spawnParticles(b.x, b.y, "#ff5555", 10);
+        if(b.hp<=0){ b.alive=false; pickups.push({ x: b.x, y: b.y - 30, type: "shield" }); say("Медведь ушёл в лес!"); totalStars+=5; }
+        saveProgress();
+      } else {
+        hurtPlayer();
+      }
+    }
   }
 }
+
 function updateWitches() {
   for(const w of witches){
     if(!w.alive) continue; w.phase+=0.03; w.x+=w.vx;
@@ -824,9 +892,11 @@ function updateWitches() {
       enemyBullets.push({ x:w.x, y:w.y, vx:dx/len*3.4, vy:dy/len*3.4, angle:Math.atan2(dy,dx), life:150 });
       w.shootTimer=130+Math.random()*60; sound(300,0.08,"sawtooth");
     }
+    // Ведьма летает, на неё прыгнуть нельзя
     if(Math.abs(player.x-w.x)<40&&Math.abs(player.y-w.y)<40) hurtPlayer();
   }
 }
+
 function updateBoss() {
   if(!boss || !boss.isBossLevel) return;
   if(!bossBattle&&player.x>1950&&boss.alive){ bossBattle=true; say("Лиса! Вот это сюрприз!"); saveProgress(); }
@@ -842,7 +912,18 @@ function updateBoss() {
     enemyBullets.push({ x:boss.x, y:boss.y-10, vx:dx/len*4.8, vy:dy/len*4.8, angle:Math.atan2(dy,dx), life:130 });
     boss.shootTimer=85; sound(260,0.1,"sawtooth");
   }
-  if(Math.abs(player.x-boss.x)<50&&Math.abs(player.y-boss.y)<50) hurtPlayer();
+  // Прыжок на босса
+  if(Math.abs(player.x-boss.x)<50 && Math.abs(player.y-boss.y)<50) {
+    if (player.vy > 0 && player.y < boss.y - 15) {
+      boss.hp--; player.vy = -10;
+      sound(240, 0.08);
+      spawnParticles(boss.x, boss.y, "#ff5555", 8);
+      if(boss.hp<=0){ boss.alive=false; say("А меня за что?"); totalStars+=10; }
+      saveProgress();
+    } else {
+      hurtPlayer();
+    }
+  }
 }
 
 function updateBullets() {
@@ -850,7 +931,7 @@ function updateBullets() {
     b.x+=b.vx; b.life--;
     for(const e of enemies) if(e.alive&&Math.abs(b.x-e.x)<30&&Math.abs(b.y-e.y)<35){ 
       e.alive=false; b.life=0; 
-      spawnParticles(e.x, e.y, "#ff5555", 10); // Взрыв врага
+      spawnParticles(e.x, e.y, "#ff5555", 10);
       if(Math.random() < 0.2) pickups.push({ x: e.x, y: e.y - 20, type: ["apple", "lightning", "shield"][Math.floor(Math.random()*3)] });
       say("Ай, блядь!"); sound(330,0.12); saveProgress(); 
     }
@@ -932,7 +1013,7 @@ function update() {
   if(gameOver||victory){ draw(); gameLoopRunning=false; return; }
   frame++; 
   updatePlayer(); updateEnemies(); updateWitches(); updateLizards(); updateBears(); updateBoss(); updateBullets(); updateStars(); updatePickups();
-  updateParticles(); // Обновляем частицы
+  updateParticles();
   checkLevelEnd(); updateInfo(); draw();
   if(frame-lastSaveFrame>=60){ saveProgress(); lastSaveFrame=frame; }
   requestAnimationFrame(update);
