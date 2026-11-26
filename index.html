@@ -108,7 +108,6 @@
         setTimeout(() => playTone(500, 'square', 0.2, 0.1), 200);
         setTimeout(() => playTone(600, 'square', 0.4, 0.1), 400);
     }
-    // Новый звук прыжка (восходящий тон)
     function soundJump() {
         if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
@@ -122,6 +121,17 @@
         gain.connect(audioCtx.destination);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.15);
+    }
+    
+    // Функция для озвучивания текста (крик "Ай")
+    function speak(text) {
+        if (!window.speechSynthesis) return;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ru-RU';
+        utterance.pitch = 1.5; // Делаем голос повыше (как у зверюшек)
+        utterance.rate = 1.5;  // Говорим быстро
+        utterance.volume = 0.5; // Не слишком громко
+        window.speechSynthesis.speak(utterance);
     }
     // ------------------------
 
@@ -178,7 +188,7 @@
     }
 
     startBtn.addEventListener('click', () => {
-        initAudio(); // Инициализируем звук при первом клике
+        initAudio(); 
         startScreen.style.display = 'none';
         gameStarted = true;
         setupLevel(level);
@@ -192,7 +202,7 @@
             if (player.grounded) { 
                 player.vy = player.jumpPower; 
                 player.grounded = false; 
-                soundJump(); // Звук прыжка
+                soundJump(); 
             }
         }
         if (e.code === 'KeyF') shoot();
@@ -208,12 +218,11 @@
     document.getElementById('btnLeft').addEventListener('touchend', (e) => { e.preventDefault(); keys.left = false; });
     document.getElementById('btnShoot').addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); });
     
-    // Прыжок по тапу на экран (со звуком)
     canvas.addEventListener('touchstart', (e) => { 
         if (gameStarted && player.grounded) { 
             player.vy = player.jumpPower; 
             player.grounded = false; 
-            soundJump(); // Звук прыжка
+            soundJump(); 
         }
     });
 
@@ -282,6 +291,7 @@
                     enemies.splice(index, 1);
                     bullets.splice(bIndex, 1);
                     score += 10;
+                    speak("Ай!"); // Враг кричит "Ай" при попадании
                 }
             });
         });
