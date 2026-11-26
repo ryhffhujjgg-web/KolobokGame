@@ -7,11 +7,10 @@
     <style>
         body { margin: 0; padding: 0; background: #222; overflow: hidden; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; }
         
-        /* Контейнер для игры: занимает всю ширину, но фиксированную высоту */
         #gameContainer {
             position: relative;
-            width: 100vw; /* На всю ширину экрана */
-            height: 50vh; /* Высота ровно половина экрана (как на скриншоте) */
+            width: 100vw;
+            height: 50vh; /* Игра ровно по центру */
             background: #87CEEB;
             overflow: hidden;
             border-top: 2px solid #000;
@@ -20,7 +19,7 @@
         
         canvas { display: block; width: 100%; height: 100%; touch-action: none; image-rendering: pixelated; }
         
-        /* Кнопки управления (внизу на черном фоне) */
+        /* Кнопки управления */
         #controls { position: absolute; bottom: 20px; display: flex; width: 100%; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; z-index: 5; }
         .btn { background: rgba(200,200,200,0.8); border: 2px solid #fff; border-radius: 15px; width: 80px; height: 80px; font-size: 30px; font-weight: bold; color: #000; display: flex; justify-content: center; align-items: center; user-select: none; pointer-events: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
         .btn:active { background: rgba(255,255,255,1); transform: translateY(2px); }
@@ -35,7 +34,6 @@
     </style>
 </head>
 <body>
-    <!-- Верхняя черная полоса (пустая) -->
     <div style="width: 100vw; height: 25vh; background: #222;"></div>
 
     <div id="gameContainer">
@@ -48,7 +46,6 @@
         <canvas id="gameCanvas"></canvas>
     </div>
 
-    <!-- Нижняя черная полоса с кнопками -->
     <div style="position: absolute; bottom: 0; width: 100vw; height: 25vh; background: #222;">
         <div id="controls">
             <div class="btn" id="btnLeft">◀</div>
@@ -64,7 +61,7 @@
     const startBtn = document.getElementById('startBtn');
 
     let cw = window.innerWidth;
-    let ch = window.innerHeight / 2; // Высота игры = 50% экрана
+    let ch = window.innerHeight / 2; 
 
     function resizeCanvas() {
         cw = window.innerWidth;
@@ -80,11 +77,12 @@
     let gameOver = false;
     let gameStarted = false;
     let level = 1;
-    let levelGoal = 1500;
+    let levelGoal = 2000; // Увеличили дистанцию, так как обзор стал больше
 
+    // УМЕНЬШИЛИ РАЗМЕРЫ ПЕРСОНАЖЕЙ
     const player = {
-        x: 100, y: 0, width: 50, height: 50, 
-        speed: 6, vy: 0, gravity: 0.8, jumpPower: -15,
+        x: 100, y: 0, width: 30, height: 30, 
+        speed: 5, vy: 0, gravity: 0.6, jumpPower: -11,
         grounded: false, cooldown: 0, facingRight: true
     };
 
@@ -93,38 +91,43 @@
     let coins = [];
     let platforms = [];
     let cameraX = 0;
+    
+    // Коэффициент масштабирования (чем меньше, тем больше обзор)
+    const ZOOM = 1.5; 
 
     function setupLevel(lvl) {
         player.x = 100;
-        player.y = ch - 130; 
+        player.y = ch - 100; // Чуть выше земли, так как персонаж меньше
         bullets = [];
         enemies = [];
         coins = [];
         platforms = [];
         cameraX = 0;
-        levelGoal = 1500 * lvl; 
+        levelGoal = 2000 * lvl; 
 
-        platforms.push({ x: -2000, y: ch - 80, width: 10000, height: 100 });
+        platforms.push({ x: -2000, y: ch - 60, width: 10000, height: 100 });
 
+        // Уменьшили врагов
         if (lvl === 1) {
-            enemies.push({ x: cw + 300, y: ch - 110, width: 40, height: 40, speed: 1.5, type: '🐇' });
-            enemies.push({ x: cw + 900, y: ch - 110, width: 40, height: 40, speed: 1.6, type: '🐇' });
-            enemies.push({ x: cw + 1500, y: ch - 110, width: 40, height: 40, speed: 1.7, type: '🐇' });
+            enemies.push({ x: cw + 300, y: ch - 80, width: 30, height: 30, speed: 1.5, type: '🐇' });
+            enemies.push({ x: cw + 900, y: ch - 80, width: 30, height: 30, speed: 1.6, type: '🐇' });
+            enemies.push({ x: cw + 1500, y: ch - 80, width: 30, height: 30, speed: 1.7, type: '🐇' });
         } else if (lvl === 2) {
-            enemies.push({ x: cw + 300, y: ch - 110, width: 40, height: 40, speed: 1.8, type: '🐺' });
-            enemies.push({ x: cw + 700, y: ch - 110, width: 40, height: 40, speed: 1.9, type: '🐻' });
-            enemies.push({ x: cw + 1200, y: ch - 110, width: 40, height: 40, speed: 2.0, type: '🐺' });
-            enemies.push({ x: cw + 1800, y: ch - 110, width: 40, height: 40, speed: 2.1, type: '🐻' });
+            enemies.push({ x: cw + 300, y: ch - 80, width: 30, height: 30, speed: 1.8, type: '🐺' });
+            enemies.push({ x: cw + 700, y: ch - 80, width: 30, height: 30, speed: 1.9, type: '🐻' });
+            enemies.push({ x: cw + 1200, y: ch - 80, width: 30, height: 30, speed: 2.0, type: '🐺' });
+            enemies.push({ x: cw + 1800, y: ch - 80, width: 30, height: 30, speed: 2.1, type: '🐻' });
         } else if (lvl === 3) {
-            enemies.push({ x: cw + 300, y: ch - 110, width: 40, height: 40, speed: 2.2, type: '🦊' });
-            enemies.push({ x: cw + 700, y: ch - 110, width: 40, height: 40, speed: 2.3, type: '🐺' });
-            enemies.push({ x: cw + 1200, y: ch - 110, width: 40, height: 40, speed: 2.4, type: '🦊' });
-            enemies.push({ x: cw + 1600, y: ch - 110, width: 40, height: 40, speed: 2.5, type: '🐻' });
-            enemies.push({ x: cw + 2200, y: ch - 110, width: 40, height: 40, speed: 2.6, type: '🐺' });
+            enemies.push({ x: cw + 300, y: ch - 80, width: 30, height: 30, speed: 2.2, type: '🦊' });
+            enemies.push({ x: cw + 700, y: ch - 80, width: 30, height: 30, speed: 2.3, type: '🐺' });
+            enemies.push({ x: cw + 1200, y: ch - 80, width: 30, height: 30, speed: 2.4, type: '🦊' });
+            enemies.push({ x: cw + 1600, y: ch - 80, width: 30, height: 30, speed: 2.5, type: '🐻' });
+            enemies.push({ x: cw + 2200, y: ch - 80, width: 30, height: 30, speed: 2.6, type: '🐺' });
         }
 
-        for (let i = 0; i < 25; i++) {
-            coins.push({ x: 400 + i * 120, y: ch - 150 - Math.random() * 80, width: 20, height: 20 });
+        // Уменьшили монеты
+        for (let i = 0; i < 30; i++) {
+            coins.push({ x: 400 + i * 100, y: ch - 120 - Math.random() * 60, width: 15, height: 15 });
         }
     }
 
@@ -162,9 +165,9 @@
     function shoot() {
         if (gameOver || !gameStarted) return;
         if (player.cooldown <= 0) {
-            let startX = player.facingRight ? player.x + player.width : player.x - 15;
-            let speed = player.facingRight ? 15 : -15;
-            bullets.push({ x: startX, y: player.y + 20, width: 15, height: 8, speed: speed });
+            let startX = player.facingRight ? player.x + player.width : player.x - 10;
+            let speed = player.facingRight ? 12 : -12;
+            bullets.push({ x: startX, y: player.y + 10, width: 10, height: 5, speed: speed });
             player.cooldown = 15;
         }
     }
@@ -246,21 +249,21 @@
         ctx.fillStyle = '#FF8C00'; 
         ctx.fillRect(0, 0, cw, ch);
         ctx.fillStyle = '#FFFF00'; 
-        ctx.beginPath(); ctx.arc(cw / 2, ch / 2, 80, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cw / 2, ch / 2, 60, 0, Math.PI * 2); ctx.fill();
         
-        ctx.font = '100px Arial';
+        ctx.font = '80px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('🚗', cw / 2, ch - 100);
-        ctx.fillText('🥯', cw / 2 - 60, ch - 100);
+        ctx.fillText('🚗', cw / 2, ch - 80);
+        ctx.fillText('🥯', cw / 2 - 40, ch - 80);
 
-        ctx.fillStyle = '#FFF'; ctx.font = 'bold 40px "Courier New", Courier, monospace';
-        ctx.fillText('ПОБЕГ УДАЛСЯ!', cw / 2, 100);
-        ctx.font = '24px "Courier New", Courier, monospace';
-        ctx.fillText('Колобок уехал в закат', cw / 2, 150);
+        ctx.fillStyle = '#FFF'; ctx.font = 'bold 30px "Courier New", Courier, monospace';
+        ctx.fillText('ПОБЕГ УДАЛСЯ!', cw / 2, 80);
+        ctx.font = '20px "Courier New", Courier, monospace';
+        ctx.fillText('Колобок уехал в закат', cw / 2, 120);
 
-        ctx.fillStyle = '#000'; ctx.fillRect(cw / 2 - 100, ch - 50, 200, 40);
-        ctx.fillStyle = '#FFF'; ctx.font = '20px Arial';
-        ctx.fillText('Играть снова', cw / 2, ch - 25);
+        ctx.fillStyle = '#000'; ctx.fillRect(cw / 2 - 80, ch - 40, 160, 30);
+        ctx.fillStyle = '#FFF'; ctx.font = '16px Arial';
+        ctx.fillText('Играть снова', cw / 2, ch - 20);
         ctx.textAlign = 'left';
     }
 
@@ -268,66 +271,74 @@
         ctx.save();
         ctx.fillStyle = '#D2B48C';
         ctx.beginPath(); ctx.arc(x + w/2, y + h/2, w/2, 0, Math.PI*2); ctx.fill();
-        ctx.strokeStyle = '#8B4513'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = '#8B4513'; ctx.lineWidth = 1.5; ctx.stroke();
         ctx.fillStyle = '#333';
         ctx.beginPath(); ctx.arc(x + w/2, y + h/2, w/2 - 1, 0, Math.PI, false); ctx.fill();
-        ctx.strokeStyle = '#CCC'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(x + w/2, y + h/2 + 5); ctx.lineTo(x + w/2, y + h - 5); ctx.stroke();
+        ctx.strokeStyle = '#CCC'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x + w/2, y + h/2 + 3); ctx.lineTo(x + w/2, y + h - 3); ctx.stroke();
         ctx.fillStyle = '#000';
         if (facingRight) {
-            ctx.beginPath(); ctx.arc(x + w/2 + 8, y + h/2 - 5, 3, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(x + w/2 + 16, y + h/2 - 5, 3, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x + w/2 + 4, y + h/2 - 3, 2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x + w/2 + 9, y + h/2 - 3, 2, 0, Math.PI*2); ctx.fill();
         } else {
-            ctx.beginPath(); ctx.arc(x + w/2 - 16, y + h/2 - 5, 3, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(x + w/2 - 8, y + h/2 - 5, 3, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x + w/2 - 9, y + h/2 - 3, 2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x + w/2 - 4, y + h/2 - 3, 2, 0, Math.PI*2); ctx.fill();
         }
-        ctx.beginPath(); ctx.arc(x + w/2, y + h/2 + 5, 6, 0.1, Math.PI - 0.1); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x + w/2, y + h/2 + 3, 4, 0.1, Math.PI - 0.1); ctx.stroke();
         ctx.fillStyle = '#555';
-        ctx.fillRect(facingRight ? x + w - 5 : x - 15, y + h/2 + 5, 20, 6);
+        ctx.fillRect(facingRight ? x + w - 3 : x - 10, y + h/2 + 3, 13, 4);
         ctx.fillStyle = '#8B4513';
-        ctx.fillRect(facingRight ? x + w - 15 : x + 5, y + h/2 + 7, 10, 8);
+        ctx.fillRect(facingRight ? x + w - 10 : x + 3, y + h/2 + 4, 7, 5);
         ctx.restore();
     }
 
     function draw() {
         ctx.clearRect(0, 0, cw, ch);
 
-        if (level === 1) { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, cw, ch); }
-        else if (level === 2) { ctx.fillStyle = '#2E8B57'; ctx.fillRect(0, 0, cw, ch); }
-        else { ctx.fillStyle = '#FF8C00'; ctx.fillRect(0, 0, cw, ch); }
+        // Применяем масштаб для большего обзора
+        ctx.save();
+        ctx.scale(ZOOM, ZOOM); 
+
+        if (level === 1) { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, cw / ZOOM, ch / ZOOM); }
+        else if (level === 2) { ctx.fillStyle = '#2E8B57'; ctx.fillRect(0, 0, cw / ZOOM, ch / ZOOM); }
+        else { ctx.fillStyle = '#FF8C00'; ctx.fillRect(0, 0, cw / ZOOM, ch / ZOOM); }
 
         ctx.save();
-        ctx.translate(-cameraX, 0);
+        ctx.translate(-cameraX / ZOOM, 0);
 
         ctx.fillStyle = level === 2 ? '#556B2F' : '#8B4513';
         platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
 
         ctx.fillStyle = '#228B22';
-        ctx.fillRect(-2000, ch - 80, 10000, 15);
+        ctx.fillRect(-2000, ch - 60, 10000, 15);
 
-        ctx.font = '30px Arial';
-        coins.forEach(c => { ctx.fillText('🪙', c.x, c.y + 30); });
+        // Рисуем монеты меньше
+        ctx.font = '20px Arial';
+        coins.forEach(c => { ctx.fillText('🪙', c.x, c.y + 20); });
 
-        ctx.font = '50px Arial';
-        enemies.forEach(e => { ctx.fillText(e.type, e.x, e.y + 45); });
+        // Рисуем врагов меньше
+        ctx.font = '35px Arial';
+        enemies.forEach(e => { ctx.fillText(e.type, e.x, e.y + 35); });
 
         ctx.fillStyle = '#FF0000';
         bullets.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
 
         drawKolobok(player.x, player.y, player.width, player.height, player.facingRight);
         ctx.restore();
+        ctx.restore(); // Возвращаем масштаб для UI
 
-        ctx.fillStyle = '#000'; ctx.font = 'bold 24px "Courier New", Courier, monospace';
-        ctx.fillText(`Счет: ${score}`, 20, 40);
-        ctx.fillText(`Уровень: ${level} / 3`, 20, 70);
+        // Интерфейс (рисуется в обычном масштабе, чтобы не был мелким)
+        ctx.fillStyle = '#000'; ctx.font = 'bold 18px "Courier New", Courier, monospace';
+        ctx.fillText(`Счет: ${score}`, 10, 25);
+        ctx.fillText(`Уровень: ${level} / 3`, 10, 45);
 
         if (gameOver && level < 3) {
             ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, cw, ch);
             ctx.fillStyle = '#FFF'; ctx.textAlign = 'center';
-            ctx.font = '48px "Courier New", Courier, monospace';
-            ctx.fillText('ИГРА ОКОНЧЕНА', cw / 2, ch / 2 - 50);
-            ctx.font = '24px "Courier New", Courier, monospace';
-            ctx.fillText('Нажмите чтобы перезапустить', cw / 2, ch / 2);
+            ctx.font = '36px "Courier New", Courier, monospace';
+            ctx.fillText('ИГРА ОКОНЧЕНА', cw / 2, ch / 2 - 30);
+            ctx.font = '18px "Courier New", Courier, monospace';
+            ctx.fillText('Нажмите чтобы перезапустить', cw / 2, ch / 2 + 10);
             ctx.textAlign = 'left';
         }
     }
