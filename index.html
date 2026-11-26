@@ -440,7 +440,6 @@ function makeLevel() {
     });
   }
 
-  // Ящерицы (2 шт.) — со 2-го мира
   if (world > 0) {
     lizards.push({
       x: 1100, y: 350, vx: 1.8, vy: 0,
@@ -454,7 +453,6 @@ function makeLevel() {
     });
   }
 
-  // Медведи в шляпе (1 шт.) — с 3-го мира
   if (world >= 2) {
     bears.push({
       x: 1350, y: 350, vx: 0.9, vy: 0,
@@ -724,7 +722,6 @@ function drawEnemy(e) {
   }
 }
 
-/* ===== ЯЩЕРИЦА (вектор) ===== */
 function drawLizard(l) {
   const x = l.x - camera;
   if (x < -70 || x > W + 70 || !l.alive) return;
@@ -736,7 +733,6 @@ function drawLizard(l) {
   ctx.translate(x, l.y + bob);
   ctx.scale(f, 1);
 
-  // Хвост
   ctx.fillStyle = "#1f7a1f";
   ctx.beginPath();
   ctx.moveTo(-14, 4);
@@ -745,18 +741,15 @@ function drawLizard(l) {
   ctx.closePath();
   ctx.fill();
 
-  // Ноги
   ctx.fillStyle = "#1f7a1f";
   ctx.fillRect(-10, 8, 9, 12);
   ctx.fillRect(2, 8, 9, 12);
 
-  // Тело
   ctx.fillStyle = "#2ea82e";
   ctx.beginPath();
   ctx.ellipse(0, 0, 16, 12, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Гребень
   ctx.fillStyle = "#0f5c0f";
   for (let i = -2; i <= 2; i++) {
     ctx.beginPath();
@@ -767,19 +760,16 @@ function drawLizard(l) {
     ctx.fill();
   }
 
-  // Голова
   ctx.fillStyle = "#35c235";
   ctx.beginPath();
   ctx.ellipse(14, -6, 11, 9, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Морда
   ctx.fillStyle = "#8ee88e";
   ctx.beginPath();
   ctx.ellipse(22, -4, 6, 4, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Глаз
   ctx.fillStyle = "white";
   ctx.beginPath();
   ctx.arc(17, -8, 3.5, 0, Math.PI * 2);
@@ -789,7 +779,6 @@ function drawLizard(l) {
   ctx.arc(18, -8, 1.8, 0, Math.PI * 2);
   ctx.fill();
 
-  // Рот
   ctx.strokeStyle = "#0a4a0a";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
@@ -800,7 +789,6 @@ function drawLizard(l) {
   ctx.restore();
 }
 
-/* ===== МЕДВЕДЬ В ШЛЯПЕ (вектор) ===== */
 function drawBear(b) {
   const x = b.x - camera;
   if (x < -80 || x > W + 80 || !b.alive) return;
@@ -812,50 +800,42 @@ function drawBear(b) {
   ctx.translate(x, b.y);
   ctx.scale(f, 1);
 
-  // Тело
   ctx.fillStyle = flash ? "#ffd27a" : "#a86b1e";
   ctx.beginPath();
   ctx.ellipse(0, 0, 20, 22, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Живот
   ctx.fillStyle = flash ? "#fff0c0" : "#e8a53c";
   ctx.beginPath();
   ctx.ellipse(2, 4, 12, 15, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Ноги
   ctx.fillStyle = flash ? "#ffd27a" : "#8a5416";
   ctx.beginPath();
   ctx.ellipse(-9, 20, 8, 6, 0, 0, Math.PI * 2);
   ctx.ellipse(10, 20, 8, 6, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Голова
   ctx.fillStyle = flash ? "#ffd27a" : "#b87522";
   ctx.beginPath();
   ctx.ellipse(0, -22, 15, 14, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Уши
   ctx.beginPath();
   ctx.arc(-12, -33, 6, 0, Math.PI * 2);
   ctx.arc(12, -33, 6, 0, Math.PI * 2);
   ctx.fill();
 
-  // Морда
   ctx.fillStyle = flash ? "#fff0c0" : "#e8a53c";
   ctx.beginPath();
   ctx.ellipse(8, -20, 9, 7, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Нос
   ctx.fillStyle = "#3a1f0a";
   ctx.beginPath();
   ctx.arc(15, -21, 3, 0, Math.PI * 2);
   ctx.fill();
 
-  // Глаз
   ctx.fillStyle = "white";
   ctx.beginPath();
   ctx.arc(4, -26, 3.5, 0, Math.PI * 2);
@@ -865,7 +845,6 @@ function drawBear(b) {
   ctx.arc(5, -26, 1.8, 0, Math.PI * 2);
   ctx.fill();
 
-  // Шляпа
   ctx.fillStyle = "#3b2a17";
   ctx.beginPath();
   ctx.ellipse(0, -36, 20, 4, 0, 0, Math.PI * 2);
@@ -879,7 +858,6 @@ function drawBear(b) {
 
   ctx.restore();
 
-  // Индикатор HP (3 деления)
   if (b.hp < b.maxHp) {
     const hx = x - 20;
     const hy = b.y - 58;
@@ -1146,7 +1124,6 @@ function updateEnemies() {
   }
 }
 
-/* ===== ЯЩЕРИЦЫ ===== */
 function updateLizards() {
   for (const l of lizards) {
     if (!l.alive) continue;
@@ -1155,16 +1132,13 @@ function updateLizards() {
     const distance = player.x - l.x;
 
     if (l.dashTimer <= 0 && l.onGround && Math.abs(distance) < 260) {
-      // Рывок в сторону игрока
       l.vx = Math.sign(distance) * (4.5 + world * 0.3);
       l.facing = Math.sign(distance) || 1;
       l.dashTimer = 160 + Math.random() * 80;
       sound(420, 0.06, "square");
     } else if (l.dashTimer > 0) {
-      // торможение после рывка
       l.vx *= 0.93;
     } else {
-      // обычное патрулирование
       l.vx = l.facing * l.speed;
       if (l.x < 80) l.facing = 1;
       if (l.x > LEVEL_WIDTH - 80) l.facing = -1;
@@ -1188,7 +1162,6 @@ function updateLizards() {
   }
 }
 
-/* ===== МЕДВЕДИ ===== */
 function updateBears() {
   for (const b of bears) {
     if (!b.alive) continue;
@@ -1198,7 +1171,6 @@ function updateBears() {
     const distance = player.x - b.x;
     b.facing = Math.sign(distance) || 1;
 
-    // Медленно приближается
     if (Math.abs(distance) > 60) {
       b.vx = Math.sign(distance) * 0.9;
     } else {
@@ -1215,7 +1187,6 @@ function updateBears() {
       b.onGround = true;
     }
 
-    // Бросает камни
     b.throwTimer--;
     if (b.throwTimer <= 0 && Math.abs(distance) < 380) {
       const dx = player.x - b.x;
@@ -1239,7 +1210,6 @@ function updateBears() {
   }
 }
 
-/* ===== БАБА-ЯГА ===== */
 function updateWitches() {
   for (const w of witches) {
     if (!w.alive) continue;
@@ -1338,7 +1308,7 @@ function updateBullets() {
          Math.abs(b.y-e.y)<30) {
         e.alive=false;
         b.life=0;
-        say("Ёба-Боба!");
+        say("Ай!");
         sound(330,0.12);
         saveProgress();
       }
