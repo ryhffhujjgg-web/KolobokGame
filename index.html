@@ -167,7 +167,7 @@ const LEVEL_WIDTH = 2400;
 const GRAVITY = 0.65;
 const GROUND_Y = 385;
 
-const SAVE_KEY = "kolobok_adventure_save_v2";
+const SAVE_KEY = "kolobok_adventure_save_v3";
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"🐰"},
@@ -201,7 +201,7 @@ let lastSafeX = 70;
 function saveProgress() {
   try {
     const data = {
-      version: 2,
+      version: 3,
       world: world,
       totalStars: totalStars,
       lastSafeX: lastSafeX,
@@ -237,7 +237,7 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 2) return false;
+    if (!data || data.version !== 3) return false;
     if (!Number.isInteger(data.world) || data.world < 0 || data.world > 3) return false;
 
     world = data.world;
@@ -362,7 +362,6 @@ function makeLevel() {
   gaps = [];
   bossBattle = false;
 
-  // Пропасти (обрывы) — не пересекаются с платформами
   gaps = [
     {x: 760,  w: 90},
     {x: 1450, w: 110},
@@ -371,7 +370,6 @@ function makeLevel() {
 
   for (let i=0; i<5; i++) {
     const x = 390 + i*370;
-    // не ставим врага над пропастью
     const overGap = gaps.some(g => x > g.x - 20 && x < g.x + g.w + 20);
     if (overGap) continue;
 
@@ -384,7 +382,6 @@ function makeLevel() {
     });
   }
 
-  // Летающая Баба-Яга: 2 на уровнях 2–4, 0 на первом
   if (world > 0) {
     witches.push({
       x: 650, baseY: 220, y: 220,
@@ -438,7 +435,7 @@ function updateInfo() {
     " | ❤️ " + (player ? player.health : 3);
 }
 
-/* ===== ПРОВЕРКА ПРОПАСТИ ===== */
+/* ===== ПРОПАСТЬ ===== */
 function isOverGap(x) {
   return gaps.some(g => x + player.r * 0.5 > g.x && x - player.r * 0.5 < g.x + g.w);
 }
@@ -526,33 +523,79 @@ function drawBackground() {
     ctx.fill();
   }
 
-  // Земля кусками, пропуская пропасти
-  ctx.fillStyle=theme.ground;
-  let cursor = 0;
+  // ---- ЗЕМЛЯ С ПРОПАСТЯМИ ----
   const sorted = gaps.slice().sort((a,b)=>a.x-b.x);
+
+  // 1) Сначала рисуем "пустоту" под пропастями — чёрный градиент вниз
+  for (const g of sorted) {
+    const gx = g.x - camera;
+    if (gx + g.w < -50 || gx > W + 50) continue;
+
+    const voidGrad = ctx.createLinearGradient(0, GROUND_Y, 0, H);
+    voidGrad.addColorStop(0, "#0a0f0a");
+    voidGrad.addColorStop(1, "#000000");
+    ctx.fillStyle = voidGrad;
+    ctx.fillRect(gx, GROUND_Y, g.w, H - GROUND_Y);
+
+    // Тёмные края ямы (глубина)
+    ctx.fillStyle = "#000";
+    ctx.fillRect(gx, GROUND_Y, 4, H - GROUND_Y);
+    ctx.fillRect(gx + g.w - 4, GROUND_Y, 4, H - GROUND_Y);
+  }
+
+  // 2) Земля кусками (только там, где нет пропасти)
+  let cursor = 0;
   for (const g of sorted) {
     if (g.x > cursor) {
-      ctx.fillRect(cursor, GROUND_Y, g.x - cursor, H - GROUND_Y);
+      drawGroundSegment(cursor, g.x - cursor, theme);
     }
-    // тёмная яма
-    ctx.fillStyle = "#1b2a1a";
-    ctx.fillRect(g.x, GROUND_Y, g.w, H - GROUND_Y);
-    ctx.fillStyle = "#0e1a0d";
-    ctx.fillRect(g.x, GROUND_Y, 6, H - GROUND_Y);
-    ctx.fillRect(g.x + g.w - 6, GROUND_Y, 6, H - GROUND_Y);
-    ctx.fillStyle = theme.ground;
     cursor = g.x + g.w;
   }
   if (cursor < LEVEL_WIDTH) {
-    ctx.fillRect(cursor, GROUND_Y, LEVEL_WIDTH - cursor, H - GROUND_Y);
+    drawGroundSegment(cursor, LEVEL_WIDTH - cursor, theme);
   }
+}
 
-  ctx.fillStyle="#367b36";
-  for(let i=0;i<40;i++) {
-    const x=((i*35-camera)%950+950)%950;
-    const wx = x + camera;
-    const overGap = gaps.some(g => wx > g.x && wx < g.x + g.w);
-    if (!overGap) ctx.fillRect(x,390+(i%3)*8,15,3);
+function drawGroundSegment(startX, width, theme) {
+  const sx = startX - camera;
+  if (sx + width < -50 || sx > W + 50) return;
+
+  // Основная земля
+  ctx.fillStyle = theme.ground;
+  ctx.fillRect(sx, GROUND_Y, width, H - GROUND_Y);
+
+  // Верхняя кромка травы (яркая)
+  ctx.fillStyle = "#7bd66a";
+  ctx.fillRect(sx, GROUND_Y, width, 6);
+
+  // Тёмная полоса под травой
+  ctx.fillStyle = "#2e5c2a";
+  ctx.fillRect(sx, GROUND_Y + 6, width, 4);
+
+  // Тёмный низ земли (переход в глубину)
+  const lowerGrad = ctx.createLinearGradient(0, GROUND_Y + 10, 0, H);
+  lowerGrad.addColorStop(0, "rgba(0,0,0,0)");
+  lowerGrad.addColorStop(1, "rgba(0,0,0,0.45)");
+  ctx.fillStyle = lowerGrad;
+  ctx.fillRect(sx, GROUND_Y + 10, width, H - GROUND_Y - 10);
+
+  // Края обрыва — вертикальные светлые срезы
+  const sortedGaps = gaps.slice().sort((a,b)=>a.x-b.x);
+  for (const g of sortedGaps) {
+    // правый край этого сегмента = начало ямы
+    if (Math.abs((g.x) - (startX + width)) < 1) {
+      ctx.fillStyle = "#8b5a2b";
+      ctx.fillRect(sx + width - 8, GROUND_Y, 8, H - GROUND_Y);
+      ctx.fillStyle = "#c98a4b";
+      ctx.fillRect(sx + width - 8, GROUND_Y, 8, 8);
+    }
+    // левый край этого сегмента = конец ямы
+    if (Math.abs((g.x + g.w) - startX) < 1) {
+      ctx.fillStyle = "#8b5a2b";
+      ctx.fillRect(sx, GROUND_Y, 8, H - GROUND_Y);
+      ctx.fillStyle = "#c98a4b";
+      ctx.fillRect(sx, GROUND_Y, 8, 8);
+    }
   }
 }
 
@@ -632,7 +675,6 @@ function drawWitch(w) {
   const x = w.x - camera;
   if (x < -80 || x > W + 80 || !w.alive) return;
 
-  // ступа
   ctx.fillStyle = "#5a3a22";
   ctx.beginPath();
   ctx.ellipse(x, w.y + 22, 20, 26, 0, 0, Math.PI * 2);
@@ -640,7 +682,6 @@ function drawWitch(w) {
   ctx.fillStyle = "#3b2414";
   ctx.fillRect(x - 22, w.y + 4, 44, 6);
 
-  // помело
   ctx.strokeStyle = "#c9a26b";
   ctx.lineWidth = 4;
   ctx.beginPath();
@@ -652,12 +693,10 @@ function drawWitch(w) {
   ctx.arc(x + 36, w.y - 8, 6, 0, Math.PI * 2);
   ctx.fill();
 
-  // Баба-Яга
   ctx.font = "36px Arial";
   ctx.textAlign = "center";
   ctx.fillText("🧙‍♀️", x, w.y);
 
-  // индикатор «жива»
   ctx.fillStyle = "rgba(255,0,0,0.7)";
   ctx.beginPath();
   ctx.arc(x, w.y - 28, 3, 0, Math.PI * 2);
@@ -800,7 +839,6 @@ function updatePlayer() {
 
   const overGap = isOverGap(player.x);
 
-  // Падение в пропасть
   if (player.y > H + 40) {
     if (overGap || player.y > H + 60) {
       respawnFromGap();
@@ -808,7 +846,6 @@ function updatePlayer() {
     }
   }
 
-  // Земля (только если не над пропастью)
   if(!overGap && player.y+player.r>=GROUND_Y) {
     player.y=GROUND_Y-player.r;
     player.vy=0;
@@ -883,13 +920,11 @@ function updateWitches() {
     w.phase += 0.03;
     w.x += w.vx;
 
-    // отскок от границ
     if (w.x < 80) { w.x = 80; w.vx = Math.abs(w.vx); }
     if (w.x > LEVEL_WIDTH - 80) { w.x = LEVEL_WIDTH - 80; w.vx = -Math.abs(w.vx); }
 
     w.y = w.baseY + Math.sin(w.phase) * 22;
 
-    // Стрельба по игроку
     w.shootTimer--;
     if (w.shootTimer <= 0) {
       const dx = player.x - w.x;
@@ -907,7 +942,6 @@ function updateWitches() {
       sound(300, 0.08, "sawtooth");
     }
 
-    // Столкновение с игроком
     if (Math.abs(player.x - w.x) < 30 && Math.abs(player.y - w.y) < 30) {
       hurtPlayer();
     }
