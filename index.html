@@ -83,7 +83,7 @@
     let gameOver = false;
     let gameStarted = false;
     let level = 1;
-    let levelGoal = 2500; // Увеличили цель, чтобы уровень длился дольше
+    let levelGoal = 2500;
 
     const player = {
         x: 100, y: 0, width: 30, height: 30, 
@@ -178,10 +178,13 @@
         if (keys.right) player.x += player.speed;
         if (keys.left) player.x -= player.speed;
 
-        if (player.x > cw / 2) {
-            cameraX = player.x - cw / 2;
-        } else {
-            cameraX = 0;
+        // Камера движется только если игра не окончена
+        if (!gameOver) {
+            if (player.x > cw / 2) {
+                cameraX = player.x - cw / 2;
+            } else {
+                cameraX = 0;
+            }
         }
 
         player.vy += player.gravity;
@@ -293,7 +296,7 @@
     function draw() {
         ctx.clearRect(0, 0, cw, ch);
 
-        // Если мы победили на 3-м уровне, рисуем экран победы и выходим
+        // Если игра окончена на 3-м уровне, рисуем финал
         if (gameOver && level === 3) {
             showWinScreen();
             return;
