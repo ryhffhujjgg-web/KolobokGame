@@ -77,9 +77,9 @@
     let gameOver = false;
     let gameStarted = false;
     let level = 1;
-    let levelGoal = 2000; // Увеличили дистанцию, так как обзор стал больше
+    let levelGoal = 2000; // Увеличили дистанцию из-за большего обзора
 
-    // УМЕНЬШИЛИ РАЗМЕРЫ ПЕРСОНАЖЕЙ
+    // УМЕНЬШИЛИ РАЗМЕРЫ ПЕРСОНАЖЕЙ (с 50 до 30)
     const player = {
         x: 100, y: 0, width: 30, height: 30, 
         speed: 5, vy: 0, gravity: 0.6, jumpPower: -11,
@@ -91,13 +91,10 @@
     let coins = [];
     let platforms = [];
     let cameraX = 0;
-    
-    // Коэффициент масштабирования (чем меньше, тем больше обзор)
-    const ZOOM = 1.5; 
 
     function setupLevel(lvl) {
         player.x = 100;
-        player.y = ch - 100; // Чуть выше земли, так как персонаж меньше
+        player.y = ch - 100; // Ставим на землю (чуть выше из-за меньшего размера)
         bullets = [];
         enemies = [];
         coins = [];
@@ -105,9 +102,10 @@
         cameraX = 0;
         levelGoal = 2000 * lvl; 
 
+        // Земля стала чуть тоньше
         platforms.push({ x: -2000, y: ch - 60, width: 10000, height: 100 });
 
-        // Уменьшили врагов
+        // Враги уменьшены (с 40 до 30)
         if (lvl === 1) {
             enemies.push({ x: cw + 300, y: ch - 80, width: 30, height: 30, speed: 1.5, type: '🐇' });
             enemies.push({ x: cw + 900, y: ch - 80, width: 30, height: 30, speed: 1.6, type: '🐇' });
@@ -125,7 +123,7 @@
             enemies.push({ x: cw + 2200, y: ch - 80, width: 30, height: 30, speed: 2.6, type: '🐺' });
         }
 
-        // Уменьшили монеты
+        // Монеты уменьшены (с 20 до 15)
         for (let i = 0; i < 30; i++) {
             coins.push({ x: 400 + i * 100, y: ch - 120 - Math.random() * 60, width: 15, height: 15 });
         }
@@ -180,6 +178,7 @@
         if (keys.right) player.x += player.speed;
         if (keys.left) player.x -= player.speed;
 
+        // Камера центрируется на игроке
         if (player.x > cw / 2) {
             cameraX = player.x - cw / 2;
         } else {
@@ -295,16 +294,12 @@
     function draw() {
         ctx.clearRect(0, 0, cw, ch);
 
-        // Применяем масштаб для большего обзора
-        ctx.save();
-        ctx.scale(ZOOM, ZOOM); 
-
-        if (level === 1) { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, cw / ZOOM, ch / ZOOM); }
-        else if (level === 2) { ctx.fillStyle = '#2E8B57'; ctx.fillRect(0, 0, cw / ZOOM, ch / ZOOM); }
-        else { ctx.fillStyle = '#FF8C00'; ctx.fillRect(0, 0, cw / ZOOM, ch / ZOOM); }
+        if (level === 1) { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, cw, ch); }
+        else if (level === 2) { ctx.fillStyle = '#2E8B57'; ctx.fillRect(0, 0, cw, ch); }
+        else { ctx.fillStyle = '#FF8C00'; ctx.fillRect(0, 0, cw, ch); }
 
         ctx.save();
-        ctx.translate(-cameraX / ZOOM, 0);
+        ctx.translate(-cameraX, 0);
 
         ctx.fillStyle = level === 2 ? '#556B2F' : '#8B4513';
         platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
@@ -312,11 +307,11 @@
         ctx.fillStyle = '#228B22';
         ctx.fillRect(-2000, ch - 60, 10000, 15);
 
-        // Рисуем монеты меньше
+        // Монеты меньше
         ctx.font = '20px Arial';
         coins.forEach(c => { ctx.fillText('🪙', c.x, c.y + 20); });
 
-        // Рисуем врагов меньше
+        // Враги меньше
         ctx.font = '35px Arial';
         enemies.forEach(e => { ctx.fillText(e.type, e.x, e.y + 35); });
 
@@ -325,9 +320,8 @@
 
         drawKolobok(player.x, player.y, player.width, player.height, player.facingRight);
         ctx.restore();
-        ctx.restore(); // Возвращаем масштаб для UI
 
-        // Интерфейс (рисуется в обычном масштабе, чтобы не был мелким)
+        // Интерфейс
         ctx.fillStyle = '#000'; ctx.font = 'bold 18px "Courier New", Courier, monospace';
         ctx.fillText(`Счет: ${score}`, 10, 25);
         ctx.fillText(`Уровень: ${level} / 3`, 10, 45);
