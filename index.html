@@ -22,20 +22,20 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
 #message { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 15px; font-weight: bold; color: #ffe77b; background: rgba(23,40,60,0.7); padding: 6px 14px; border-radius: 12px; pointer-events: none; z-index: 21; max-width: 60vw; text-align: center; }
 #restart { pointer-events: auto; border: 0; border-radius: 14px; font-size: 13px; padding: 8px 12px; background: #f4cf43; color: #263238; font-weight: bold; box-shadow: 0 4px 0 #b28d20; -webkit-tap-highlight-color: transparent; }
 
-.controls { width: 100%; height: 110px; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: #000; border-top: 2px solid #222; z-index: 30; flex-shrink: 0; }
-.left-group, .right-group { display: flex; gap: 12px; }
+/* === РАСШИРЕННЫЕ РАССТОЯНИЯ МЕЖДУ КНОПКАМИ === */
+.controls { width: 100%; height: 110px; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; background: #000; border-top: 2px solid #222; z-index: 30; flex-shrink: 0; }
+.left-group, .right-group { display: flex; gap: 28px; /* было 12px */ }
 button.ctrl { border: 0; border-radius: 50%; background: #f4cf43; color: #263238; font-size: 22px; font-weight: bold; box-shadow: 0 4px 0 #b28d20; touch-action: none; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; min-width: 64px; }
 button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 #b28d20; }
-#jump { background: #4aa9ef; color: white; box-shadow: 0 4px 0 #2673ae; width: 76px; height: 76px; font-size: 15px; }
+#jump { background: #4aa9ef; color: white; box-shadow: 0 4px 0 #2673ae; width: 76px; height: 76px; font-size: 15px; margin-right: 10px; }
 #shoot { background: #e85b50; color: white; box-shadow: 0 4px 0 #a8322b; width: 76px; height: 76px; font-size: 22px; }
 
-@media (max-height: 400px) { button.ctrl { width: 52px; height: 52px; min-width: 52px; font-size: 18px; } #jump, #shoot { width: 62px; height: 62px; font-size: 13px; } .controls { height: 84px; padding: 0 10px; } #message { font-size: 13px; padding: 4px 10px; } #info { font-size: 11px; padding: 4px 8px; } }
+@media (max-height: 400px) { button.ctrl { width: 52px; height: 52px; min-width: 52px; font-size: 18px; } #jump, #shoot { width: 62px; height: 62px; font-size: 13px; } .controls { height: 84px; padding: 0 15px; } .left-group, .right-group { gap: 15px; } #message { font-size: 13px; padding: 4px 10px; } #info { font-size: 11px; padding: 4px 8px; } }
 </style>
 </head>
 <body>
 <div id="rotate-hint"><div class="icon">📱</div><div>Поверните телефон<br>горизонтально для игры</div></div>
 <div id="game-wrap">
-  <!-- УВЕЛИЧИЛИ РАЗМЕР КАНВАСА, ЧТОБЫ ЗАПОЛНИТЬ ЭКРАН -->
   <canvas id="game" width="1200" height="540"></canvas>
   <div id="topbar"><div id="info">Мир 1/10 | ⭐ 0 | ❤️ 3</div><button id="restart">↻ ЗАНОВО</button></div>
   <div id="message">Вперёд, Колобок!</div>
@@ -51,13 +51,13 @@ const ctx = canvas.getContext("2d");
 const info = document.getElementById("info");
 const message = document.getElementById("message");
 
-const W = canvas.width;   // 1200
-const H = canvas.height;  // 540
+const W = canvas.width;
+const H = canvas.height;
 const LEVEL_WIDTH = 2400;
 const GRAVITY = 0.55;
-const GROUND_Y = 470; // Земля опущена ниже (было 385), т.к. высота канваса увеличилась
+const GROUND_Y = 470;
 const TOTAL_LEVELS = 10;
-const SAVE_KEY = "kolobok_adventure_save_v15";
+const SAVE_KEY = "kolobok_adventure_save_v16";
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"rabbit"},
@@ -79,7 +79,7 @@ let bossBattle = false; let gameOver = false; let victory = false; let totalStar
 function saveProgress() {
   try {
     const data = {
-      version: 15, world, totalStars, lastSafeX,
+      version: 16, world, totalStars, lastSafeX,
       player: { x: player.x, y: player.y, health: player.health, facing: player.facing },
       enemies: enemies.map(e => ({ x: e.x, y: e.y, vx: e.vx, vy: e.vy, alive: e.alive, jumpTimer: e.jumpTimer, onGround: e.onGround })),
       witches: witches.map(w => ({ x: w.x, baseY: w.baseY, vx: w.vx, alive: w.alive, shootTimer: w.shootTimer, phase: w.phase })),
@@ -98,7 +98,7 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 15 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
+    if (!data || data.version !== 16 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
     world = data.world; totalStars = Math.max(0, Number(data.totalStars) || 0); lastSafeX = Number(data.lastSafeX) || 70;
     makeLevel();
     if (data.player) {
@@ -170,7 +170,6 @@ function makeLevel() {
   for (let i=0; i<5; i++) {
     const x = 390 + i*370;
     if (gaps.some(g => x > g.x - 20 && x < g.x + g.w + 20)) continue;
-    // Ставим зайца так, чтобы его лапки (низ) касались земли. Тело рисуется от центра -5, лапки +14. Значит центр должен быть на GROUND_Y - 20
     enemies.push({ x, y:GROUND_Y - 20, vx:0.8 + (world%4)*0.12, vy:0, min:x-95, max:x+95, alive:true, onGround:true, jumpTimer:60 + i*27, hp:1 });
   }
   
@@ -199,34 +198,154 @@ function updateInfo() { info.textContent = "Мир " + (world+1) + "/" + TOTAL_L
 /* ===== ПРОПАСТЬ ===== */
 function isOverGap(x) { return gaps.some(g => x + player.r * 0.5 > g.x && x - player.r * 0.5 < g.x + g.w); }
 
-/* ===== ФОН ===== */
-function drawCloud(x,y,s=1) { ctx.save(); ctx.translate(x,y); ctx.scale(s,s); ctx.globalAlpha = 0.85; ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(0,10,20,0,7); ctx.arc(22,0,25,0,7); ctx.arc(48,12,19,0,7); ctx.arc(25,17,24,0,7); ctx.fill(); ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(5,18,15,0,7); ctx.arc(30,18,18,0,7); ctx.fill(); ctx.restore(); }
-function drawMountain(x,y,w,h,c,shadow) { ctx.globalAlpha = 1; ctx.fillStyle=c; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+w/2,y-h); ctx.lineTo(x+w,y); ctx.closePath(); ctx.fill(); ctx.fillStyle=shadow; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+w/2,y-h); ctx.lineTo(x+w/2,y); ctx.closePath(); ctx.fill(); ctx.fillStyle="rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.moveTo(x+w/2-15,y-h+22); ctx.lineTo(x+w/2,y-h); ctx.lineTo(x+w/2+15,y-h+22); ctx.closePath(); ctx.fill(); }
-function drawTree(x,y,s=1) { ctx.save(); ctx.translate(x,y); ctx.scale(s,s); ctx.globalAlpha = 1; ctx.fillStyle="#5a3a1a"; ctx.fillRect(-7,-55,14,58); ctx.fillStyle="#8b5a2b"; ctx.fillRect(-5,-55,4,58); ctx.fillStyle="#1b5e20"; ctx.beginPath(); ctx.arc(0,-65,27,0,7); ctx.arc(-18,-48,19,0,7); ctx.arc(18,-48,19,0,7); ctx.fill(); ctx.fillStyle="#2e7d32"; ctx.beginPath(); ctx.arc(-5,-68,22,0,7); ctx.arc(-22,-50,16,0,7); ctx.arc(14,-50,16,0,7); ctx.fill(); ctx.fillStyle="#43a047"; ctx.beginPath(); ctx.arc(-8,-70,15,0,7); ctx.arc(-22,-52,10,0,7); ctx.arc(10,-52,10,0,7); ctx.fill(); ctx.restore(); }
-function drawBush(x,y,s=1) { ctx.save(); ctx.translate(x,y); ctx.scale(s,s); ctx.globalAlpha = 1; ctx.fillStyle="#1b5e20"; ctx.beginPath(); ctx.arc(0,0,22,0,7); ctx.arc(-18,5,16,0,7); ctx.arc(18,5,16,0,7); ctx.fill(); ctx.fillStyle="#2e7d32"; ctx.beginPath(); ctx.arc(-5,-3,16,0,7); ctx.arc(-20,2,12,0,7); ctx.arc(14,2,12,0,7); ctx.fill(); ctx.restore(); }
+/* ===== ГЛУБОКИЙ ФОН (3D-ЭФФЕКТ) ===== */
+function drawCloud(x,y,s=1) {
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  // Тень облака (снизу)
+  ctx.fillStyle="rgba(100,120,140,0.3)";
+  ctx.beginPath(); ctx.arc(0,18,22,0,7); ctx.arc(25,8,27,0,7); ctx.arc(52,20,21,0,7); ctx.arc(28,25,26,0,7); ctx.fill();
+  // Основное облако
+  const grad = ctx.createRadialGradient(10, 0, 10, 25, 10, 40);
+  grad.addColorStop(0, "#ffffff");
+  grad.addColorStop(1, "#dce8f0");
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(0,10,20,0,7); ctx.arc(22,0,25,0,7); ctx.arc(48,12,19,0,7); ctx.arc(25,17,24,0,7); ctx.fill();
+  ctx.restore();
+}
+
+function drawMountain(x, y, w, h, baseColor, shadowColor, snowColor) {
+  ctx.globalAlpha = 1;
+  
+  // 1. Основная форма
+  ctx.fillStyle = baseColor;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x+w/2, y-h); ctx.lineTo(x+w, y); ctx.closePath(); ctx.fill();
+
+  // 2. Левая тень (для объёма)
+  ctx.fillStyle = shadowColor;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x+w/2, y-h); ctx.lineTo(x+w/2, y); ctx.closePath(); ctx.fill();
+
+  // 3. Блик на правом склоне
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.beginPath(); ctx.moveTo(x+w/2, y-h); ctx.lineTo(x+w*0.8, y); ctx.lineTo(x+w*0.6, y); ctx.closePath(); ctx.fill();
+
+  // 4. Снежная шапка (с тенью)
+  ctx.fillStyle = snowColor;
+  ctx.beginPath();
+  ctx.moveTo(x+w/2 - 18, y-h+28);
+  ctx.lineTo(x+w/2, y-h);
+  ctx.lineTo(x+w/2 + 18, y-h+28);
+  ctx.closePath(); ctx.fill();
+  
+  // Тень на снегу
+  ctx.fillStyle = "rgba(180,200,220,0.5)";
+  ctx.beginPath();
+  ctx.moveTo(x+w/2, y-h);
+  ctx.lineTo(x+w/2 + 18, y-h+28);
+  ctx.lineTo(x+w/2, y-h+28);
+  ctx.closePath(); ctx.fill();
+}
+
+function drawTree(x,y,s=1) {
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s); ctx.globalAlpha = 1;
+  // Тень дерева на земле
+  ctx.fillStyle="rgba(0,0,0,0.2)";
+  ctx.beginPath(); ctx.ellipse(0, 5, 18, 5, 0, 0, 7); ctx.fill();
+  // Ствол
+  ctx.fillStyle="#4a2e15"; ctx.fillRect(-7,-55,14,58);
+  ctx.fillStyle="#6b4522"; ctx.fillRect(-5,-55,4,58); // Блик
+  // Крона (3 слоя с градиентом)
+  const grad = ctx.createRadialGradient(-8, -75, 5, 0, -65, 35);
+  grad.addColorStop(0, "#43a047");
+  grad.addColorStop(0.7, "#2e7d32");
+  grad.addColorStop(1, "#1b5e20");
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(0,-65,27,0,7); ctx.arc(-18,-48,19,0,7); ctx.arc(18,-48,19,0,7); ctx.fill();
+  // Блик на кроне
+  ctx.fillStyle="rgba(255,255,255,0.15)";
+  ctx.beginPath(); ctx.arc(-10, -75, 10, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawBush(x,y,s=1) {
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s); ctx.globalAlpha = 1;
+  const grad = ctx.createRadialGradient(-5, -5, 5, 0, 0, 25);
+  grad.addColorStop(0, "#2e7d32");
+  grad.addColorStop(1, "#1b5e20");
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(0,0,22,0,7); ctx.arc(-18,5,16,0,7); ctx.arc(18,5,16,0,7); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,0.1)";
+  ctx.beginPath(); ctx.arc(-8, -5, 8, 0, 7); ctx.fill();
+  ctx.restore();
+}
 
 function drawBackground() {
   ctx.globalAlpha = 1;
   const theme = worlds[world];
-  const g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,theme.sky); g.addColorStop(0.6,"#d4eecf"); g.addColorStop(1,"#e8f5d4");
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  
+  // 1. ГРАДИЕНТ НЕБА (3 оттенка для глубины)
+  const skyGrad = ctx.createLinearGradient(0,0,0,H);
+  skyGrad.addColorStop(0, theme.sky);
+  skyGrad.addColorStop(0.4, "#a8d8f0");
+  skyGrad.addColorStop(0.8, "#d4eecf");
+  skyGrad.addColorStop(1, "#e8f5d4");
+  ctx.fillStyle=skyGrad; ctx.fillRect(0,0,W,H);
 
+  // 2. СОЛНЦЕ с ореолом
+  const sunGrad = ctx.createRadialGradient(W-150, 100, 10, W-150, 100, 80);
+  sunGrad.addColorStop(0, "#fff8c0");
+  sunGrad.addColorStop(1, "rgba(255, 251, 208, 0)");
+  ctx.fillStyle=sunGrad; ctx.beginPath(); ctx.arc(W-150, 100, 80, 0, 7); ctx.fill();
   ctx.fillStyle="#fff8c0"; ctx.beginPath(); ctx.arc(W-150, 100, 50, 0, 7); ctx.fill();
-  ctx.fillStyle="#fffbd0"; ctx.beginPath(); ctx.arc(W-150, 100, 70, 0, 7); ctx.fill();
 
+  // 3. ДАЛЬНИЕ ОБЛАКА (самый дальний слой)
   for (let i=0;i<6;i++) drawCloud(((i*300 - camera*0.08)%1800+1800)%1800-150, 60+(i%3)*40, 0.7+(i%2)*0.2);
-  for (let i=0;i<10;i++) drawMountain(i*250 - (camera*0.15 % 250), 380, 260, 200, "#6b8f9e", "#4a6a78");
-  for (let i=0;i<8;i++) drawMountain(i*300 - (camera*0.25 % 300), 400, 240, 150, world%4===3?"#dba36c":"#83b5a0", world%4===3?"#a87040":"#5a8a70");
-  for (let i=0;i<5;i++) drawCloud(((i*350 - camera*0.3)%1900+1900)%1900-200, 130+(i%2)*60, 0.9+(i%2)*0.2);
 
-  ctx.globalAlpha = 1;
-  ctx.fillStyle=world%4===3?"#a8bd62":"#70ad68"; ctx.beginPath(); ctx.moveTo(0,430);
+  // 4. ДАЛЬНИЕ ГОРЫ (самые тёмные, синеватые, с воздушной перспективой)
+  for (let i=0;i<10;i++) {
+    const mx = i*250 - (camera*0.15 % 250);
+    drawMountain(mx, 380, 260, 200, "#5a7f8e", "#3a5a6a", "#b0c8d8");
+  }
+
+  // 5. СРЕДНИЕ ОБЛАКА (между горами)
+  for (let i=0;i<5;i++) drawCloud(((i*350 - camera*0.2)%1900+1900)%1900-200, 180+(i%2)*60, 0.9+(i%2)*0.2);
+
+  // 6. СРЕДНИЕ ГОРЫ (светлее, с другой тенью)
+  for (let i=0;i<8;i++) {
+    const mx = i*300 - (camera*0.25 % 300);
+    const baseColor = world%4===3 ? "#dba36c" : "#83b5a0";
+    const shadowColor = world%4===3 ? "#a87040" : "#5a8a70";
+    drawMountain(mx, 400, 240, 150, baseColor, shadowColor, "#e8f0e8");
+  }
+
+  // 7. ТУМАН между средними горами и холмами
+  const fogGrad = ctx.createLinearGradient(0, 300, 0, 420);
+  fogGrad.addColorStop(0, "rgba(255,255,255,0)");
+  fogGrad.addColorStop(0.5, "rgba(255,255,255,0.3)");
+  fogGrad.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = fogGrad;
+  ctx.fillRect(0, 300, W, 120);
+
+  // 8. БЛИЖНИЕ ОБЛАКА
+  for (let i=0;i<3;i++) drawCloud(((i*450 - camera*0.35)%2200+2200)%2200-250, 250+(i%2)*50, 1.1);
+
+  // 9. ХОЛМЫ (с объёмом)
+  ctx.fillStyle=world%4===3?"#a8bd62":"#70ad68"; 
+  ctx.beginPath(); ctx.moveTo(0,430);
   for(let x=0;x<=W+20;x+=20) { const wx=x+camera*0.42; ctx.lineTo(x, 400+Math.sin(wx*0.008)*25+Math.sin(wx*0.018)*10); }
   ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.fill();
+  
+  // Тень на холмах
+  const hillShadow = ctx.createLinearGradient(0, 400, 0, H);
+  hillShadow.addColorStop(0, "rgba(0,0,0,0)");
+  hillShadow.addColorStop(1, "rgba(0,0,0,0.2)");
+  ctx.fillStyle = hillShadow;
+  ctx.fillRect(0, 400, W, H-400);
 
+  // 10. ДЕРЕВЬЯ и КУСТЫ
   for(let i=0;i<15;i++) drawTree(((i*140-camera*0.48)%1800+1800)%1800-100, 450, 0.6);
   for(let i=0;i<20;i++) drawBush(((i*100-camera*0.72)%1600+1600)%1600-70, 465, 0.8);
 
+  // 11. ПРОПАСТИ
   const sorted = gaps.slice().sort((a,b)=>a.x-b.x);
   for (const gap of sorted) {
     const gx = gap.x - camera;
@@ -235,6 +354,8 @@ function drawBackground() {
     ctx.fillStyle=vg; ctx.fillRect(gx, GROUND_Y, gap.w, H-GROUND_Y);
     ctx.fillStyle="#000"; ctx.fillRect(gx, GROUND_Y, 5, H-GROUND_Y); ctx.fillRect(gx+gap.w-5, GROUND_Y, 5, H-GROUND_Y);
   }
+  
+  // 12. ЗЕМЛЯ
   let cursor = 0;
   for (const gap of sorted) { if (gap.x > cursor) drawGroundSegment(cursor, gap.x-cursor, theme); cursor = gap.x + gap.w; }
   if (cursor < LEVEL_WIDTH) drawGroundSegment(cursor, LEVEL_WIDTH-cursor, theme);
@@ -248,10 +369,16 @@ function drawGroundSegment(startX, width, theme) {
   ctx.fillStyle="#2e5c2a"; ctx.fillRect(sx, GROUND_Y+10, width, 8);
   ctx.fillStyle="#a8e88e";
   for(let i = 0; i < width; i += 15) { const tx = sx + i; if (tx < -20 || tx > W + 20) continue; ctx.fillRect(tx, GROUND_Y - 5, 2, 5); ctx.fillRect(tx + 5, GROUND_Y - 8, 2, 8); ctx.fillRect(tx + 10, GROUND_Y - 4, 2, 4); }
+  
+  // Текстура земли (камешки)
   ctx.fillStyle="rgba(0,0,0,0.15)";
   for(let i = 0; i < width; i += 35) { const tx = sx + i; if (tx < -20 || tx > W + 20) continue; ctx.beginPath(); ctx.arc(tx, GROUND_Y + 25 + (i%3)*10, 5, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(tx + 18, GROUND_Y + 45, 4, 0, 7); ctx.fill(); }
-  const lg = ctx.createLinearGradient(0, GROUND_Y+18, 0, H); lg.addColorStop(0,"rgba(0,0,0,0)"); lg.addColorStop(1,"rgba(0,0,0,0.5)");
+  
+  // Глубина земли (градиент вниз)
+  const lg = ctx.createLinearGradient(0, GROUND_Y+18, 0, H); lg.addColorStop(0,"rgba(0,0,0,0)"); lg.addColorStop(1,"rgba(0,0,0,0.6)");
   ctx.fillStyle=lg; ctx.fillRect(sx, GROUND_Y+18, width, H-GROUND_Y-18);
+  
+  // Обрывы
   const sortedGaps = gaps.slice().sort((a,b)=>a.x-b.x);
   for (const gap of sortedGaps) {
     if (Math.abs(gap.x - (startX+width)) < 1) { ctx.fillStyle="#8b5a2b"; ctx.fillRect(sx+width-10, GROUND_Y, 10, H-GROUND_Y); ctx.fillStyle="#c98a4b"; ctx.fillRect(sx+width-10, GROUND_Y, 10, 10); }
@@ -259,7 +386,7 @@ function drawGroundSegment(startX, width, theme) {
   }
 }
 
-/* ===== ВЕКТОРНЫЕ ПЕРСОНАЖИ С ЛАПКАМИ ===== */
+/* ===== ВЕКТОРНЫЕ ПЕРСОНАЖИ ===== */
 function drawRabbit(x, y, isMoving, facing) {
   const legSwing = isMoving ? Math.sin(frame * 0.3) * 6 : 0;
   ctx.save(); ctx.translate(x, y); ctx.scale(facing, 1);
@@ -605,7 +732,6 @@ function updateEnemies() {
     if(Math.abs(distance)<230){ e.vx+=Math.sign(distance)*0.025; e.vx=Math.max(-2-(world%4)*0.2,Math.min(2+(world%4)*0.2,e.vx)); }
     else { if(e.x<e.min) e.vx=Math.abs(e.vx); if(e.x>e.max) e.vx=-Math.abs(e.vx); }
     e.x+=e.vx; e.y+=e.vy; e.vy+=GRAVITY;
-    // ТЕПЕРЬ ПРИЗЕМЛЕНИЕ НА GROUND_Y - 20 (основание лапок)
     if(e.y>=GROUND_Y - 20){ e.y=GROUND_Y - 20; e.vy=0; e.onGround=true; }
     if(Math.abs(player.x-e.x)<35&&Math.abs(player.y-e.y)<35) hurtPlayer();
   }
@@ -617,7 +743,6 @@ function updateLizards() {
     else if(l.dashTimer>0) l.vx*=0.93;
     else { l.vx=l.facing*l.speed; if(l.x<80) l.facing=1; if(l.x>LEVEL_WIDTH-80) l.facing=-1; }
     l.x+=l.vx; l.y+=l.vy; l.vy+=GRAVITY;
-    // ТЕПЕРЬ ПРИЗЕМЛЕНИЕ НА GROUND_Y - 15
     if(l.y>=GROUND_Y - 15){ l.y=GROUND_Y - 15; l.vy=0; l.onGround=true; } else l.onGround=false;
     if(Math.abs(player.x-l.x)<35&&Math.abs(player.y-l.y)<35) hurtPlayer();
   }
@@ -628,7 +753,6 @@ function updateBears() {
     const distance=player.x-b.x; b.facing=Math.sign(distance)||1;
     if(Math.abs(distance)>60) b.vx=Math.sign(distance)*0.6; else b.vx=0;
     b.x+=b.vx; b.y+=b.vy; b.vy+=GRAVITY;
-    // ТЕПЕРЬ ПРИЗЕМЛЕНИЕ НА GROUND_Y - 30
     if(b.y>=GROUND_Y - 30){ b.y=GROUND_Y - 30; b.vy=0; b.onGround=true; }
     b.throwTimer--;
     if(b.throwTimer<=0&&Math.abs(distance)<380){
@@ -662,7 +786,6 @@ function updateBoss() {
   boss.x+=boss.vx; boss.jumpTimer--;
   if(boss.jumpTimer<=0&&boss.y>=GROUND_Y - 45){ boss.vy=-8.5; boss.jumpTimer=100; }
   boss.y+=boss.vy; boss.vy+=GRAVITY;
-  // ПРИЗЕМЛЕНИЕ НА GROUND_Y - 45
   if(boss.y>GROUND_Y - 45){ boss.y=GROUND_Y - 45; boss.vy=0; }
   boss.shootTimer--;
   if(boss.shootTimer<=0){
