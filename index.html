@@ -27,7 +27,7 @@ canvas {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: fill; /* Растягиваем на весь экран без полей */
   background: #8bd7f5;
   touch-action: none;
 }
@@ -68,7 +68,7 @@ button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 #b28d20; }
 </div>
 
 <div id="game-wrap">
-  <canvas id="game" width="1100" height="440"></canvas>
+  <canvas id="game" width="1200" height="540"></canvas>
 
   <div id="topbar">
     <div id="info">Мир 1 | ⭐ 0 | ❤️ 3</div>
@@ -95,14 +95,15 @@ const ctx = canvas.getContext("2d");
 const info = document.getElementById("info");
 const message = document.getElementById("message");
 
-const W = canvas.width;
-const H = canvas.height;
+// НОВЫЕ РАЗМЕРЫ: шире и выше, чтобы всё влезало
+const W = canvas.width;   // 1200
+const H = canvas.height;  // 540
 const LEVEL_WIDTH = 2400;
 const GRAVITY = 0.55;
-const GROUND_Y = 385;
+const GROUND_Y = 470; // Земля опущена ниже, чтобы персонажи целиком влезали
 
 const TOTAL_LEVELS = 10;
-const SAVE_KEY = "kolobok_adventure_save_v9";
+const SAVE_KEY = "kolobok_adventure_save_v10";
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"🐰"},
@@ -146,7 +147,7 @@ let isTransitioning = false;
 function saveProgress() {
   try {
     const data = {
-      version: 9, world, totalStars, lastSafeX,
+      version: 10, world, totalStars, lastSafeX,
       player: { x: player.x, y: player.y, health: player.health, facing: player.facing },
       enemies: enemies.map(e => ({ x: e.x, y: e.y, vx: e.vx, vy: e.vy, alive: e.alive, jumpTimer: e.jumpTimer, onGround: e.onGround })),
       witches: witches.map(w => ({ x: w.x, baseY: w.baseY, vx: w.vx, alive: w.alive, shootTimer: w.shootTimer, phase: w.phase })),
@@ -165,12 +166,12 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 9 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
+    if (!data || data.version !== 10 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
     world = data.world; totalStars = Math.max(0, Number(data.totalStars) || 0); lastSafeX = Number(data.lastSafeX) || 70;
     makeLevel();
     if (data.player) {
       player.x = Math.max(19, Math.min(LEVEL_WIDTH - 20, Number(data.player.x) || 70));
-      player.y = Math.max(30, Math.min(GROUND_Y - 5, Number(data.player.y) || 330));
+      player.y = Math.max(30, Math.min(GROUND_Y - 5, Number(data.player.y) || 410));
       player.health = Math.max(1, Math.min(3, Number(data.player.health) || 3));
       player.facing = data.player.facing === -1 ? -1 : 1;
       player.vx = 0; player.vy = 0; player.invincible = 0;
@@ -234,33 +235,47 @@ function sound(freq=440, duration=0.1, type="square") {
 
 /* ===== УРОВЕНЬ ===== */
 function makeLevel() {
-  player = { x:70, y:330, vx:0, vy:0, r:19, speed:3.2, facing:1, onGround:false, health:3, invincible:0 };
+  player = { x:70, y: GROUND_Y - 19, vx:0, vy:0, r:19, speed:3.2, facing:1, onGround:false, health:3, invincible:0 };
   lastSafeX = 70; camera = 0; bullets = []; enemyBullets = []; enemies = []; witches = []; lizards = []; bears = []; stars = []; platforms = []; gaps = []; bossBattle = false; isTransitioning = false;
+  
   gaps = [{x:760,w:90},{x:1450,w:110},{x:2050,w:90}];
+  
   for (let i=0; i<5; i++) {
     const x = 390 + i*370;
     if (gaps.some(g => x > g.x - 20 && x < g.x + g.w + 20)) continue;
-    enemies.push({ x, y:350, vx:0.8 + (world%4)*0.12, vy:0, min:x-95, max:x+95, alive:true, onGround:false, jumpTimer:60 + i*27, hp:1 });
+    enemies.push({ x, y: GROUND_Y - 35, vx:0.8 + (world%4)*0.12, vy:0, min:x-95, max:x+95, alive:true, onGround:false, jumpTimer:60 + i*27, hp:1 });
   }
-  if (world % 4 > 0) {
-    witches.push({ x:650, baseY:220, y:220, vx:1.0+(world%4)*0.1, phase:Math.random()*Math.PI*2, shootTimer:110, alive:true });
-    witches.push({ x:1750, baseY:200, y:200, vx:-(0.9+(world%4)*0.1), phase:Math.random()*Math.PI*2, shootTimer:160, alive:true });
-    lizards.push({ x:1100, y:350, vx:1.2, vy:0, alive:true, onGround:true, facing:1, dashTimer:140, speed:1.2+(world%4)*0.12 });
-    lizards.push({ x:1850, y:350, vx:-1.2, vy:0, alive:true, onGround:true, facing:-1, dashTimer:200, speed:1.2+(world%4)*0.12 });
-  }
-  if (world % 4 >= 2) bears.push({ x:1350, y:350, vx:0.6, vy:0, hp:3, maxHp:3, alive:true, onGround:true, facing:1, throwTimer:140, hurtFlash:0 });
   
-  platforms = [{x:260,y:310,w:120,h:16},{x:570,y:275,w:135,h:16},{x:900,y:305,w:140,h:16},{x:1250,y:270,w:150,h:16},{x:1590,y:305,w:130,h:16},{x:1900,y:275,w:150,h:16}];
+  if (world % 4 > 0) {
+    witches.push({ x:650, baseY: 280, y: 280, vx:1.0+(world%4)*0.1, phase:Math.random()*Math.PI*2, shootTimer:110, alive:true });
+    witches.push({ x:1750, baseY: 250, y: 250, vx:-(0.9+(world%4)*0.1), phase:Math.random()*Math.PI*2, shootTimer:160, alive:true });
+    lizards.push({ x:1100, y: GROUND_Y - 35, vx:1.2, vy:0, alive:true, onGround:true, facing:1, dashTimer:140, speed:1.2+(world%4)*0.12 });
+    lizards.push({ x:1850, y: GROUND_Y - 35, vx:-1.2, vy:0, alive:true, onGround:true, facing:-1, dashTimer:200, speed:1.2+(world%4)*0.12 });
+  }
+  
+  if (world % 4 >= 2) {
+    bears.push({ x:1350, y: GROUND_Y - 25, vx:0.6, vy:0, hp:3, maxHp:3, alive:true, onGround:true, facing:1, throwTimer:140, hurtFlash:0 });
+  }
+  
+  platforms = [
+    {x:260, y:GROUND_Y - 75, w:120, h:16},
+    {x:570, y:GROUND_Y - 110, w:135, h:16},
+    {x:900, y:GROUND_Y - 80, w:140, h:16},
+    {x:1250, y:GROUND_Y - 115, w:150, h:16},
+    {x:1590, y:GROUND_Y - 80, w:130, h:16},
+    {x:1900, y:GROUND_Y - 110, w:150, h:16}
+  ];
   
   for (let i=0; i<13; i++) {
     const sx = 240 + i*165;
     if (gaps.some(g => sx > g.x - 10 && sx < g.x + g.w + 10)) continue;
-    stars.push({ x:sx, y:i%2===0?245:335, taken:false });
+    stars.push({ x:sx, y: i%2===0 ? GROUND_Y - 140 : GROUND_Y - 50, taken:false });
   }
 
-  boss = { x:2180, y:335, vx:1.2, vy:0, hp:10, maxHp:10, alive:true, shootTimer:100, jumpTimer:90, isBossLevel: (world === TOTAL_LEVELS - 1) };
+  boss = { x:2180, y: GROUND_Y - 50, vx:1.2, vy:0, hp:10, maxHp:10, alive:true, shootTimer:100, jumpTimer:90, isBossLevel: (world === TOTAL_LEVELS - 1) };
   updateInfo();
 }
+
 function updateInfo() {
   info.textContent = "Мир " + (world+1) + "/" + TOTAL_LEVELS + ": " + worlds[world].name + " | ⭐ " + totalStars + " | ❤️ " + (player ? player.health : 3);
 }
@@ -308,30 +323,30 @@ function drawBackground() {
   const g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,theme.sky); g.addColorStop(0.6,"#d4eecf"); g.addColorStop(1,"#e8f5d4");
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
 
-  ctx.fillStyle="#fff8c0"; ctx.beginPath(); ctx.arc(W-100, 70, 40, 0, 7); ctx.fill();
-  ctx.fillStyle="#fffbd0"; ctx.beginPath(); ctx.arc(W-100, 70, 55, 0, 7); ctx.fill();
+  ctx.fillStyle="#fff8c0"; ctx.beginPath(); ctx.arc(W-150, 100, 50, 0, 7); ctx.fill();
+  ctx.fillStyle="#fffbd0"; ctx.beginPath(); ctx.arc(W-150, 100, 70, 0, 7); ctx.fill();
 
-  for (let i=0;i<6;i++) drawCloud(((i*250 - camera*0.08)%1500+1500)%1500-150, 40+(i%3)*30, 0.6+(i%2)*0.2);
+  for (let i=0;i<6;i++) drawCloud(((i*300 - camera*0.08)%1800+1800)%1800-150, 60+(i%3)*40, 0.7+(i%2)*0.2);
 
   for (let i=0;i<10;i++) {
-    const mx = i*200 - (camera*0.15 % 200);
-    drawMountain(mx, 300, 220, 160, "#6b8f9e", "#4a6a78");
+    const mx = i*250 - (camera*0.15 % 250);
+    drawMountain(mx, 380, 260, 200, "#6b8f9e", "#4a6a78");
   }
 
   for (let i=0;i<8;i++) {
-    const mx = i*250 - (camera*0.25 % 250);
-    drawMountain(mx, 320, 200, 120, world%4===3?"#dba36c":"#83b5a0", world%4===3?"#a87040":"#5a8a70");
+    const mx = i*300 - (camera*0.25 % 300);
+    drawMountain(mx, 400, 240, 150, world%4===3?"#dba36c":"#83b5a0", world%4===3?"#a87040":"#5a8a70");
   }
 
-  for (let i=0;i<5;i++) drawCloud(((i*300 - camera*0.3)%1600+1600)%1600-200, 100+(i%2)*50, 0.8+(i%2)*0.2);
+  for (let i=0;i<5;i++) drawCloud(((i*350 - camera*0.3)%1900+1900)%1900-200, 130+(i%2)*60, 0.9+(i%2)*0.2);
 
   ctx.globalAlpha = 1;
-  ctx.fillStyle=world%4===3?"#a8bd62":"#70ad68"; ctx.beginPath(); ctx.moveTo(0,350);
-  for(let x=0;x<=W+20;x+=20) { const wx=x+camera*0.42; ctx.lineTo(x, 325+Math.sin(wx*0.008)*20+Math.sin(wx*0.018)*9); }
+  ctx.fillStyle=world%4===3?"#a8bd62":"#70ad68"; ctx.beginPath(); ctx.moveTo(0,430);
+  for(let x=0;x<=W+20;x+=20) { const wx=x+camera*0.42; ctx.lineTo(x, 400+Math.sin(wx*0.008)*25+Math.sin(wx*0.018)*10); }
   ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.fill();
 
-  for(let i=0;i<15;i++) drawTree(((i*120-camera*0.48)%1500+1500)%1500-100, 370, 0.55);
-  for(let i=0;i<20;i++) drawBush(((i*90-camera*0.72)%1400+1400)%1400-70, 385, 0.8);
+  for(let i=0;i<15;i++) drawTree(((i*140-camera*0.48)%1800+1800)%1800-100, 450, 0.6);
+  for(let i=0;i<20;i++) drawBush(((i*100-camera*0.72)%1600+1600)%1600-70, 465, 0.8);
 
   const sorted = gaps.slice().sort((a,b)=>a.x-b.x);
   for (const gap of sorted) {
@@ -339,8 +354,9 @@ function drawBackground() {
     if (gx + gap.w < -50 || gx > W + 50) continue;
     const vg = ctx.createLinearGradient(0, GROUND_Y, 0, H); vg.addColorStop(0,"#0a0f0a"); vg.addColorStop(1,"#000");
     ctx.fillStyle=vg; ctx.fillRect(gx, GROUND_Y, gap.w, H-GROUND_Y);
-    ctx.fillStyle="#000"; ctx.fillRect(gx, GROUND_Y, 4, H-GROUND_Y); ctx.fillRect(gx+gap.w-4, GROUND_Y, 4, H-GROUND_Y);
+    ctx.fillStyle="#000"; ctx.fillRect(gx, GROUND_Y, 5, H-GROUND_Y); ctx.fillRect(gx+gap.w-5, GROUND_Y, 5, H-GROUND_Y);
   }
+  
   let cursor = 0;
   for (const gap of sorted) { if (gap.x > cursor) drawGroundSegment(cursor, gap.x-cursor, theme); cursor = gap.x + gap.w; }
   if (cursor < LEVEL_WIDTH) drawGroundSegment(cursor, LEVEL_WIDTH-cursor, theme);
@@ -351,38 +367,38 @@ function drawGroundSegment(startX, width, theme) {
   ctx.globalAlpha = 1;
   
   ctx.fillStyle=theme.ground; ctx.fillRect(sx, GROUND_Y, width, H-GROUND_Y);
-  ctx.fillStyle="#7bd66a"; ctx.fillRect(sx, GROUND_Y, width, 8);
-  ctx.fillStyle="#2e5c2a"; ctx.fillRect(sx, GROUND_Y+8, width, 6);
+  ctx.fillStyle="#7bd66a"; ctx.fillRect(sx, GROUND_Y, width, 10);
+  ctx.fillStyle="#2e5c2a"; ctx.fillRect(sx, GROUND_Y+10, width, 8);
   
   ctx.fillStyle="#a8e88e";
-  for(let i = 0; i < width; i += 12) {
+  for(let i = 0; i < width; i += 15) {
     const tx = sx + i;
     if (tx < -20 || tx > W + 20) continue;
-    ctx.fillRect(tx, GROUND_Y - 4, 2, 4);
-    ctx.fillRect(tx + 4, GROUND_Y - 6, 2, 6);
-    ctx.fillRect(tx + 8, GROUND_Y - 3, 2, 3);
+    ctx.fillRect(tx, GROUND_Y - 5, 2, 5);
+    ctx.fillRect(tx + 5, GROUND_Y - 8, 2, 8);
+    ctx.fillRect(tx + 10, GROUND_Y - 4, 2, 4);
   }
   
   ctx.fillStyle="rgba(0,0,0,0.15)";
-  for(let i = 0; i < width; i += 30) {
+  for(let i = 0; i < width; i += 35) {
     const tx = sx + i;
     if (tx < -20 || tx > W + 20) continue;
-    ctx.beginPath(); ctx.arc(tx, GROUND_Y + 20 + (i%3)*8, 4, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.arc(tx + 15, GROUND_Y + 35, 3, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(tx, GROUND_Y + 25 + (i%3)*10, 5, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(tx + 18, GROUND_Y + 45, 4, 0, 7); ctx.fill();
   }
   
-  const lg = ctx.createLinearGradient(0, GROUND_Y+14, 0, H); lg.addColorStop(0,"rgba(0,0,0,0)"); lg.addColorStop(1,"rgba(0,0,0,0.5)");
-  ctx.fillStyle=lg; ctx.fillRect(sx, GROUND_Y+14, width, H-GROUND_Y-14);
+  const lg = ctx.createLinearGradient(0, GROUND_Y+18, 0, H); lg.addColorStop(0,"rgba(0,0,0,0)"); lg.addColorStop(1,"rgba(0,0,0,0.5)");
+  ctx.fillStyle=lg; ctx.fillRect(sx, GROUND_Y+18, width, H-GROUND_Y-18);
   
   const sortedGaps = gaps.slice().sort((a,b)=>a.x-b.x);
   for (const gap of sortedGaps) {
     if (Math.abs(gap.x - (startX+width)) < 1) { 
-      ctx.fillStyle="#8b5a2b"; ctx.fillRect(sx+width-8, GROUND_Y, 8, H-GROUND_Y); 
-      ctx.fillStyle="#c98a4b"; ctx.fillRect(sx+width-8, GROUND_Y, 8, 8); 
+      ctx.fillStyle="#8b5a2b"; ctx.fillRect(sx+width-10, GROUND_Y, 10, H-GROUND_Y); 
+      ctx.fillStyle="#c98a4b"; ctx.fillRect(sx+width-10, GROUND_Y, 10, 10); 
     }
     if (Math.abs(gap.x + gap.w - startX) < 1) { 
-      ctx.fillStyle="#8b5a2b"; ctx.fillRect(sx, GROUND_Y, 8, H-GROUND_Y); 
-      ctx.fillStyle="#c98a4b"; ctx.fillRect(sx, GROUND_Y, 8, 8); 
+      ctx.fillStyle="#8b5a2b"; ctx.fillRect(sx, GROUND_Y, 10, H-GROUND_Y); 
+      ctx.fillStyle="#c98a4b"; ctx.fillRect(sx, GROUND_Y, 10, 10); 
     }
   }
 }
@@ -390,12 +406,13 @@ function drawGroundSegment(startX, width, theme) {
 /* ===== ОТРИСОВКА ===== */
 function drawPlatforms() {
   for(const p of platforms) {
-    const x=p.x-camera; if(x<-180||x>W+180) continue;
+    const x=p.x-camera; if(x<-200||x>W+200) continue;
     
     // Тень
-    ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle="#000"; ctx.fillRect(x+3, p.y+p.h, p.w, 5); ctx.restore();
+    ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle="#000"; ctx.fillRect(x+5, p.y+p.h, p.w, 5); ctx.restore();
     
     // Доски
+    ctx.globalAlpha = 1;
     ctx.fillStyle="#80552f"; ctx.fillRect(x,p.y,p.w,p.h);
     ctx.fillStyle="#55a84c"; ctx.fillRect(x,p.y,p.w,5);
     ctx.fillStyle="#7bd66a"; ctx.fillRect(x,p.y,p.w,2);
@@ -408,117 +425,150 @@ function drawPlatforms() {
 }
 
 function drawHut() {
-  const hutX = LEVEL_WIDTH - 120;
+  const hutX = LEVEL_WIDTH - 140;
   const x = hutX - camera;
-  if (x < -150 || x > W + 150) return;
+  if (x < -200 || x > W + 200) return;
   ctx.globalAlpha = 1;
   
-  ctx.fillStyle="#8b5a2b"; ctx.fillRect(x, GROUND_Y - 90, 100, 90);
-  ctx.fillStyle="#a06b3b"; ctx.fillRect(x+2, GROUND_Y - 88, 96, 86);
+  ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle="#000"; ctx.fillRect(x-5, GROUND_Y-5, 120, 8); ctx.restore();
+  
+  ctx.fillStyle = "#8b5a2b"; ctx.fillRect(x, GROUND_Y - 110, 120, 110);
+  ctx.fillStyle = "#a06b3b"; ctx.fillRect(x+2, GROUND_Y - 108, 116, 106);
   
   ctx.save(); ctx.globalAlpha = 0.1; ctx.fillStyle="#000";
-  for(let i=0; i<90; i+=15) ctx.fillRect(x+2, GROUND_Y - 88 + i, 96, 2);
+  for(let i=0; i<110; i+=15) ctx.fillRect(x+2, GROUND_Y - 108 + i, 116, 2);
   ctx.restore();
   
-  ctx.fillStyle = "#a8322b"; ctx.beginPath(); ctx.moveTo(x - 10, GROUND_Y - 90); ctx.lineTo(x + 50, GROUND_Y - 150); ctx.lineTo(x + 110, GROUND_Y - 90); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#c94a42"; ctx.beginPath(); ctx.moveTo(x - 5, GROUND_Y - 90); ctx.lineTo(x + 50, GROUND_Y - 145); ctx.lineTo(x + 105, GROUND_Y - 90); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#a8322b"; ctx.beginPath(); ctx.moveTo(x - 10, GROUND_Y - 110); ctx.lineTo(x + 60, GROUND_Y - 180); ctx.lineTo(x + 130, GROUND_Y - 110); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#c94a42"; ctx.beginPath(); ctx.moveTo(x - 5, GROUND_Y - 110); ctx.lineTo(x + 60, GROUND_Y - 175); ctx.lineTo(x + 125, GROUND_Y - 110); ctx.closePath(); ctx.fill();
   
-  ctx.fillStyle = "#3b2414"; ctx.fillRect(x + 35, GROUND_Y - 65, 30, 65);
-  ctx.fillStyle = "#5a3a1a"; ctx.fillRect(x + 38, GROUND_Y - 60, 24, 55);
-  ctx.fillStyle = "#f4cf43"; ctx.fillRect(x + 10, GROUND_Y - 70, 20, 20);
-  ctx.fillStyle = "#263238"; ctx.fillRect(x + 19, GROUND_Y - 70, 2, 20); ctx.fillRect(x + 10, GROUND_Y - 61, 20, 2);
-  ctx.fillStyle = "#555"; ctx.fillRect(x + 70, GROUND_Y - 130, 15, 30);
-  ctx.fillStyle = "#777"; ctx.fillRect(x + 68, GROUND_Y - 132, 19, 4);
+  ctx.fillStyle = "#3b2414"; ctx.fillRect(x + 45, GROUND_Y - 80, 35, 80);
+  ctx.fillStyle = "#5a3a1a"; ctx.fillRect(x + 48, GROUND_Y - 75, 29, 70);
+  ctx.fillStyle = "#f4cf43"; ctx.fillRect(x + 15, GROUND_Y - 85, 25, 25);
+  ctx.fillStyle = "#263238"; ctx.fillRect(x + 26, GROUND_Y - 85, 3, 25); ctx.fillRect(x + 15, GROUND_Y - 74, 25, 3);
+  ctx.fillStyle = "#555"; ctx.fillRect(x + 85, GROUND_Y - 160, 20, 40);
+  ctx.fillStyle = "#777"; ctx.fillRect(x + 83, GROUND_Y - 163, 24, 5);
 }
 
 function drawPlayer() {
   const x=player.x-camera, y=player.y;
   if(player.invincible>0 && Math.floor(frame/5)%2===0) return;
   
+  // Тень под персонажем
   if(player.onGround) {
-    ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle="#000"; ctx.beginPath(); ctx.ellipse(x, GROUND_Y+2, 22, 5, 0, 0, 7); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle="#000"; ctx.beginPath(); ctx.ellipse(x, GROUND_Y+2, 25, 6, 0, 0, 7); ctx.fill(); ctx.restore();
   }
-  ctx.fillStyle="#4b3025"; ctx.fillRect(x-12,y+11,10,12); ctx.fillRect(x+3,y+11,10,12);
-  ctx.fillStyle="#70452c"; ctx.beginPath(); ctx.roundRect(x-17,y-5,34,25,8); ctx.fill();
-  ctx.fillStyle="#e7a72f"; ctx.beginPath(); ctx.arc(x,y-9,19,0,7); ctx.fill();
-  ctx.strokeStyle="#a86a1e"; ctx.lineWidth=2; ctx.stroke();
-  ctx.fillStyle="#382719"; ctx.beginPath(); ctx.arc(x-6,y-12,2,0,7); ctx.arc(x+6,y-12,2,0,7); ctx.fill();
-  ctx.strokeStyle="#6b301b"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x,y-5,6,0.15,Math.PI-0.15); ctx.stroke();
-  ctx.save(); ctx.translate(x,y-1); ctx.scale(player.facing,1);
-  ctx.fillStyle="#49382b"; ctx.fillRect(8,-5,27,5);
-  ctx.fillStyle="#222"; ctx.fillRect(27,-8,13,3);
-  ctx.fillStyle="#a7a7a7"; ctx.fillRect(34,-9,8,2);
+  
+  // Отрисовка Колобка
+  ctx.globalAlpha = 1; // Принудительно непрозрачный
+  ctx.fillStyle="#4b3025"; ctx.fillRect(x-14,y+14,12,14); ctx.fillRect(x+4,y+14,12,14);
+  ctx.fillStyle="#70452c"; ctx.beginPath(); ctx.roundRect(x-19,y-6,38,28,10); ctx.fill();
+  ctx.fillStyle="#e7a72f"; ctx.beginPath(); ctx.arc(x,y-10,22,0,7); ctx.fill();
+  ctx.strokeStyle="#a86a1e"; ctx.lineWidth=2.5; ctx.stroke();
+  ctx.fillStyle="#382719"; ctx.beginPath(); ctx.arc(x-7,y-14,2.5,0,7); ctx.arc(x+7,y-14,2.5,0,7); ctx.fill();
+  ctx.strokeStyle="#6b301b"; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(x,y-5,7,0.15,Math.PI-0.15); ctx.stroke();
+  
+  // Ружьё
+  ctx.save(); ctx.translate(x,y-2); ctx.scale(player.facing,1);
+  ctx.fillStyle="#49382b"; ctx.fillRect(10,-6,30,6);
+  ctx.fillStyle="#222"; ctx.fillRect(30,-10,15,4);
+  ctx.fillStyle="#a7a7a7"; ctx.fillRect(38,-11,10,3);
   ctx.restore();
 }
 
 function drawEnemy(e) {
   const x=e.x-camera; if(x<-60||x>W+60||!e.alive) return;
+  
   if(e.onGround) { ctx.save(); ctx.globalAlpha = 0.15; ctx.fillStyle="#000"; ctx.beginPath(); ctx.ellipse(x, GROUND_Y+2, 15, 4, 0, 0, 7); ctx.fill(); ctx.restore(); }
-  ctx.font="34px Arial"; ctx.textAlign="center"; ctx.fillText(worlds[world].enemy, x, e.y+5);
+  
+  ctx.globalAlpha = 1; // Непрозрачный
+  ctx.font="40px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(worlds[world].enemy, x, e.y);
 }
 
 function drawLizard(l) {
   const x=l.x-camera; if(x<-70||x>W+70||!l.alive) return;
   const f=l.facing, bob=l.onGround&&Math.abs(l.vx)>0.3?Math.sin(frame*0.25)*2:0;
+  
   ctx.save(); ctx.translate(x, l.y+bob); ctx.scale(f,1);
+  ctx.globalAlpha = 1; // Непрозрачный
+  
   ctx.fillStyle="#1f7a1f"; ctx.beginPath(); ctx.moveTo(-14,4); ctx.quadraticCurveTo(-34,10+Math.sin(frame*0.2)*4,-38,-4); ctx.quadraticCurveTo(-30,4,-12,8); ctx.closePath(); ctx.fill();
-  ctx.fillStyle="#1f7a1f"; ctx.fillRect(-10,8,9,12); ctx.fillRect(2,8,9,12);
-  ctx.fillStyle="#2ea82e"; ctx.beginPath(); ctx.ellipse(0,0,16,12,0,0,7); ctx.fill();
-  ctx.fillStyle="#0f5c0f"; for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*5-3,-10); ctx.lineTo(i*5,-19); ctx.lineTo(i*5+3,-10); ctx.closePath(); ctx.fill(); }
-  ctx.fillStyle="#35c235"; ctx.beginPath(); ctx.ellipse(14,-6,11,9,0,0,7); ctx.fill();
-  ctx.fillStyle="#8ee88e"; ctx.beginPath(); ctx.ellipse(22,-4,6,4,0,0,7); ctx.fill();
-  ctx.fillStyle="white"; ctx.beginPath(); ctx.arc(17,-8,3.5,0,7); ctx.fill();
-  ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(18,-8,1.8,0,7); ctx.fill();
-  ctx.strokeStyle="#0a4a0a"; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(20,0); ctx.lineTo(26,0); ctx.stroke();
+  ctx.fillStyle="#1f7a1f"; ctx.fillRect(-10,8,9,14); ctx.fillRect(2,8,9,14);
+  ctx.fillStyle="#2ea82e"; ctx.beginPath(); ctx.ellipse(0,0,18,14,0,0,7); ctx.fill();
+  ctx.fillStyle="#0f5c0f"; for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*6-3,-12); ctx.lineTo(i*6,-22); ctx.lineTo(i*6+3,-12); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle="#35c235"; ctx.beginPath(); ctx.ellipse(16,-7,12,10,0,0,7); ctx.fill();
+  ctx.fillStyle="#8ee88e"; ctx.beginPath(); ctx.ellipse(25,-5,7,5,0,0,7); ctx.fill();
+  ctx.fillStyle="white"; ctx.beginPath(); ctx.arc(19,-9,4,0,7); ctx.fill();
+  ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(20,-9,2,0,7); ctx.fill();
+  ctx.strokeStyle="#0a4a0a"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(23,0); ctx.lineTo(30,0); ctx.stroke();
   ctx.restore();
 }
 
 function drawBear(b) {
   const x=b.x-camera; if(x<-80||x>W+80||!b.alive) return;
   const f=b.facing, flash=b.hurtFlash>0&&Math.floor(frame/4)%2===0;
+  
   ctx.save(); ctx.translate(x,b.y); ctx.scale(f,1);
-  ctx.fillStyle=flash?"#ffd27a":"#a86b1e"; ctx.beginPath(); ctx.ellipse(0,0,20,22,0,0,7); ctx.fill();
-  ctx.fillStyle=flash?"#fff0c0":"#e8a53c"; ctx.beginPath(); ctx.ellipse(2,4,12,15,0,0,7); ctx.fill();
-  ctx.fillStyle=flash?"#ffd27a":"#8a5416"; ctx.beginPath(); ctx.ellipse(-9,20,8,6,0,0,7); ctx.ellipse(10,20,8,6,0,0,7); ctx.fill();
-  ctx.fillStyle=flash?"#ffd27a":"#b87522"; ctx.beginPath(); ctx.ellipse(0,-22,15,14,0,0,7); ctx.fill();
-  ctx.beginPath(); ctx.arc(-12,-33,6,0,7); ctx.arc(12,-33,6,0,7); ctx.fill();
-  ctx.fillStyle=flash?"#fff0c0":"#e8a53c"; ctx.beginPath(); ctx.ellipse(8,-20,9,7,0,0,7); ctx.fill();
-  ctx.fillStyle="#3a1f0a"; ctx.beginPath(); ctx.arc(15,-21,3,0,7); ctx.fill();
-  ctx.fillStyle="white"; ctx.beginPath(); ctx.arc(4,-26,3.5,0,7); ctx.fill();
-  ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(5,-26,1.8,0,7); ctx.fill();
-  ctx.fillStyle="#3b2a17"; ctx.beginPath(); ctx.ellipse(0,-36,20,4,0,0,7); ctx.fill();
-  ctx.fillStyle="#4a3520"; ctx.beginPath(); ctx.roundRect(-11,-50,22,15,4); ctx.fill();
-  ctx.fillStyle="#7a5a2b"; ctx.fillRect(-11,-39,22,4);
+  ctx.globalAlpha = 1; // Непрозрачный
+  
+  ctx.fillStyle=flash?"#ffd27a":"#a86b1e"; ctx.beginPath(); ctx.ellipse(0,0,22,24,0,0,7); ctx.fill();
+  ctx.fillStyle=flash?"#fff0c0":"#e8a53c"; ctx.beginPath(); ctx.ellipse(2,4,14,17,0,0,7); ctx.fill();
+  ctx.fillStyle=flash?"#ffd27a":"#8a5416"; ctx.beginPath(); ctx.ellipse(-10,22,9,7,0,0,7); ctx.ellipse(11,22,9,7,0,0,7); ctx.fill();
+  ctx.fillStyle=flash?"#ffd27a":"#b87522"; ctx.beginPath(); ctx.ellipse(0,-25,17,16,0,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(-14,-38,7,0,7); ctx.arc(14,-38,7,0,7); ctx.fill();
+  ctx.fillStyle=flash?"#fff0c0":"#e8a53c"; ctx.beginPath(); ctx.ellipse(9,-23,10,8,0,0,7); ctx.fill();
+  ctx.fillStyle="#3a1f0a"; ctx.beginPath(); ctx.arc(17,-24,3.5,0,7); ctx.fill();
+  ctx.fillStyle="white"; ctx.beginPath(); ctx.arc(5,-30,4,0,7); ctx.fill();
+  ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(6,-30,2,0,7); ctx.fill();
+  ctx.fillStyle="#3b2a17"; ctx.beginPath(); ctx.ellipse(0,-41,23,5,0,0,7); ctx.fill();
+  ctx.fillStyle="#4a3520"; ctx.beginPath(); ctx.roundRect(-13,-57,26,17,5); ctx.fill();
+  ctx.fillStyle="#7a5a2b"; ctx.fillRect(-13,-45,26,5);
   ctx.restore();
-  if (b.hp < b.maxHp) { const hx=x-20, hy=b.y-58; ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(hx-2,hy-2,44,8); for(let i=0;i<b.maxHp;i++){ ctx.fillStyle=i<b.hp?"#e33":"#444"; ctx.fillRect(hx+i*14,hy,12,4); } }
+  
+  if (b.hp < b.maxHp) { 
+    const hx=x-22, hy=b.y-65; 
+    ctx.globalAlpha=1; ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(hx-2,hy-2,48,10); 
+    for(let i=0;i<b.maxHp;i++){ ctx.fillStyle=i<b.hp?"#e33":"#444"; ctx.fillRect(hx+i*15,hy,13,5); } 
+  }
 }
 
 function drawWitch(w) {
   const x=w.x-camera; if(x<-80||x>W+80||!w.alive) return;
-  ctx.fillStyle="#5a3a22"; ctx.beginPath(); ctx.ellipse(x,w.y+22,20,26,0,0,7); ctx.fill();
-  ctx.fillStyle="#3b2414"; ctx.fillRect(x-22,w.y+4,44,6);
-  ctx.strokeStyle="#c9a26b"; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(x+12,w.y+16); ctx.lineTo(x+34,w.y-6); ctx.stroke();
-  ctx.fillStyle="#d9b87c"; ctx.beginPath(); ctx.arc(x+36,w.y-8,6,0,7); ctx.fill();
-  ctx.font="36px Arial"; ctx.textAlign="center"; ctx.fillText("🧙‍♀️",x,w.y);
-  ctx.fillStyle="#ff0000"; ctx.beginPath(); ctx.arc(x,w.y-28,3,0,7); ctx.fill();
+  
+  ctx.globalAlpha = 1; // Непрозрачный
+  ctx.fillStyle="#5a3a22"; ctx.beginPath(); ctx.ellipse(x,w.y+25,22,28,0,0,7); ctx.fill();
+  ctx.fillStyle="#3b2414"; ctx.fillRect(x-24,w.y+5,48,7);
+  ctx.strokeStyle="#c9a26b"; ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(x+14,w.y+18); ctx.lineTo(x+38,w.y-7); ctx.stroke();
+  ctx.fillStyle="#d9b87c"; ctx.beginPath(); ctx.arc(x+40,w.y-9,7,0,7); ctx.fill();
+  ctx.font="40px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("🧙‍♀️",x,w.y);
 }
 
 function drawBoss() {
   if(!boss || !boss.isBossLevel || !bossBattle || !boss.alive) return;
   const x=boss.x-camera;
-  ctx.font="58px Arial"; ctx.textAlign="center"; ctx.fillText("🦊",x,boss.y+10);
-  ctx.fillStyle="#381d1d"; ctx.fillRect(x-32,boss.y-49,64,8);
-  ctx.fillStyle="#e33"; ctx.fillRect(x-32,boss.y-49,64*(boss.hp/boss.maxHp),8);
-  ctx.fillStyle="white"; ctx.font="13px Arial"; ctx.fillText("БОСС",x,boss.y-55);
+  
+  ctx.globalAlpha = 1;
+  ctx.font="64px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("🦊",x,boss.y);
+  ctx.fillStyle="#381d1d"; ctx.fillRect(x-35,boss.y-54,70,10);
+  ctx.fillStyle="#e33"; ctx.fillRect(x-35,boss.y-54,70*(boss.hp/boss.maxHp),10);
+  ctx.fillStyle="white"; ctx.font="16px Arial"; ctx.fillText("БОСС",x,boss.y-65);
 }
 
 function drawBullets() {
-  ctx.fillStyle="#292929"; for(const b of bullets){ ctx.beginPath(); ctx.arc(b.x-camera,b.y,5,0,7); ctx.fill(); }
-  ctx.fillStyle="#ffdb45"; for(const b of enemyBullets){ ctx.save(); ctx.translate(b.x-camera,b.y); ctx.rotate(b.angle||0); if(b.rock){ ctx.fillStyle="#8b5a2b"; ctx.beginPath(); ctx.arc(0,0,6,0,7); ctx.fill(); ctx.fillStyle="#5a3a1a"; ctx.beginPath(); ctx.arc(-2,-1,2,0,7); ctx.fill(); } else { ctx.fillRect(-8,-3,16,6); } ctx.restore(); }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle="#292929"; for(const b of bullets){ ctx.beginPath(); ctx.arc(b.x-camera,b.y,6,0,7); ctx.fill(); }
+  ctx.fillStyle="#ffdb45"; for(const b of enemyBullets){ ctx.save(); ctx.translate(b.x-camera,b.y); ctx.rotate(b.angle||0); if(b.rock){ ctx.fillStyle="#8b5a2b"; ctx.beginPath(); ctx.arc(0,0,7,0,7); ctx.fill(); ctx.fillStyle="#5a3a1a"; ctx.beginPath(); ctx.arc(-2,-1,3,0,7); ctx.fill(); } else { ctx.fillRect(-9,-4,18,8); } ctx.restore(); }
 }
 
 function drawStars() {
-  for(const s of stars){ if(s.taken) continue; const x=s.x-camera; if(x<-30||x>W+30) continue; ctx.font="24px Arial"; ctx.textAlign="center"; ctx.fillText("⭐",x,s.y); }
+  for(const s of stars){ 
+    if(s.taken) continue; 
+    const x=s.x-camera; 
+    if(x<-30||x>W+30) continue; 
+    ctx.globalAlpha = 1; // Непрозрачные
+    ctx.font="30px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; 
+    ctx.fillText("⭐",x,s.y); 
+  }
 }
 
 function draw() {
@@ -545,10 +595,10 @@ function draw() {
   
   if(gameOver||victory) {
     ctx.globalAlpha = 1;
-    ctx.fillStyle="rgba(0,0,0,0.58)"; ctx.fillRect(0,0,W,H);
-    ctx.fillStyle="#fff"; ctx.textAlign="center"; ctx.font="bold 42px Arial";
-    ctx.fillText(victory?"ПОБЕДА!":"ИГРА ОКОНЧЕНА",W/2,190);
-    ctx.font="24px Arial"; ctx.fillText(victory?"Колобок спас лес!":"Попробуй ещё раз!",W/2,235);
+    ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle="#fff"; ctx.textAlign="center"; ctx.font="bold 50px Arial";
+    ctx.fillText(victory?"ПОБЕДА!":"ИГРА ОКОНЧЕНА",W/2,230);
+    ctx.font="28px Arial"; ctx.fillText(victory?"Колобок спас лес!":"Попробуй ещё раз!",W/2,290);
   }
 }
 
@@ -568,7 +618,7 @@ function hurtPlayer() {
   saveProgress();
 }
 function respawnFromGap() {
-  player.x=lastSafeX; player.y=330; player.vx=0; player.vy=0; player.invincible=90;
+  player.x=lastSafeX; player.y=GROUND_Y-19; player.vx=0; player.vy=0; player.invincible=90;
   hurtPlayer(); if(!gameOver) say("Осторожно, обрыв!");
 }
 function updatePlayer() {
@@ -600,8 +650,8 @@ function updateEnemies() {
     if(Math.abs(distance)<230){ e.vx+=Math.sign(distance)*0.025; e.vx=Math.max(-2-(world%4)*0.2,Math.min(2+(world%4)*0.2,e.vx)); }
     else { if(e.x<e.min) e.vx=Math.abs(e.vx); if(e.x>e.max) e.vx=-Math.abs(e.vx); }
     e.x+=e.vx; e.y+=e.vy; e.vy+=GRAVITY;
-    if(e.y>=350){ e.y=350; e.vy=0; e.onGround=true; }
-    if(Math.abs(player.x-e.x)<31&&Math.abs(player.y-e.y)<30) hurtPlayer();
+    if(e.y>=GROUND_Y-35){ e.y=GROUND_Y-35; e.vy=0; e.onGround=true; }
+    if(Math.abs(player.x-e.x)<35&&Math.abs(player.y-e.y)<35) hurtPlayer();
   }
 }
 function updateLizards() {
@@ -611,8 +661,8 @@ function updateLizards() {
     else if(l.dashTimer>0) l.vx*=0.93;
     else { l.vx=l.facing*l.speed; if(l.x<80) l.facing=1; if(l.x>LEVEL_WIDTH-80) l.facing=-1; }
     l.x+=l.vx; l.y+=l.vy; l.vy+=GRAVITY;
-    if(l.y>=350){ l.y=350; l.vy=0; l.onGround=true; } else l.onGround=false;
-    if(Math.abs(player.x-l.x)<28&&Math.abs(player.y-l.y)<30) hurtPlayer();
+    if(l.y>=GROUND_Y-35){ l.y=GROUND_Y-35; l.vy=0; l.onGround=true; } else l.onGround=false;
+    if(Math.abs(player.x-l.x)<32&&Math.abs(player.y-l.y)<35) hurtPlayer();
   }
 }
 function updateBears() {
@@ -621,14 +671,14 @@ function updateBears() {
     const distance=player.x-b.x; b.facing=Math.sign(distance)||1;
     if(Math.abs(distance)>60) b.vx=Math.sign(distance)*0.6; else b.vx=0;
     b.x+=b.vx; b.y+=b.vy; b.vy+=GRAVITY;
-    if(b.y>=350){ b.y=350; b.vy=0; b.onGround=true; }
+    if(b.y>=GROUND_Y-25){ b.y=GROUND_Y-25; b.vy=0; b.onGround=true; }
     b.throwTimer--;
     if(b.throwTimer<=0&&Math.abs(distance)<380){
       const dx=player.x-b.x, dy=player.y-(b.y-30), len=Math.sqrt(dx*dx+dy*dy)||1;
       enemyBullets.push({ x:b.x, y:b.y-30, vx:dx/len*3.2, vy:dy/len*3.2-1.2, angle:Math.atan2(dy,dx), life:180, rock:true });
       b.throwTimer=150+Math.random()*80; sound(200,0.1,"square");
     }
-    if(Math.abs(player.x-b.x)<35&&Math.abs(player.y-b.y)<32) hurtPlayer();
+    if(Math.abs(player.x-b.x)<40&&Math.abs(player.y-b.y)<40) hurtPlayer();
   }
 }
 function updateWitches() {
@@ -636,14 +686,14 @@ function updateWitches() {
     if(!w.alive) continue; w.phase+=0.03; w.x+=w.vx;
     if(w.x<80){ w.x=80; w.vx=Math.abs(w.vx); }
     if(w.x>LEVEL_WIDTH-80){ w.x=LEVEL_WIDTH-80; w.vx=-Math.abs(w.vx); }
-    w.y=w.baseY+Math.sin(w.phase)*22;
+    w.y=w.baseY+Math.sin(w.phase)*25;
     w.shootTimer--;
     if(w.shootTimer<=0){
       const dx=player.x-w.x, dy=player.y-w.y, len=Math.sqrt(dx*dx+dy*dy)||1;
       enemyBullets.push({ x:w.x, y:w.y, vx:dx/len*3.4, vy:dy/len*3.4, angle:Math.atan2(dy,dx), life:150, fromWitch:true });
       w.shootTimer=130+Math.random()*60; sound(300,0.08,"sawtooth");
     }
-    if(Math.abs(player.x-w.x)<30&&Math.abs(player.y-w.y)<30) hurtPlayer();
+    if(Math.abs(player.x-w.x)<35&&Math.abs(player.y-w.y)<35) hurtPlayer();
   }
 }
 function updateBoss() {
@@ -652,31 +702,31 @@ function updateBoss() {
   if(!bossBattle||!boss.alive) return;
   const distance=player.x-boss.x; if(Math.abs(distance)>70) boss.vx=Math.sign(distance)*1.1; else boss.vx=0;
   boss.x+=boss.vx; boss.jumpTimer--;
-  if(boss.jumpTimer<=0&&boss.y>=350){ boss.vy=-8.5; boss.jumpTimer=100; }
+  if(boss.jumpTimer<=0&&boss.y>=GROUND_Y-50){ boss.vy=-8.5; boss.jumpTimer=100; }
   boss.y+=boss.vy; boss.vy+=GRAVITY;
-  if(boss.y>350){ boss.y=350; boss.vy=0; }
+  if(boss.y>GROUND_Y-50){ boss.y=GROUND_Y-50; boss.vy=0; }
   boss.shootTimer--;
   if(boss.shootTimer<=0){
     const dx=player.x-boss.x, dy=(player.y-10)-(boss.y-10), len=Math.sqrt(dx*dx+dy*dy)||1;
     enemyBullets.push({ x:boss.x, y:boss.y-10, vx:dx/len*4.8, vy:dy/len*4.8, angle:Math.atan2(dy,dx), life:130 });
     boss.shootTimer=85; sound(260,0.1,"sawtooth");
   }
-  if(Math.abs(player.x-boss.x)<43&&Math.abs(player.y-boss.y)<40) hurtPlayer();
+  if(Math.abs(player.x-boss.x)<50&&Math.abs(player.y-boss.y)<50) hurtPlayer();
 }
 
 /* ===== ПУЛИ ===== */
 function updateBullets() {
   for(const b of bullets){
     b.x+=b.vx; b.life--;
-    for(const e of enemies) if(e.alive&&Math.abs(b.x-e.x)<25&&Math.abs(b.y-e.y)<30){ e.alive=false; b.life=0; say("Ай!"); sound(330,0.12); saveProgress(); }
-    for(const w of witches) if(w.alive&&Math.abs(b.x-w.x)<30&&Math.abs(b.y-w.y)<34){ w.alive=false; b.life=0; say("Куда ты, бабуля?"); sound(220,0.15,"triangle"); saveProgress(); }
-    for(const l of lizards) if(l.alive&&Math.abs(b.x-l.x)<24&&Math.abs(b.y-l.y)<24){ l.alive=false; b.life=0; say("Хвост отвалился!"); sound(280,0.12,"triangle"); saveProgress(); }
-    for(const bear of bears) if(bear.alive&&Math.abs(b.x-bear.x)<26&&Math.abs(b.y-bear.y)<26){
+    for(const e of enemies) if(e.alive&&Math.abs(b.x-e.x)<30&&Math.abs(b.y-e.y)<35){ e.alive=false; b.life=0; say("Ай!"); sound(330,0.12); saveProgress(); }
+    for(const w of witches) if(w.alive&&Math.abs(b.x-w.x)<35&&Math.abs(b.y-w.y)<40){ w.alive=false; b.life=0; say("Куда ты, бабуля?"); sound(220,0.15,"triangle"); saveProgress(); }
+    for(const l of lizards) if(l.alive&&Math.abs(b.x-l.x)<30&&Math.abs(b.y-l.y)<30){ l.alive=false; b.life=0; say("Хвост отвалился!"); sound(280,0.12,"triangle"); saveProgress(); }
+    for(const bear of bears) if(bear.alive&&Math.abs(b.x-bear.x)<30&&Math.abs(b.y-bear.y)<30){
       bear.hp--; bear.hurtFlash=20; b.life=0; sound(200,0.08);
       if(bear.hp<=0){ bear.alive=false; say("Медведь ушёл в лес!"); totalStars+=5; }
       saveProgress();
     }
-    if(boss && boss.isBossLevel && bossBattle && boss.alive && Math.abs(b.x-boss.x)<38 && Math.abs(b.y-boss.y)<45){
+    if(boss && boss.isBossLevel && bossBattle && boss.alive && Math.abs(b.x-boss.x)<45 && Math.abs(b.y-boss.y)<50){
       boss.hp--; b.life=0; sound(240,0.08);
       if(boss.hp<=0){ boss.alive=false; say("А меня за что?"); setTimeout(()=>{ if(!victory) message.textContent="⭐ Лиса побеждена!"; },1800); totalStars+=10; }
       saveProgress();
@@ -685,20 +735,20 @@ function updateBullets() {
   bullets=bullets.filter(b=>b.life>0&&b.x>-100&&b.x<LEVEL_WIDTH+100);
   for(const b of enemyBullets){
     b.x+=b.vx; b.y+=b.vy; b.life--;
-    if(Math.abs(b.x-player.x)<20&&Math.abs(b.y-player.y)<20){ b.life=0; hurtPlayer(); }
+    if(Math.abs(b.x-player.x)<25&&Math.abs(b.y-player.y)<25){ b.life=0; hurtPlayer(); }
   }
   enemyBullets=enemyBullets.filter(b=>b.life>0);
 }
 
 /* ===== ЗВЁЗДЫ И ПЕРЕХОД ===== */
 function updateStars() {
-  for(const s of stars) if(!s.taken&&Math.abs(player.x-s.x)<27&&Math.abs(player.y-s.y)<35){ s.taken=true; totalStars++; sound(760,0.12,"sine"); updateInfo(); saveProgress(); }
+  for(const s of stars) if(!s.taken&&Math.abs(player.x-s.x)<30&&Math.abs(player.y-s.y)<40){ s.taken=true; totalStars++; sound(760,0.12,"sine"); updateInfo(); saveProgress(); }
 }
 
 function checkLevelEnd() {
   if (isTransitioning || gameOver || victory) return;
-  const hutX = LEVEL_WIDTH - 120;
-  if (player.x > hutX + 30 && player.x < hutX + 70) {
+  const hutX = LEVEL_WIDTH - 140;
+  if (player.x > hutX + 40 && player.x < hutX + 85) {
     isTransitioning = true; say("В избушку!"); sound(880, 0.3, "sine");
     setTimeout(() => {
       if (world < TOTAL_LEVELS - 1) {
