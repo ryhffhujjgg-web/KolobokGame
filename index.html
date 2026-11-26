@@ -84,7 +84,7 @@ button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 #b28d20; }
 <div id="rotate-hint"><div class="icon">📱</div><div>Поверните телефон<br>горизонтально для игры</div></div>
 <div id="game-wrap">
   <canvas id="game" width="1200" height="540"></canvas>
-  <div id="topbar"><div id="info">Мир 1/10 | ⭐ 0 | ❤️ 3</div><button id="restart">↻ ЗАНОВО</button></div>
+  <div id="topbar"><div id="info">Мир 1/12 | ⭐ 0 | ❤️ 3</div><button id="restart">↻ ЗАНОВО</button></div>
   <div id="message">Вперёд, Колобок!</div>
 </div>
 <div class="controls">
@@ -108,8 +108,8 @@ const H = canvas.height;
 const LEVEL_WIDTH = 2400;
 const GRAVITY = 0.55;
 const GROUND_Y = 470;
-const TOTAL_LEVELS = 10;
-const SAVE_KEY = "kolobok_adventure_polish_v3"; // Обновлен ключ сохранения
+const TOTAL_LEVELS = 12; // Теперь 12 уровней
+const SAVE_KEY = "kolobok_adventure_polish_v4"; // Обновлен ключ
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"rabbit", weather:"leaves"},
@@ -121,7 +121,9 @@ const worlds = [
   {name:"Замок Кощея", sky:"#c09bd6", ground:"#5a4b6e", enemy:"skeleton", weather:"sparks"},
   {name:"Гора Дракона", sky:"#ff9a76", ground:"#7a4a3a", enemy:"dragon", weather:"ash"},
   {name:"Тёмный бор", sky:"#5b6d8b", ground:"#2e4a3a", enemy:"goblin", weather:"rain"},
-  {name:"Огненная пустошь", sky:"#ff7e5f", ground:"#8b3a2a", enemy:"fire", weather:"ash"}
+  {name:"Огненная пустошь", sky:"#ff7e5f", ground:"#8b3a2a", enemy:"fire", weather:"ash"},
+  {name:"Подводное царство", sky:"#006699", ground:"#ccaa55", enemy:"mermaid", weather:"bubbles"}, // 11
+  {name:"Дремучий лес", sky:"#2b4a2b", ground:"#1a3a1a", enemy:"tree", weather:"rain"} // 12
 ];
 
 let world = 0; let camera = 0; let player; let enemies = []; let witches = []; let lizards = []; let bears = []; let bullets = []; let enemyBullets = []; let stars = []; let platforms = []; let gaps = []; let boss;
@@ -131,7 +133,12 @@ let pickups = []; let particles = []; let floatingTexts = []; let shakeTime = 0;
 let playerDashing = 0; let playerDashCooldown = 0;
 
 let currentWeapon = "shotgun"; 
-let shootCooldown = 0;
+let minigunInterval = null; // Для автоматической стрельбы
+
+// Спец. враги для новых уровней
+let mermaids = [];
+let sharks = [];
+let trees = [];
 
 /* ===== ВСТРЯСКА ЭКРАНА ===== */
 function triggerShake(intensity) { shakeTime = intensity; }
@@ -182,7 +189,7 @@ function drawParticles() {
 function saveProgress() {
   try {
     const data = {
-      version: 3, world, totalStars, lastSafeX, currentWeapon,
+      version: 4, world, totalStars, lastSafeX, currentWeapon,
       player: { x: player.x, y: player.y, health: player.health, facing: player.facing },
       bossBattle, gameOver, victory
     };
@@ -195,7 +202,7 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 3 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
+    if (!data || data.version !== 4 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
     world = data.world; totalStars = Math.max(0, Number(data.totalStars) || 0); lastSafeX = Number(data.lastSafeX) || 70;
     if (data.currentWeapon === "minigun" || data.currentWeapon === "shotgun") currentWeapon = data.currentWeapon;
     makeLevel();
@@ -261,23 +268,37 @@ function sound(freq=440, duration=0.1, type="square") {
 function makeLevel() {
   player = { x:70, y:GROUND_Y - 19, vx:0, vy:0, r:19, speed:3.2, facing:1, onGround:false, health:3, invincible:0, jumpsLeft:2, maxJumps:2 };
   lastSafeX = 70; camera = 0; bullets = []; enemyBullets = []; enemies = []; witches = []; lizards = []; bears = []; stars = []; platforms = []; gaps = []; bossBattle = false; isTransitioning = false; pickups = []; particles = []; floatingTexts = []; shakeTime = 0;
+  mermaids = []; sharks = []; trees = [];
   playerDashing = 0; playerDashCooldown = 0;
   gaps = [{x:760,w:90},{x:1450,w:110},{x:2050,w:90}];
   
-  for (let i=0; i<5; i++) {
-    const x = 390 + i*370;
-    if (gaps.some(g => x > g.x - 20 && x < g.x + g.w + 20)) continue;
-    enemies.push({ x, y:GROUND_Y - 20, vx:0.6 + (world%4)*0.1, vy:0, min:x-95, max:x+95, alive:true, onGround:true, jumpTimer:60 + i*27, hp:1 });
+  // Если это 11-й уровень (подводный) или 12-й (лес) - создаем других врагов
+  if (world === 10) {
+    mermaids.push({ x:650, baseY:220, y:220, vx:1.0, phase:Math.random()*Math.PI*2, shootTimer:110, alive:true });
+    mermaids.push({ x:1750, baseY:200, y:200, vx:-0.9, phase:Math.random()*Math.PI*2, shootTimer:160, alive:true });
+    sharks.push({ x:1100, y:GROUND_Y - 30, vx:1.5, alive:true });
+    sharks.push({ x:1850, y:GROUND_Y - 30, vx:-1.5, alive:true });
+  } else if (world === 11) {
+    trees.push({ x:500, y:GROUND_Y - 40, hp:3, maxHp:3, alive:true, shootTimer:100 });
+    trees.push({ x:1200, y:GROUND_Y - 40, hp:3, maxHp:3, alive:true, shootTimer:140 });
+    trees.push({ x:1900, y:GROUND_Y - 40, hp:3, maxHp:3, alive:true, shootTimer:120 });
+  } else {
+    // Обычные враги для остальных уровней
+    for (let i=0; i<5; i++) {
+      const x = 390 + i*370;
+      if (gaps.some(g => x > g.x - 20 && x < g.x + g.w + 20)) continue;
+      enemies.push({ x, y:GROUND_Y - 20, vx:0.6 + (world%4)*0.1, vy:0, min:x-95, max:x+95, alive:true, onGround:true, jumpTimer:60 + i*27, hp:1 });
+    }
+    
+    if (world % 4 > 0) {
+      witches.push({ x:650, baseY:220, y:220, vx:1.0+(world%4)*0.1, phase:Math.random()*Math.PI*2, shootTimer:110, alive:true });
+      witches.push({ x:1750, baseY:200, y:200, vx:-(0.9+(world%4)*0.1), phase:Math.random()*Math.PI*2, shootTimer:160, alive:true });
+      lizards.push({ x:1100, y:GROUND_Y - 15, vx:1.2, vy:0, alive:true, onGround:true, facing:1, dashTimer:140, speed:1.2+(world%4)*0.12 });
+      lizards.push({ x:1850, y:GROUND_Y - 15, vx:-1.2, vy:0, alive:true, onGround:true, facing:-1, dashTimer:200, speed:1.2+(world%4)*0.12 });
+    }
+    
+    if (world % 4 >= 2) bears.push({ x:1350, y:GROUND_Y - 30, vx:0.6, vy:0, hp:3, maxHp:3, alive:true, onGround:true, facing:1, throwTimer:140, hurtFlash:0 });
   }
-  
-  if (world % 4 > 0) {
-    witches.push({ x:650, baseY:220, y:220, vx:1.0+(world%4)*0.1, phase:Math.random()*Math.PI*2, shootTimer:110, alive:true });
-    witches.push({ x:1750, baseY:200, y:200, vx:-(0.9+(world%4)*0.1), phase:Math.random()*Math.PI*2, shootTimer:160, alive:true });
-    lizards.push({ x:1100, y:GROUND_Y - 15, vx:1.2, vy:0, alive:true, onGround:true, facing:1, dashTimer:140, speed:1.2+(world%4)*0.12 });
-    lizards.push({ x:1850, y:GROUND_Y - 15, vx:-1.2, vy:0, alive:true, onGround:true, facing:-1, dashTimer:200, speed:1.2+(world%4)*0.12 });
-  }
-  
-  if (world % 4 >= 2) bears.push({ x:1350, y:GROUND_Y - 30, vx:0.6, vy:0, hp:3, maxHp:3, alive:true, onGround:true, facing:1, throwTimer:140, hurtFlash:0 });
   
   platforms = [{x:260,y:GROUND_Y - 75,w:120,h:16},{x:570,y:GROUND_Y - 110,w:135,h:16},{x:900,y:GROUND_Y - 80,w:140,h:16},{x:1250,y:GROUND_Y - 115,w:150,h:16},{x:1590,y:GROUND_Y - 80,w:130,h:16},{x:1900,y:GROUND_Y - 110,w:150,h:16}];
   
@@ -348,18 +369,17 @@ function drawDragon(x, y, isMoving, facing) {
   ctx.restore();
 }
 
-// НОВЫЕ ВРАГИ ДЛЯ 9 И 10 УРОВНЕЙ
 function drawGoblin(x, y, isMoving, facing) {
   const bob = isMoving ? Math.sin(frame * 0.2) * 3 : 0;
   ctx.save(); ctx.translate(x, y - bob); ctx.scale(facing, 1);
-  ctx.fillStyle = "#5a7a45"; ctx.beginPath(); ctx.ellipse(0, 0, 18, 22, 0, 0, 7); ctx.fill(); // Тело
-  ctx.fillStyle = "#3d5c2e"; ctx.beginPath(); ctx.arc(0, -20, 16, 0, 7); ctx.fill(); // Голова
-  ctx.fillStyle = "#4a6b38"; ctx.beginPath(); ctx.moveTo(-10, -25); ctx.lineTo(-25, -35); ctx.lineTo(-12, -15); ctx.fill(); // Левое ухо
-  ctx.beginPath(); ctx.moveTo(10, -25); ctx.lineTo(25, -35); ctx.lineTo(12, -15); ctx.fill(); // Правое ухо
-  ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.arc(-6, -22, 4, 0, 7); ctx.arc(6, -22, 4, 0, 7); ctx.fill(); // Глаза
+  ctx.fillStyle = "#5a7a45"; ctx.beginPath(); ctx.ellipse(0, 0, 18, 22, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#3d5c2e"; ctx.beginPath(); ctx.arc(0, -20, 16, 0, 7); ctx.fill();
+  ctx.fillStyle = "#4a6b38"; ctx.beginPath(); ctx.moveTo(-10, -25); ctx.lineTo(-25, -35); ctx.lineTo(-12, -15); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(10, -25); ctx.lineTo(25, -35); ctx.lineTo(12, -15); ctx.fill();
+  ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.arc(-6, -22, 4, 0, 7); ctx.arc(6, -22, 4, 0, 7); ctx.fill();
   ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-6, -22, 2, 0, 7); ctx.arc(6, -22, 2, 0, 7); ctx.fill();
-  ctx.fillStyle = "#fff"; ctx.fillRect(-6, -12, 4, 4); ctx.fillRect(2, -12, 4, 4); // Клыки
-  ctx.fillStyle = "#2e4a22"; ctx.fillRect(-15, 10, 6, 15); ctx.fillRect(9, 10, 6, 15); // Ноги
+  ctx.fillStyle = "#fff"; ctx.fillRect(-6, -12, 4, 4); ctx.fillRect(2, -12, 4, 4);
+  ctx.fillStyle = "#2e4a22"; ctx.fillRect(-15, 10, 6, 15); ctx.fillRect(9, 10, 6, 15);
   ctx.restore();
 }
 
@@ -367,15 +387,41 @@ function drawFireMonster(x, y, isMoving, facing) {
   const flicker = Math.sin(frame * 0.3) * 3;
   const flicker2 = Math.cos(frame * 0.4) * 4;
   ctx.save(); ctx.translate(x, y);
-  // Языки пламени
   ctx.fillStyle = "#ff5722"; ctx.beginPath(); ctx.moveTo(-20, 20); ctx.quadraticCurveTo(-25 + flicker, -10, -10, -25 + flicker2); ctx.quadraticCurveTo(0, -10, 0, 20); ctx.fill();
   ctx.fillStyle = "#ff9800"; ctx.beginPath(); ctx.moveTo(-5, 20); ctx.quadraticCurveTo(-10 + flicker2, -15, 5, -30 + flicker); ctx.quadraticCurveTo(15, -5, 15, 20); ctx.fill();
-  ctx.fillStyle = "#ffeb3b"; ctx.beginPath(); ctx.ellipse(0, 5, 12, 15, 0, 0, 7); ctx.fill(); // Ядро
-  // Глаза
+  ctx.fillStyle = "#ffeb3b"; ctx.beginPath(); ctx.ellipse(0, 5, 12, 15, 0, 0, 7); ctx.fill();
   ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-5, -2, 3, 0, 7); ctx.arc(5, -2, 3, 0, 7); ctx.fill();
-  // Огоньки вокруг
   ctx.globalAlpha = 0.6 + Math.random()*0.4;
   ctx.fillStyle = "#ffeb3b"; ctx.beginPath(); ctx.arc(-15 + flicker, -10, 3, 0, 7); ctx.arc(15 + flicker2, -5, 4, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawMermaid(x, y, isMoving, facing) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(facing, 1);
+  ctx.fillStyle = "#ff99cc"; ctx.beginPath(); ctx.ellipse(0, 0, 15, 20, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#33cc99"; ctx.beginPath(); ctx.moveTo(0, 15); ctx.quadraticCurveTo(-20, 35, 0, 50); ctx.quadraticCurveTo(20, 35, 0, 15); ctx.fill();
+  ctx.fillStyle = "#ffcc99"; ctx.beginPath(); ctx.arc(0, -15, 12, 0, 7); ctx.fill();
+  ctx.fillStyle = "#ff0066"; ctx.beginPath(); ctx.arc(0, -22, 12, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-4, -17, 2, 0, 7); ctx.arc(4, -17, 2, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawShark(x, y, isMoving, facing) {
+  const bob = Math.sin(frame * 0.1) * 8;
+  ctx.save(); ctx.translate(x, y + bob); ctx.scale(facing, 1);
+  ctx.fillStyle = "#8899aa"; ctx.beginPath(); ctx.ellipse(0, 0, 30, 15, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-10, -15); ctx.lineTo(5, 0); ctx.fill();
+  ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(20, -2, 3, 0, 7); ctx.fill();
+  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(21, -2, 1.5, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawTreeMonster(x, y, isMoving, facing) {
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = "#3e2723"; ctx.fillRect(-15, -40, 30, 80);
+  ctx.fillStyle = "#1b5e20"; ctx.beginPath(); ctx.arc(0, -50, 35, 0, 7); ctx.fill();
+  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-10, -30, 5, 0, 7); ctx.arc(10, -30, 5, 0, 7); ctx.fill();
+  ctx.fillStyle = "#2e7d32"; ctx.beginPath(); ctx.arc(0, -15, 10, 0, 7); ctx.fill(); // Рот
   ctx.restore();
 }
 
@@ -415,25 +461,47 @@ function drawBush(x,y,s=1) {
 function drawBackground() {
   const theme = worlds[world];
   const skyGrad = ctx.createLinearGradient(0,0,0,H);
-  skyGrad.addColorStop(0, theme.sky); skyGrad.addColorStop(0.4, "#a8d8f0"); skyGrad.addColorStop(0.8, "#d4eecf"); skyGrad.addColorStop(1, "#e8f5d4");
+  
+  if (world === 10) { // Подводный
+    skyGrad.addColorStop(0, "#002244"); skyGrad.addColorStop(0.5, "#006699"); skyGrad.addColorStop(1, "#33cccc");
+  } else if (world === 11) { // Дремучий лес
+    skyGrad.addColorStop(0, "#1a2a1a"); skyGrad.addColorStop(0.5, "#2b4a2b"); skyGrad.addColorStop(1, "#3e5c3e");
+  } else {
+    skyGrad.addColorStop(0, theme.sky); skyGrad.addColorStop(0.4, "#a8d8f0"); skyGrad.addColorStop(0.8, "#d4eecf"); skyGrad.addColorStop(1, "#e8f5d4");
+  }
+  
   ctx.fillStyle=skyGrad; ctx.fillRect(0,0,W,H);
-  const sunGrad = ctx.createRadialGradient(W-150, 100, 10, W-150, 100, 80); sunGrad.addColorStop(0, "#fff8c0"); sunGrad.addColorStop(1, "rgba(255, 251, 208, 0)");
-  ctx.fillStyle=sunGrad; ctx.beginPath(); ctx.arc(W-150, 100, 80, 0, 7); ctx.fill();
-  ctx.fillStyle="#fff8c0"; ctx.beginPath(); ctx.arc(W-150, 100, 50, 0, 7); ctx.fill();
-  for (let i=0;i<6;i++) drawCloud(((i*300 - camera*0.08)%1800+1800)%1800-150, 60+(i%3)*40, 0.7+(i%2)*0.2);
-  for (let i=0;i<10;i++) { const mx = i*250 - (camera*0.15 % 250); drawMountain(mx, 380, 260, 200, "#5a7f8e", "#3a5a6a", "#b0c8d8"); }
-  for (let i=0;i<5;i++) drawCloud(((i*350 - camera*0.2)%1900+1900)%1900-200, 180+(i%2)*60, 0.9+(i%2)*0.2);
-  for (let i=0;i<8;i++) { const mx = i*300 - (camera*0.25 % 300); const baseColor = world%4===3 ? "#dba36c" : "#83b5a0"; const shadowColor = world%4===3 ? "#a87040" : "#5a8a70"; drawMountain(mx, 400, 240, 150, baseColor, shadowColor, "#e8f0e8"); }
+  
+  if (world === 10) {
+    // Пузыри для подводного уровня
+    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    for(let i=0; i<20; i++) {
+      const bx = (i*100 - camera*0.5 + frame*0.5) % W;
+      const by = (i*150 - frame*1.5) % H;
+      ctx.beginPath(); ctx.arc(bx, by, 5 + (i%3)*5, 0, 7); ctx.fill();
+    }
+  } else {
+    // Обычное небо, солнце и горы
+    const sunGrad = ctx.createRadialGradient(W-150, 100, 10, W-150, 100, 80); sunGrad.addColorStop(0, "#fff8c0"); sunGrad.addColorStop(1, "rgba(255, 251, 208, 0)");
+    ctx.fillStyle=sunGrad; ctx.beginPath(); ctx.arc(W-150, 100, 80, 0, 7); ctx.fill();
+    ctx.fillStyle="#fff8c0"; ctx.beginPath(); ctx.arc(W-150, 100, 50, 0, 7); ctx.fill();
+    for (let i=0;i<6;i++) drawCloud(((i*300 - camera*0.08)%1800+1800)%1800-150, 60+(i%3)*40, 0.7+(i%2)*0.2);
+    for (let i=0;i<10;i++) { const mx = i*250 - (camera*0.15 % 250); drawMountain(mx, 380, 260, 200, "#5a7f8e", "#3a5a6a", "#b0c8d8"); }
+  }
+  
   const fogGrad = ctx.createLinearGradient(0, 300, 0, 420); fogGrad.addColorStop(0, "rgba(255,255,255,0)"); fogGrad.addColorStop(0.5, "rgba(255,255,255,0.3)"); fogGrad.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = fogGrad; ctx.fillRect(0, 300, W, 120);
-  for (let i=0;i<3;i++) drawCloud(((i*450 - camera*0.35)%2200+2200)%2200-250, 250+(i%2)*50, 1.1);
-  ctx.fillStyle=world%4===3?"#a8bd62":"#70ad68"; ctx.beginPath(); ctx.moveTo(0,430);
-  for(let x=0;x<=W+20;x+=20) { const wx=x+camera*0.42; ctx.lineTo(x, 400+Math.sin(wx*0.008)*25+Math.sin(wx*0.018)*10); }
-  ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.fill();
-  const hillShadow = ctx.createLinearGradient(0, 400, 0, H); hillShadow.addColorStop(0, "rgba(0,0,0,0)"); hillShadow.addColorStop(1, "rgba(0,0,0,0.2)");
-  ctx.fillStyle = hillShadow; ctx.fillRect(0, 400, W, H-400);
-  for(let i=0;i<15;i++) drawTree(((i*140-camera*0.48)%1800+1800)%1800-100, 450, 0.6);
-  for(let i=0;i<20;i++) drawBush(((i*100-camera*0.72)%1600+1600)%1600-70, 465, 0.8);
+  
+  if (world === 11) {
+    for(let i=0;i<10;i++) drawTree(((i*200-camera*0.5)%2000+2000)%2000-100, 450, 1.2);
+  } else if (world !== 10) {
+    ctx.fillStyle=world%4===3?"#a8bd62":"#70ad68"; ctx.beginPath(); ctx.moveTo(0,430);
+    for(let x=0;x<=W+20;x+=20) { const wx=x+camera*0.42; ctx.lineTo(x, 400+Math.sin(wx*0.008)*25+Math.sin(wx*0.018)*10); }
+    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.fill();
+    for(let i=0;i<15;i++) drawTree(((i*140-camera*0.48)%1800+1800)%1800-100, 450, 0.6);
+    for(let i=0;i<20;i++) drawBush(((i*100-camera*0.72)%1600+1600)%1600-70, 465, 0.8);
+  }
+  
   const sorted = gaps.slice().sort((a,b)=>a.x-b.x);
   for (const gap of sorted) {
     const gx = gap.x - camera; if (gx + gap.w < -50 || gx > W + 50) continue;
@@ -450,13 +518,11 @@ function drawGroundSegment(startX, width, theme) {
   ctx.fillStyle=theme.ground; ctx.fillRect(sx, GROUND_Y, width, H-GROUND_Y);
   ctx.fillStyle="#7bd66a"; ctx.fillRect(sx, GROUND_Y, width, 10);
   ctx.fillStyle="#2e5c2a"; ctx.fillRect(sx, GROUND_Y+10, width, 8);
-  ctx.fillStyle="#a8e88e";
-  for(let i = 0; i < width; i += 15) { const tx = sx + i; if (tx < -20 || tx > W + 20) continue; ctx.fillRect(tx, GROUND_Y - 5, 2, 5); ctx.fillRect(tx + 5, GROUND_Y - 8, 2, 8); ctx.fillRect(tx + 10, GROUND_Y - 4, 2, 4); }
   const lg = ctx.createLinearGradient(0, GROUND_Y+18, 0, H); lg.addColorStop(0,"rgba(0,0,0,0)"); lg.addColorStop(1,"rgba(0,0,0,0.6)");
   ctx.fillStyle=lg; ctx.fillRect(sx, GROUND_Y+18, width, H-GROUND_Y-18);
 }
 
-/* ===== ОТРИСОВКА ПЕРСОНАЖЕЙ ===== */
+/* ===== ОТРИСОВКА ПЕРСОНАЖЕЙ (ОСТАЛЬНЫЕ) ===== */
 function drawRabbit(x, y, isMoving, facing) {
   const legSwing = isMoving ? Math.sin(frame * 0.3) * 6 : 0;
   ctx.save(); ctx.translate(x, y); ctx.scale(facing, 1);
@@ -594,11 +660,6 @@ function drawEnemy(e) {
   else if (type === "dragon") drawDragon(x, e.y, isMoving, facing);
   else if (type === "goblin") drawGoblin(x, e.y, isMoving, facing);
   else if (type === "fire") drawFireMonster(x, e.y, isMoving, facing);
-  else {
-    ctx.save(); ctx.translate(x, e.y); ctx.scale(facing, 1);
-    ctx.fillStyle="#888"; ctx.beginPath(); ctx.arc(0, 0, 20, 0, 7); ctx.fill();
-    ctx.restore();
-  }
 }
 
 function drawLizard(l) {
@@ -645,7 +706,9 @@ function drawBoss() {
 
 function drawBullets() {
   ctx.fillStyle="#292929"; for(const b of bullets){ ctx.beginPath(); ctx.arc(b.x-camera,b.y,6,0,7); ctx.fill(); }
-  ctx.fillStyle="#ffdb45"; for(const b of enemyBullets){ ctx.save(); ctx.translate(b.x-camera,b.y); ctx.rotate(b.angle||0); ctx.fillRect(-9,-4,18,8); ctx.restore(); }
+  ctx.fillStyle="#ffdb45"; for(const b of enemyBullets){ ctx.save(); ctx.translate(b.x-camera,b.y); ctx.rotate(b.angle||0); 
+    if (b.isGreen) ctx.fillStyle = "#44ff44"; else ctx.fillStyle = "#ffdb45";
+    ctx.fillRect(-9,-4,18,8); ctx.restore(); }
 }
 
 function drawStars() {
@@ -696,6 +759,15 @@ function draw() {
   for(const w of witches) drawWitch(w);
   for(const l of lizards) drawLizard(l);
   for(const b of bears) drawBear(b);
+  
+  // Новые враги
+  if (world === 10) {
+    for (const m of mermaids) { if(m.alive) { const x=m.x-camera; if(x>=-100&&x<=W+100) drawMermaid(x, m.y); } }
+    for (const s of sharks) { if(s.alive) { const x=s.x-camera; if(x>=-100&&x<=W+100) drawShark(x, s.y, 0, s.vx >= 0 ? 1 : -1); } }
+  } else if (world === 11) {
+    for (const t of trees) { if(t.alive) { const x=t.x-camera; if(x>=-100&&x<=W+100) drawTreeMonster(x, t.y); } }
+  }
+
   drawBoss(); 
   drawBullets(); 
   drawParticles(); 
@@ -736,22 +808,40 @@ function dash() {
   }
 }
 
-function shoot() {
+// Стрельба
+function startShoot() {
   if(gameOver||victory||isTransitioning) return;
-  
   if (currentWeapon === "shotgun") {
-    const now=Date.now(); if(now-(player.lastShot||0)<260) return; player.lastShot=now;
-    bullets.push({ x:player.x+player.facing*25, y:player.y-7, vx:player.facing*8, life:100 });
-    soundShoot();
-    triggerShake(3);
-    spawnParticles(player.x + player.facing * 25, player.y - 7, "#ffff99", 5); 
+    shootShotgun();
   } else {
-    const now=Date.now(); if(now-(player.lastShot||0)<80) return; player.lastShot=now;
-    bullets.push({ x:player.x+player.facing*30, y:player.y-7 + (Math.random()-0.5)*5, vx:player.facing*11, life:100 });
-    soundShoot();
-    triggerShake(1);
-    spawnParticles(player.x + player.facing * 30, player.y - 7, "#ffcc00", 2); 
+    if (!minigunInterval) {
+      shootMinigun();
+      minigunInterval = setInterval(shootMinigun, 80); // Автоматическая очередь
+    }
   }
+}
+
+function stopShoot() {
+  if (minigunInterval) {
+    clearInterval(minigunInterval);
+    minigunInterval = null;
+  }
+}
+
+function shootShotgun() {
+  const now=Date.now(); if(now-(player.lastShot||0)<260) return; player.lastShot=now;
+  bullets.push({ x:player.x+player.facing*25, y:player.y-7, vx:player.facing*8, life:100 });
+  soundShoot();
+  triggerShake(3);
+  spawnParticles(player.x + player.facing * 25, player.y - 7, "#ffff99", 5); 
+}
+
+function shootMinigun() {
+  const now=Date.now(); if(now-(player.lastShot||0)<80) return; player.lastShot=now;
+  bullets.push({ x:player.x+player.facing*30, y:player.y-7 + (Math.random()-0.5)*5, vx:player.facing*11, life:100 });
+  soundShoot();
+  triggerShake(1);
+  spawnParticles(player.x + player.facing * 30, player.y - 7, "#ffcc00", 2); 
 }
 
 function hurtPlayer() {
@@ -760,6 +850,7 @@ function hurtPlayer() {
   triggerShake(10);
   sound(100,0.2,"sawtooth"); updateInfo();
   spawnParticles(player.x, player.y, "#ff3333", 15);
+  say("Ой-ой-ой!"); // Новый крик при получении урона
   if(player.health<=0){ gameOver=true; say("Колобок, попробуй ещё раз!"); }
   saveProgress();
 }
@@ -802,7 +893,6 @@ function updatePlayer() {
   camera=player.x-W*0.38; camera=Math.max(0,Math.min(LEVEL_WIDTH-W,camera));
 }
 
-/* ===== ОБНОВЛЕНИЕ ВРАГОВ С ПРЫЖКАМИ НА ГОЛОВУ ===== */
 function updateEnemies() {
   for(const e of enemies){
     if(!e.alive) continue; e.jumpTimer--; const distance=player.x-e.x;
@@ -812,14 +902,14 @@ function updateEnemies() {
     e.x+=e.vx; e.y+=e.vy; e.vy+=GRAVITY;
     if(e.y>=GROUND_Y - 20){ e.y=GROUND_Y - 20; e.vy=0; e.onGround=true; }
     
-    // Проверка столкновения
     if(Math.abs(player.x-e.x)<35 && Math.abs(player.y-e.y)<35) {
-      if (player.vy > 0 && player.y < e.y - 10) { // Если падаем сверху
+      if (player.vy > 0 && player.y < e.y - 10) {
         e.alive = false;
-        player.vy = -10; // Отскок
+        player.vy = -10;
         sound(600, 0.1, "square");
         spawnParticles(e.x, e.y, "#ff5555", 15);
         totalStars += 1; saveProgress();
+        say("Ай!"); // Просто "Ай" при убийстве
       } else {
         hurtPlayer();
       }
@@ -836,7 +926,6 @@ function updateLizards() {
     l.x+=l.vx; l.y+=l.vy; l.vy+=GRAVITY;
     if(l.y>=GROUND_Y - 15){ l.y=GROUND_Y - 15; l.vy=0; l.onGround=true; } else l.onGround=false;
     
-    // Прыжок на голову ящерице
     if(Math.abs(player.x-l.x)<35 && Math.abs(player.y-l.y)<35) {
       if (player.vy > 0 && player.y < l.y - 10) {
         l.alive = false;
@@ -844,6 +933,7 @@ function updateLizards() {
         sound(600, 0.1, "square");
         spawnParticles(l.x, l.y, "#ff5555", 15);
         totalStars += 1; saveProgress();
+        say("Ай!");
       } else {
         hurtPlayer();
       }
@@ -865,13 +955,12 @@ function updateBears() {
       b.throwTimer=150+Math.random()*80; sound(200,0.1,"square");
     }
     
-    // Прыжок на голову медведю
     if(Math.abs(player.x-b.x)<45 && Math.abs(player.y-b.y)<45) {
       if (player.vy > 0 && player.y < b.y - 15) {
         b.hp--; b.hurtFlash=20; player.vy = -10;
         sound(200, 0.08);
         spawnParticles(b.x, b.y, "#ff5555", 10);
-        if(b.hp<=0){ b.alive=false; pickups.push({ x: b.x, y: b.y - 30, type: "shield" }); say("Медведь ушёл в лес!"); totalStars+=5; }
+        if(b.hp<=0){ b.alive=false; pickups.push({ x: b.x, y: b.y - 30, type: "shield" }); say("Ай!"); totalStars+=5; }
         saveProgress();
       } else {
         hurtPlayer();
@@ -892,8 +981,46 @@ function updateWitches() {
       enemyBullets.push({ x:w.x, y:w.y, vx:dx/len*3.4, vy:dy/len*3.4, angle:Math.atan2(dy,dx), life:150 });
       w.shootTimer=130+Math.random()*60; sound(300,0.08,"sawtooth");
     }
-    // Ведьма летает, на неё прыгнуть нельзя
     if(Math.abs(player.x-w.x)<40&&Math.abs(player.y-w.y)<40) hurtPlayer();
+  }
+}
+
+// Спец-логика для новых врагов
+function updateMermaidsSharks() {
+  for(const m of mermaids) {
+    if(!m.alive) continue;
+    m.phase+=0.05; m.x+=m.vx; m.y = m.baseY + Math.sin(m.phase)*20;
+    if(m.x < 80 || m.x > LEVEL_WIDTH-80) m.vx *= -1;
+    m.shootTimer--;
+    if(m.shootTimer<=0) {
+      const dx=player.x-m.x, dy=player.y-m.y, len=Math.sqrt(dx*dx+dy*dy)||1;
+      enemyBullets.push({ x:m.x, y:m.y, vx:dx/len*4, vy:dy/len*4, angle:Math.atan2(dy,dx), life:150 });
+      m.shootTimer=100+Math.random()*50; sound(800,0.1,"sine");
+    }
+    if(Math.abs(player.x-m.x)<30 && Math.abs(player.y-m.y)<30) hurtPlayer();
+  }
+  for(const s of sharks) {
+    if(!s.alive) continue;
+    s.x+=s.vx; s.y = GROUND_Y - 30 + Math.sin(frame*0.1)*20; // Плавают синусоидой
+    if(s.x < 80 || s.x > LEVEL_WIDTH-80) s.vx *= -1;
+    if(Math.abs(player.x-s.x)<40 && Math.abs(player.y-s.y)<40) hurtPlayer();
+  }
+}
+
+function updateTrees() {
+  for(const t of trees) {
+    if(!t.alive) continue;
+    t.shootTimer--;
+    if(t.shootTimer <= 0) {
+      // Дерево плюется зеленой жидкостью (навесом)
+      const dx = player.x - t.x;
+      const dy = player.y - (t.y - 50);
+      const len = Math.sqrt(dx*dx + dy*dy) || 1;
+      enemyBullets.push({ x:t.x, y:t.y-50, vx:dx/len*3.5, vy:dy/len*3.5 - 3, angle:Math.atan2(dy,dx), life:150, isGreen: true });
+      t.shootTimer = 120 + Math.random()*60;
+      sound(150, 0.1, "sawtooth");
+    }
+    if(Math.abs(player.x-t.x)<40 && Math.abs(player.y-t.y)<40) hurtPlayer();
   }
 }
 
@@ -912,13 +1039,12 @@ function updateBoss() {
     enemyBullets.push({ x:boss.x, y:boss.y-10, vx:dx/len*4.8, vy:dy/len*4.8, angle:Math.atan2(dy,dx), life:130 });
     boss.shootTimer=85; sound(260,0.1,"sawtooth");
   }
-  // Прыжок на босса
   if(Math.abs(player.x-boss.x)<50 && Math.abs(player.y-boss.y)<50) {
     if (player.vy > 0 && player.y < boss.y - 15) {
       boss.hp--; player.vy = -10;
       sound(240, 0.08);
       spawnParticles(boss.x, boss.y, "#ff5555", 8);
-      if(boss.hp<=0){ boss.alive=false; say("А меня за что?"); totalStars+=10; }
+      if(boss.hp<=0){ boss.alive=false; say("Ай!"); totalStars+=10; }
       saveProgress();
     } else {
       hurtPlayer();
@@ -933,24 +1059,36 @@ function updateBullets() {
       e.alive=false; b.life=0; 
       spawnParticles(e.x, e.y, "#ff5555", 10);
       if(Math.random() < 0.2) pickups.push({ x: e.x, y: e.y - 20, type: ["apple", "lightning", "shield"][Math.floor(Math.random()*3)] });
-      say("Ай, блядь!"); sound(330,0.12); saveProgress(); 
+      say("Ай!"); sound(330,0.12); saveProgress(); 
     }
     for(const w of witches) if(w.alive&&Math.abs(b.x-w.x)<35&&Math.abs(b.y-w.y)<40){ 
       w.alive=false; b.life=0; 
       spawnParticles(w.x, w.y, "#ff5555", 10);
       if(Math.random() < 0.3) pickups.push({ x: w.x, y: w.y, type: "apple" });
-      say("Куда ты, бабуля?"); sound(220,0.15,"triangle"); saveProgress(); 
+      say("Ай!"); sound(220,0.15,"triangle"); saveProgress(); 
     }
     for(const bear of bears) if(bear.alive&&Math.abs(b.x-bear.x)<30&&Math.abs(b.y-bear.y)<30){
       bear.hp--; bear.hurtFlash=20; b.life=0; sound(200,0.08);
       spawnParticles(bear.x, bear.y, "#ff5555", 5);
-      if(bear.hp<=0){ bear.alive=false; pickups.push({ x: bear.x, y: bear.y - 30, type: "shield" }); say("Медведь ушёл в лес!"); totalStars+=5; }
+      if(bear.hp<=0){ bear.alive=false; pickups.push({ x: bear.x, y: bear.y - 30, type: "shield" }); say("Ай!"); totalStars+=5; }
       saveProgress();
     }
+    // Попадания по новым врагам
+    if (world === 10) {
+      for(const m of mermaids) if(m.alive&&Math.abs(b.x-m.x)<30&&Math.abs(b.y-m.y)<30){ m.alive=false; b.life=0; spawnParticles(m.x, m.y, "#ff5555", 10); say("Ай!"); totalStars+=2; saveProgress(); }
+      for(const s of sharks) if(s.alive&&Math.abs(b.x-s.x)<40&&Math.abs(b.y-s.y)<30){ s.alive=false; b.life=0; spawnParticles(s.x, s.y, "#ff5555", 10); say("Ай!"); totalStars+=2; saveProgress(); }
+    } else if (world === 11) {
+      for(const t of trees) if(t.alive&&Math.abs(b.x-t.x)<40&&Math.abs(b.y-t.y)<50){ 
+        t.hp--; b.life=0; spawnParticles(t.x, t.y, "#44ff44", 10); sound(200,0.08);
+        if(t.hp<=0){ t.alive=false; say("Ай!"); totalStars+=3; }
+        saveProgress();
+      }
+    }
+    
     if(boss && boss.isBossLevel && bossBattle && boss.alive && Math.abs(b.x-boss.x)<45 && Math.abs(b.y-boss.y)<50){
       boss.hp--; b.life=0; sound(240,0.08);
       spawnParticles(boss.x, boss.y, "#ff5555", 8);
-      if(boss.hp<=0){ boss.alive=false; say("А меня за что?"); totalStars+=10; }
+      if(boss.hp<=0){ boss.alive=false; say("Ай!"); totalStars+=10; }
       saveProgress();
     }
   }
@@ -1013,6 +1151,8 @@ function update() {
   if(gameOver||victory){ draw(); gameLoopRunning=false; return; }
   frame++; 
   updatePlayer(); updateEnemies(); updateWitches(); updateLizards(); updateBears(); updateBoss(); updateBullets(); updateStars(); updatePickups();
+  updateMermaidsSharks(); // Новые враги
+  updateTrees(); // Новые враги
   updateParticles();
   checkLevelEnd(); updateInfo(); draw();
   if(frame-lastSaveFrame>=60){ saveProgress(); lastSaveFrame=frame; }
@@ -1026,12 +1166,13 @@ document.addEventListener("keydown",e=>{
   if(e.code==="ArrowLeft"||e.code==="KeyA") keys.left=true;
   if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=true;
   if((e.code==="ArrowUp"||e.code==="Space"||e.code==="KeyW")&&!e.repeat) jump();
-  if((e.code==="KeyJ"||e.code==="KeyF")&&!e.repeat) shoot();
+  if((e.code==="KeyJ"||e.code==="KeyF")&&!e.repeat) startShoot();
   if((e.code==="ShiftLeft"||e.code==="KeyK")&&!e.repeat) dash();
 });
 document.addEventListener("keyup",e=>{
   if(e.code==="ArrowLeft"||e.code==="KeyA") keys.left=false;
   if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=false;
+  if(e.code==="KeyJ"||e.code==="KeyF") stopShoot();
 });
 
 function bindHold(id,key) {
@@ -1044,12 +1185,32 @@ function bindHold(id,key) {
 }
 bindHold("left","left"); bindHold("right","right");
 
+// Обновленная функция привязки кнопки стрельбы
+function bindShoot() {
+  const button = document.getElementById("shoot");
+  button.addEventListener("pointerdown", e => { 
+    e.preventDefault(); 
+    startShoot(); 
+    try{ button.setPointerCapture(e.pointerId); }catch(err){} 
+  });
+  const stop = e => { 
+    e.preventDefault(); 
+    stopShoot(); 
+  };
+  button.addEventListener("pointerup", stop);
+  button.addEventListener("pointercancel", stop);
+  button.addEventListener("lostpointercapture", stop);
+  button.addEventListener("contextmenu", e => e.preventDefault());
+  button.addEventListener("selectstart", e => e.preventDefault());
+}
+bindShoot();
+
 function bindTap(id,action) {
   const button=document.getElementById(id);
   button.addEventListener("pointerdown",e=>{ e.preventDefault(); action(); });
   button.addEventListener("contextmenu",e=>e.preventDefault()); button.addEventListener("selectstart",e=>e.preventDefault());
 }
-bindTap("jump",jump); bindTap("shoot",shoot); bindTap("dash",dash);
+bindTap("jump",jump); bindTap("dash",dash);
 
 /* ===== МЕНЮ И ВЫБОР ОРУЖИЯ ===== */
 const wpnShotgunBtn = document.getElementById("wpn-shotgun");
@@ -1103,8 +1264,8 @@ document.getElementById("restart").addEventListener("click",()=>{
 
 /* ===== ЗАЩИТА ===== */
 document.addEventListener("contextmenu",e=>{ if(e.target.tagName==="BUTTON"||e.target.tagName==="CANVAS") e.preventDefault(); });
-window.addEventListener("blur",()=>{ keys.left=false; keys.right=false; saveProgress(); });
-document.addEventListener("visibilitychange",()=>{ if(document.hidden){ keys.left=false; keys.right=false; saveProgress(); } });
+window.addEventListener("blur",()=>{ keys.left=false; keys.right=false; stopShoot(); saveProgress(); });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden){ keys.left=false; keys.right=false; stopShoot(); saveProgress(); } });
 window.addEventListener("pagehide",()=>{ saveProgress(); });
 </script>
 </body>
