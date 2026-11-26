@@ -15,7 +15,7 @@ body { display: flex; flex-direction: column; align-items: center; justify-conte
 @media (orientation: portrait) and (max-width: 900px) { #rotate-hint { display: flex; } }
 
 #game-wrap { position: relative; width: 100vw; flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; }
-canvas { display: block; width: 100%; height: 100%; object-fit: contain; background: #8bd7f5; touch-action: none; }
+canvas { display: block; width: 100%; height: 100%; object-fit: fill; background: #8bd7f5; touch-action: none; }
 
 #topbar { position: absolute; top: 0; left: 0; right: 0; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; z-index: 20; pointer-events: none; }
 #info { font-size: 13px; color: #dcecff; background: rgba(23,40,60,0.7); padding: 6px 10px; border-radius: 10px; pointer-events: auto; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -56,7 +56,7 @@ const LEVEL_WIDTH = 2400;
 const GRAVITY = 0.55;
 const GROUND_Y = 385;
 const TOTAL_LEVELS = 10;
-const SAVE_KEY = "kolobok_adventure_save_v12";
+const SAVE_KEY = "kolobok_adventure_save_v13";
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"rabbit"},
@@ -78,7 +78,7 @@ let bossBattle = false; let gameOver = false; let victory = false; let totalStar
 function saveProgress() {
   try {
     const data = {
-      version: 12, world, totalStars, lastSafeX,
+      version: 13, world, totalStars, lastSafeX,
       player: { x: player.x, y: player.y, health: player.health, facing: player.facing },
       enemies: enemies.map(e => ({ x: e.x, y: e.y, vx: e.vx, vy: e.vy, alive: e.alive, jumpTimer: e.jumpTimer, onGround: e.onGround })),
       witches: witches.map(w => ({ x: w.x, baseY: w.baseY, vx: w.vx, alive: w.alive, shootTimer: w.shootTimer, phase: w.phase })),
@@ -97,7 +97,7 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 12 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
+    if (!data || data.version !== 13 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
     world = data.world; totalStars = Math.max(0, Number(data.totalStars) || 0); lastSafeX = Number(data.lastSafeX) || 70;
     makeLevel();
     if (data.player) {
@@ -257,63 +257,164 @@ function drawGroundSegment(startX, width, theme) {
   }
 }
 
-/* ===== ВЕКТОРНЫЕ ПЕРСОНАЖИ (С ТЕЛАМИ) ===== */
-function drawRabbit(x, y, flash) {
-  ctx.fillStyle=flash?"#fff":"#b0b0b0"; // Тело
-  ctx.beginPath(); ctx.ellipse(x, y-5, 14, 18, 0, 0, 7); ctx.fill(); // Серое тело
-  ctx.fillStyle=flash?"#fff":"#e0e0e0"; // Живот
-  ctx.beginPath(); ctx.ellipse(x, y, 8, 12, 0, 0, 7); ctx.fill();
-  ctx.fillStyle=flash?"#fff":"#b0b0b0"; // Голова
-  ctx.beginPath(); ctx.arc(x, y-22, 12, 0, 7); ctx.fill();
-  ctx.fillStyle=flash?"#fff":"#e0e0e0"; // Уши
-  ctx.beginPath(); ctx.ellipse(x-6, y-38, 4, 12, 0.2, 0, 7); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(x+6, y-38, 4, 12, -0.2, 0, 7); ctx.fill();
-  ctx.fillStyle="white"; // Глаза
-  ctx.beginPath(); ctx.arc(x-4, y-24, 3, 0, 7); ctx.arc(x+4, y-24, 3, 0, 7); ctx.fill();
-  ctx.fillStyle="#111"; 
-  ctx.beginPath(); ctx.arc(x-4, y-24, 1.5, 0, 7); ctx.arc(x+4, y-24, 1.5, 0, 7); ctx.fill();
-  ctx.fillStyle="#ff8888"; // Нос
-  ctx.beginPath(); ctx.arc(x, y-19, 2, 0, 7); ctx.fill();
+/* ===== ВЕКТОРНЫЕ ПЕРСОНАЖИ С ЛАПКАМИ ===== */
+function drawRabbit(x, y, isMoving, facing) {
+  const legSwing = isMoving ? Math.sin(frame * 0.3) * 6 : 0;
+  ctx.save(); ctx.translate(x, y); ctx.scale(facing, 1);
+  
+  // Задние лапки
+  ctx.fillStyle = "#999";
+  ctx.beginPath(); ctx.ellipse(-5 + legSwing, 12, 6, 8, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(5 - legSwing, 12, 6, 8, 0, 0, 7); ctx.fill();
+  
+  // Тело
+  ctx.fillStyle = "#b0b0b0";
+  ctx.beginPath(); ctx.ellipse(0, -5, 14, 18, 0, 0, 7); ctx.fill();
+  
+  // Живот
+  ctx.fillStyle = "#e0e0e0";
+  ctx.beginPath(); ctx.ellipse(2, -3, 8, 12, 0, 0, 7); ctx.fill();
+  
+  // Голова
+  ctx.fillStyle = "#b0b0b0";
+  ctx.beginPath(); ctx.arc(2, -22, 12, 0, 7); ctx.fill();
+  
+  // Уши
+  ctx.fillStyle = "#b0b0b0";
+  ctx.beginPath(); ctx.ellipse(-4, -38, 4, 12, 0.2, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(8, -38, 4, 12, -0.2, 0, 7); ctx.fill();
+  ctx.fillStyle = "#ffb0b0";
+  ctx.beginPath(); ctx.ellipse(-4, -38, 2, 8, 0.2, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(8, -38, 2, 8, -0.2, 0, 7); ctx.fill();
+  
+  // Глаза
+  ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(0, -24, 3, 0, 7); ctx.fill();
+  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(1, -24, 1.5, 0, 7); ctx.fill();
+  
+  // Нос
+  ctx.fillStyle = "#ff8888"; ctx.beginPath(); ctx.arc(10, -19, 2, 0, 7); ctx.fill();
+  
+  // Хвостик
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-14, -2, 4, 0, 7); ctx.fill();
+  
+  ctx.restore();
 }
 
-function drawWolf(x, y, flash) {
-  ctx.fillStyle=flash?"#fff":"#555";
-  ctx.beginPath(); ctx.ellipse(x, y-5, 16, 20, 0, 0, 7); ctx.fill(); // Тело
-  ctx.beginPath(); ctx.ellipse(x, y-25, 14, 12, 0, 0, 7); ctx.fill(); // Голова
-  ctx.fillStyle=flash?"#fff":"#777";
-  ctx.beginPath(); ctx.ellipse(x+8, y-23, 8, 6, -0.2, 0, 7); ctx.fill(); // Морда
-  ctx.fillStyle=flash?"#fff":"#555";
-  ctx.beginPath(); ctx.moveTo(x-10, y-35); ctx.lineTo(x-14, y-45); ctx.lineTo(x-4, y-35); ctx.fill(); // Ухо 1
-  ctx.beginPath(); ctx.moveTo(x+10, y-35); ctx.lineTo(x+14, y-45); ctx.lineTo(x+4, y-35); ctx.fill(); // Ухо 2
-  ctx.fillStyle="white"; ctx.beginPath(); ctx.arc(x-5, y-27, 3, 0, 7); ctx.arc(x+5, y-27, 3, 0, 7); ctx.fill();
-  ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(x-5, y-27, 1.5, 0, 7); ctx.arc(x+5, y-27, 1.5, 0, 7); ctx.fill();
-  ctx.fillStyle="#222"; ctx.beginPath(); ctx.arc(x+12, y-23, 2.5, 0, 7); ctx.fill(); // Нос
+function drawWolf(x, y, isMoving, facing) {
+  const legSwing = isMoving ? Math.sin(frame * 0.3) * 6 : 0;
+  ctx.save(); ctx.translate(x, y); ctx.scale(facing, 1);
+  
+  // Лапки
+  ctx.fillStyle = "#444";
+  ctx.beginPath(); ctx.ellipse(-6 + legSwing, 14, 6, 8, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6 - legSwing, 14, 6, 8, 0, 0, 7); ctx.fill();
+  
+  // Тело
+  ctx.fillStyle = "#555";
+  ctx.beginPath(); ctx.ellipse(0, -5, 16, 20, 0, 0, 7); ctx.fill();
+  
+  // Голова
+  ctx.fillStyle = "#555";
+  ctx.beginPath(); ctx.ellipse(2, -25, 14, 12, 0, 0, 7); ctx.fill();
+  
+  // Морда
+  ctx.fillStyle = "#777";
+  ctx.beginPath(); ctx.ellipse(10, -23, 8, 6, -0.2, 0, 7); ctx.fill();
+  
+  // Уши
+  ctx.fillStyle = "#555";
+  ctx.beginPath(); ctx.moveTo(-8, -35); ctx.lineTo(-12, -45); ctx.lineTo(-2, -35); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(12, -35); ctx.lineTo(16, -45); ctx.lineTo(6, -35); ctx.fill();
+  
+  // Глаза
+  ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(-2, -27, 3, 0, 7); ctx.fill();
+  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-1, -27, 1.5, 0, 7); ctx.fill();
+  
+  // Нос
+  ctx.fillStyle = "#222"; ctx.beginPath(); ctx.arc(16, -23, 2.5, 0, 7); ctx.fill();
+  
+  // Хвост
+  ctx.fillStyle = "#555"; ctx.beginPath(); ctx.ellipse(-16, -10, 6, 10, -0.5, 0, 7); ctx.fill();
+  
+  ctx.restore();
 }
 
-function drawBearBody(x, y, flash) {
-  ctx.fillStyle=flash?"#ffd27a":"#6b4c2a";
-  ctx.beginPath(); ctx.ellipse(x, y-5, 20, 22, 0, 0, 7); ctx.fill(); // Тело
-  ctx.fillStyle=flash?"#ffd27a":"#8a6035";
-  ctx.beginPath(); ctx.arc(x, y-25, 16, 0, 7); ctx.fill(); // Голова
-  ctx.beginPath(); ctx.arc(x-12, y-35, 6, 0, 7); ctx.arc(x+12, y-35, 6, 0, 7); ctx.fill(); // Уши
-  ctx.fillStyle=flash?"#fff0c0":"#a87b45";
-  ctx.beginPath(); ctx.ellipse(x+8, y-22, 9, 7, 0, 0, 7); ctx.fill(); // Морда
-  ctx.fillStyle="#3a1f0a"; ctx.beginPath(); ctx.arc(x+14, y-24, 3, 0, 7); ctx.fill(); // Нос
-  ctx.fillStyle="white"; ctx.beginPath(); ctx.arc(x-4, y-28, 3.5, 0, 7); ctx.fill();
-  ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(x-3, y-28, 1.8, 0, 7); ctx.fill();
+function drawBearBody(x, y, isMoving, facing) {
+  const legSwing = isMoving ? Math.sin(frame * 0.3) * 5 : 0;
+  ctx.save(); ctx.translate(x, y); ctx.scale(facing, 1);
+  
+  // Лапы
+  ctx.fillStyle = "#5a3a1a";
+  ctx.beginPath(); ctx.ellipse(-8 + legSwing, 15, 8, 9, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(8 - legSwing, 15, 8, 9, 0, 0, 7); ctx.fill();
+  
+  // Тело
+  ctx.fillStyle = "#6b4c2a";
+  ctx.beginPath(); ctx.ellipse(0, -5, 20, 22, 0, 0, 7); ctx.fill();
+  
+  // Голова
+  ctx.fillStyle = "#8a6035";
+  ctx.beginPath(); ctx.arc(2, -25, 16, 0, 7); ctx.fill();
+  
+  // Уши
+  ctx.beginPath(); ctx.arc(-10, -35, 6, 0, 7); ctx.arc(14, -35, 6, 0, 7); ctx.fill();
+  
+  // Морда
+  ctx.fillStyle = "#a87b45";
+  ctx.beginPath(); ctx.ellipse(10, -22, 9, 7, 0, 0, 7); ctx.fill();
+  
+  // Нос
+  ctx.fillStyle = "#3a1f0a"; ctx.beginPath(); ctx.arc(16, -24, 3, 0, 7); ctx.fill();
+  
+  // Глаза
+  ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(-2, -28, 3.5, 0, 7); ctx.fill();
+  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-1, -28, 1.8, 0, 7); ctx.fill();
+  
+  // Хвост
+  ctx.fillStyle = "#6b4c2a"; ctx.beginPath(); ctx.arc(-20, -5, 6, 0, 7); ctx.fill();
+  
+  ctx.restore();
 }
 
-function drawFoxBody(x, y, flash) {
-  ctx.fillStyle=flash?"#fff":"#d96a1e";
-  ctx.beginPath(); ctx.ellipse(x, y-5, 16, 18, 0, 0, 7); ctx.fill(); // Тело
-  ctx.beginPath(); ctx.arc(x, y-23, 14, 0, 7); ctx.fill(); // Голова
-  ctx.fillStyle=flash?"#fff":"#d96a1e";
-  ctx.beginPath(); ctx.moveTo(x-12, y-33); ctx.lineTo(x-14, y-46); ctx.lineTo(x-4, y-33); ctx.fill(); // Ухо 1
-  ctx.beginPath(); ctx.moveTo(x+12, y-33); ctx.lineTo(x+14, y-46); ctx.lineTo(x+4, y-33); ctx.fill(); // Ухо 2
-  ctx.fillStyle="white"; ctx.beginPath(); ctx.moveTo(x+14, y-23); ctx.lineTo(x+24, y-20); ctx.lineTo(x+14, y-16); ctx.fill(); // Хвост (морда)
-  ctx.beginPath(); ctx.arc(x-5, y-25, 3, 0, 7); ctx.arc(x+5, y-25, 3, 0, 7); ctx.fill();
-  ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(x-5, y-25, 1.5, 0, 7); ctx.arc(x+5, y-25, 1.5, 0, 7); ctx.fill();
-  ctx.fillStyle="#222"; ctx.beginPath(); ctx.arc(x+20, y-20, 3, 0, 7); ctx.fill();
+function drawFoxBody(x, y, isMoving, facing) {
+  const legSwing = isMoving ? Math.sin(frame * 0.3) * 5 : 0;
+  ctx.save(); ctx.translate(x, y); ctx.scale(facing, 1);
+  
+  // Лапки
+  ctx.fillStyle = "#a84a10";
+  ctx.beginPath(); ctx.ellipse(-6 + legSwing, 14, 5, 8, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6 - legSwing, 14, 5, 8, 0, 0, 7); ctx.fill();
+  
+  // Тело
+  ctx.fillStyle = "#d96a1e";
+  ctx.beginPath(); ctx.ellipse(0, -5, 16, 18, 0, 0, 7); ctx.fill();
+  
+  // Голова
+  ctx.fillStyle = "#d96a1e";
+  ctx.beginPath(); ctx.arc(2, -23, 14, 0, 7); ctx.fill();
+  
+  // Уши
+  ctx.beginPath(); ctx.moveTo(-8, -33); ctx.lineTo(-12, -46); ctx.lineTo(-2, -33); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(12, -33); ctx.lineTo(16, -46); ctx.lineTo(6, -33); ctx.fill();
+  
+  // Морда (вытянутая)
+  ctx.fillStyle = "#e8a53c";
+  ctx.beginPath(); ctx.ellipse(14, -23, 10, 6, -0.1, 0, 7); ctx.fill();
+  
+  // Глаза
+  ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(-2, -25, 3, 0, 7); ctx.fill();
+  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-1, -25, 1.5, 0, 7); ctx.fill();
+  
+  // Нос
+  ctx.fillStyle = "#222"; ctx.beginPath(); ctx.arc(22, -22, 3, 0, 7); ctx.fill();
+  
+  // Хвост (пушистый)
+  ctx.fillStyle = "#d96a1e";
+  ctx.beginPath(); ctx.moveTo(-12, -5); ctx.quadraticCurveTo(-25, -15, -20, 0); ctx.quadraticCurveTo(-28, 5, -12, 5); ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(-22, -2, 5, 0, 7); ctx.fill();
+  
+  ctx.restore();
 }
 
 /* ===== ОТРИСОВКА ===== */
@@ -362,15 +463,25 @@ function drawEnemy(e) {
   const x=e.x-camera; if(x<-60||x>W+60||!e.alive) return;
   if(e.onGround) { ctx.save(); ctx.globalAlpha = 0.15; ctx.fillStyle="#000"; ctx.beginPath(); ctx.ellipse(x, GROUND_Y+2, 15, 4, 0, 0, 7); ctx.fill(); ctx.restore(); }
   const type = worlds[world].enemy;
-  const flash = false;
-  if (type === "rabbit") drawRabbit(x, e.y, flash);
-  else if (type === "wolf") drawWolf(x, e.y, flash);
-  else if (type === "bear") drawBearBody(x, e.y, flash);
-  else if (type === "fox") drawFoxBody(x, e.y, flash);
+  const isMoving = Math.abs(e.vx) > 0.2;
+  const facing = e.vx >= 0 ? 1 : -1;
+  
+  if (type === "rabbit") drawRabbit(x, e.y, isMoving, facing);
+  else if (type === "wolf") drawWolf(x, e.y, isMoving, facing);
+  else if (type === "bear") drawBearBody(x, e.y, isMoving, facing);
+  else if (type === "fox") drawFoxBody(x, e.y, isMoving, facing);
   else {
-    // Остальные — простые фигуры
-    ctx.fillStyle="#555"; ctx.beginPath(); ctx.ellipse(x, e.y-5, 16, 20, 0, 0, 7); ctx.fill(); 
-    ctx.beginPath(); ctx.arc(x, e.y-25, 14, 0, 7); ctx.fill();
+    // Для остальных уровней — простые болванчики, но с лапками
+    const legSwing = isMoving ? Math.sin(frame * 0.3) * 5 : 0;
+    ctx.save(); ctx.translate(x, e.y); ctx.scale(facing, 1);
+    ctx.fillStyle="#888";
+    ctx.beginPath(); ctx.ellipse(-6 + legSwing, 14, 5, 8, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6 - legSwing, 14, 5, 8, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, -5, 14, 18, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -22, 12, 0, 7); ctx.fill();
+    ctx.fillStyle="white"; ctx.beginPath(); ctx.arc(-3, -24, 3, 0, 7); ctx.arc(3, -24, 3, 0, 7); ctx.fill();
+    ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(-2, -24, 1.5, 0, 7); ctx.arc(4, -24, 1.5, 0, 7); ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -393,19 +504,34 @@ function drawLizard(l) {
 function drawBear(b) {
   const x=b.x-camera; if(x<-80||x>W+80||!b.alive) return;
   const f=b.facing, flash=b.hurtFlash>0&&Math.floor(frame/4)%2===0;
+  const legSwing = Math.abs(b.vx) > 0.1 ? Math.sin(frame * 0.3) * 5 : 0;
   ctx.save(); ctx.translate(x,b.y); ctx.scale(f,1);
+  
+  // Лапы
+  ctx.fillStyle=flash?"#ffd27a":"#8a5416";
+  ctx.beginPath(); ctx.ellipse(-9 + legSwing, 20, 8, 6, 0, 0, 7); ctx.ellipse(10 - legSwing, 20, 8, 6, 0, 0, 7); ctx.fill();
+  
+  // Тело
   ctx.fillStyle=flash?"#ffd27a":"#a86b1e"; ctx.beginPath(); ctx.ellipse(0,0,20,22,0,0,7); ctx.fill();
   ctx.fillStyle=flash?"#fff0c0":"#e8a53c"; ctx.beginPath(); ctx.ellipse(2,4,12,15,0,0,7); ctx.fill();
-  ctx.fillStyle=flash?"#ffd27a":"#8a5416"; ctx.beginPath(); ctx.ellipse(-9,20,8,6,0,0,7); ctx.ellipse(10,20,8,6,0,0,7); ctx.fill();
+  
+  // Голова
   ctx.fillStyle=flash?"#ffd27a":"#b87522"; ctx.beginPath(); ctx.ellipse(0,-22,15,14,0,0,7); ctx.fill();
   ctx.beginPath(); ctx.arc(-12,-33,6,0,7); ctx.arc(12,-33,6,0,7); ctx.fill();
+  
+  // Морда
   ctx.fillStyle=flash?"#fff0c0":"#e8a53c"; ctx.beginPath(); ctx.ellipse(8,-20,9,7,0,0,7); ctx.fill();
   ctx.fillStyle="#3a1f0a"; ctx.beginPath(); ctx.arc(15,-21,3,0,7); ctx.fill();
+  
+  // Глаза
   ctx.fillStyle="white"; ctx.beginPath(); ctx.arc(4,-26,3.5,0,7); ctx.fill();
   ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(5,-26,1.8,0,7); ctx.fill();
+  
+  // Шляпа
   ctx.fillStyle="#3b2a17"; ctx.beginPath(); ctx.ellipse(0,-36,20,4,0,0,7); ctx.fill();
   ctx.fillStyle="#4a3520"; ctx.beginPath(); ctx.roundRect(-11,-50,22,15,4); ctx.fill();
   ctx.fillStyle="#7a5a2b"; ctx.fillRect(-11,-39,22,4);
+  
   ctx.restore();
   if (b.hp < b.maxHp) { const hx=x-20, hy=b.y-58; ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(hx-2,hy-2,44,8); for(let i=0;i<b.maxHp;i++){ ctx.fillStyle=i<b.hp?"#e33":"#444"; ctx.fillRect(hx+i*14,hy,12,4); } }
 }
@@ -587,108 +713,4 @@ function updateBullets() {
     for(const e of enemies) if(e.alive&&Math.abs(b.x-e.x)<25&&Math.abs(b.y-e.y)<30){ e.alive=false; b.life=0; say("Ай!"); sound(330,0.12); saveProgress(); }
     for(const w of witches) if(w.alive&&Math.abs(b.x-w.x)<30&&Math.abs(b.y-w.y)<34){ w.alive=false; b.life=0; say("Куда ты, бабуля?"); sound(220,0.15,"triangle"); saveProgress(); }
     for(const l of lizards) if(l.alive&&Math.abs(b.x-l.x)<24&&Math.abs(b.y-l.y)<24){ l.alive=false; b.life=0; say("Хвост отвалился!"); sound(280,0.12,"triangle"); saveProgress(); }
-    for(const bear of bears) if(bear.alive&&Math.abs(b.x-bear.x)<26&&Math.abs(b.y-bear.y)<26){
-      bear.hp--; bear.hurtFlash=20; b.life=0; sound(200,0.08);
-      if(bear.hp<=0){ bear.alive=false; say("Медведь ушёл в лес!"); totalStars+=5; }
-      saveProgress();
-    }
-    if(boss && boss.isBossLevel && bossBattle && boss.alive && Math.abs(b.x-boss.x)<38 && Math.abs(b.y-boss.y)<45){
-      boss.hp--; b.life=0; sound(240,0.08);
-      if(boss.hp<=0){ boss.alive=false; say("А меня за что?"); setTimeout(()=>{ if(!victory) message.textContent="⭐ Лиса побеждена!"; },1800); totalStars+=10; }
-      saveProgress();
-    }
-  }
-  bullets=bullets.filter(b=>b.life>0&&b.x>-100&&b.x<LEVEL_WIDTH+100);
-  for(const b of enemyBullets){
-    b.x+=b.vx; b.y+=b.vy; b.life--;
-    if(Math.abs(b.x-player.x)<20&&Math.abs(b.y-player.y)<20){ b.life=0; hurtPlayer(); }
-  }
-  enemyBullets=enemyBullets.filter(b=>b.life>0);
-}
-
-/* ===== ЗВЁЗДЫ И ПЕРЕХОД ===== */
-function updateStars() {
-  for(const s of stars) if(!s.taken&&Math.abs(player.x-s.x)<27&&Math.abs(player.y-s.y)<35){ s.taken=true; totalStars++; sound(760,0.12,"sine"); updateInfo(); saveProgress(); }
-}
-function checkLevelEnd() {
-  if (isTransitioning || gameOver || victory) return;
-  const hutX = LEVEL_WIDTH - 120;
-  if (player.x > hutX + 30 && player.x < hutX + 70) {
-    isTransitioning = true; say("В избушку!"); sound(880, 0.3, "sine");
-    setTimeout(() => {
-      if (world < TOTAL_LEVELS - 1) {
-        world++; makeLevel(); say("Мир " + (world+1) + ": " + worlds[world].name); saveProgress(); isTransitioning = false;
-      } else {
-        victory = true; say("Победа! Колобок спас лес!"); saveProgress(); isTransitioning = false;
-      }
-    }, 1000);
-  }
-  if (boss && boss.isBossLevel && bossBattle && boss.alive && player.x > 2110) { player.x = 2110; }
-}
-
-/* ===== ЦИКЛ ===== */
-function update() {
-  if(gameOver||victory){ draw(); gameLoopRunning=false; return; }
-  frame++; updatePlayer(); updateEnemies(); updateWitches(); updateLizards(); updateBears(); updateBoss(); updateBullets(); updateStars(); checkLevelEnd(); updateInfo(); draw();
-  if(frame-lastSaveFrame>=60){ saveProgress(); lastSaveFrame=frame; }
-  requestAnimationFrame(update);
-}
-function startGameLoop() { if(gameLoopRunning) return; gameLoopRunning=true; requestAnimationFrame(update); }
-
-/* ===== КЛАВИАТУРА ===== */
-document.addEventListener("keydown",e=>{
-  if(["ArrowLeft","ArrowRight","ArrowUp","Space"].includes(e.code)) e.preventDefault();
-  if(e.code==="ArrowLeft"||e.code==="KeyA") keys.left=true;
-  if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=true;
-  if((e.code==="ArrowUp"||e.code==="Space"||e.code==="KeyW")&&!e.repeat) jump();
-  if((e.code==="KeyJ"||e.code==="KeyF")&&!e.repeat) shoot();
-});
-document.addEventListener("keyup",e=>{
-  if(e.code==="ArrowLeft"||e.code==="KeyA") keys.left=false;
-  if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=false;
-});
-
-/* ===== МОБИЛЬНЫЕ КНОПКИ ===== */
-function bindHold(id,key) {
-  const button=document.getElementById(id);
-  button.addEventListener("pointerdown",e=>{ e.preventDefault(); keys[key]=true; try{ button.setPointerCapture(e.pointerId); }catch(err){} });
-  const release=e=>{ e.preventDefault(); keys[key]=false; };
-  button.addEventListener("pointerup",release);
-  button.addEventListener("pointercancel",release);
-  button.addEventListener("lostpointercapture",()=>keys[key]=false);
-  button.addEventListener("contextmenu",e=>e.preventDefault());
-  button.addEventListener("selectstart",e=>e.preventDefault());
-}
-bindHold("left","left"); bindHold("right","right");
-
-function bindTap(id,action) {
-  const button=document.getElementById(id);
-  button.addEventListener("pointerdown",e=>{ e.preventDefault(); action(); });
-  button.addEventListener("contextmenu",e=>e.preventDefault());
-  button.addEventListener("selectstart",e=>e.preventDefault());
-}
-bindTap("jump",jump); bindTap("shoot",shoot);
-
-/* ===== НОВАЯ ИГРА ===== */
-document.getElementById("restart").addEventListener("click",()=>{
-  if(!confirm("Начать игру заново? Старое сохранение будет удалено.")) return;
-  deleteSave(); world=0; totalStars=0; gameOver=false; victory=false; frame=0; lastSaveFrame=0; keys={};
-  makeLevel(); say("Новое приключение начинается!"); saveProgress(); draw(); startGameLoop();
-});
-
-/* ===== ЗАЩИТА ===== */
-document.addEventListener("contextmenu",e=>{ if(e.target.tagName==="BUTTON"||e.target.tagName==="CANVAS") e.preventDefault(); });
-window.addEventListener("blur",()=>{ keys.left=false; keys.right=false; saveProgress(); });
-document.addEventListener("visibilitychange",()=>{ if(document.hidden){ keys.left=false; keys.right=false; saveProgress(); } });
-window.addEventListener("pagehide",()=>{ saveProgress(); });
-
-/* ===== ЗАПУСК ===== */
-makeLevel();
-const hasSave = loadProgress();
-if(hasSave) say("Сохранение загружено! Продолжаем приключение!");
-else { say("Вперёд, Колобок!"); saveProgress(); }
-draw();
-startGameLoop();
-</script>
-</body>
-</html>
+    for(const bear of bears) if(bear.alive&&Math.abs(b.x-bear.x)<26&&Math
