@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Колобок: Побег</title>
+    <style>
+        body { margin: 0; padding: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: sans-serif; }
+        canvas { background: #87CEEB; display: block; max-width: 100%; max-height: 100%; touch-action: none; }
+        #controls { position: absolute; bottom: 20px; display: flex; width: 100%; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; }
+        .btn { background: rgba(255,255,255,0.6); border: 2px solid #fff; border-radius: 50%; width: 70px; height: 70px; font-size: 30px; font-weight: bold; color: #333; display: flex; justify-content: center; align-items: center; user-select: none; pointer-events: auto; }
+        .btn:active { background: rgba(255,255,255,0.9); }
+        #btnShoot { position: absolute; right: 20px; bottom: 100px; background: rgba(255,0,0,0.6); color: white; border-color: white; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    
+    <!-- Кнопки управления для телефона -->
+    <div id="controls">
+        <div class="btn" id="btnLeft">◀</div>
+        <div class="btn" id="btnRight">▶</div>
+    </div>
+    <div class="btn" id="btnShoot">🔫</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let keys = { right: false, left: false };
+    let score = 0;
+    let gameOver = false;
+
+    // Игрок (Колобок)
+    const player = {
+        x: 50, y: 300, width: 40, height: 40, 
+        speed: 5, vy: 0, gravity: 0.6, jumpPower: -12,
+        grounded: false, cooldown: 0
+    };
+
+    let bullets = [];
+    // Враги (пока один Заяц)
+    let enemies = [{ x: 600, y: 300, width: 40, height: 40, speed: 1.5, type: 'Заяц' }];
+    // Монеты
+    let coins = [{ x: 300, y: 250, width: 20, height: 20 }, { x: 500, y: 200, width: 20, height: 20 }];
+    
+    // Платформы (земля)
+    const platforms = [
+        { x: 0, y: 340, width: 800, height: 60 }
+    ];
+
+    // Управление (клавиатура для ПК)
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+            if (player.grounded) { player.vy = player.jumpPower; player.grounded = false; }
+        }
+        if (e.code === 'KeyF') shoot();
+    });
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+    });
+
+    // Управление (телефон)
+    document.getElementById('btnRight').addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; });
+    document.getElementById('btnRight').addEventListener('touchend', (e) => { e.preventDefault(); keys.right = false; });
+    document.getElementById('btnLeft').addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; });
+    document.getElementById('btnLeft').addEventListener('touchend', (e) => { e.preventDefault(); keys.left = false; });
+    document.getElementById('btnShoot').addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); });
+    
+    // Прыжок тапом по экрану
+    canvas.addEventListener('touchstart', (e) => { 
+        if (player.grounded) { player.vy = player.jumpPower; player.grounded = false; }
+    });
+
+    function shoot() {
+        if (gameOver) return;
+        if (player.cooldown <= 0) {
+            bullets.push({ x: player.x + player.width, y: player.y + 20, width: 15, height: 8, speed: 10 });
+            player.cooldown = 15;
+        }
+    }
+
+    function update() {
+        if (gameOver) return;
+        if (player.cooldown > 0) player.cooldown--;
+
+        if (keys.right) player.x += player.speed;
+        if (keys.left) player.x -= player.speed;
+
+        // Ограничение по краям
+        if (player.x < 0) player.x = 0;
+        if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+        player.vy += player.gravity;
+        player.y += player.vy;
+        player.grounded = false;
+
+        platforms.forEach(p => {
+            if (player.x < p.x + p.width && player.x + player.width > p.x &&
+                player.y < p.y + p.height && player.y + player.height > p.y) {
+                if (player.vy > 0 && player.y + player.height - player.vy <= p.y) {
+                    player.y = p.y - player.height;
+                    player.vy = 0;
+                    player.grounded = true;
+                }
+            }
+        });
+
+        // Пули
+        bullets.forEach((b, index) => {
+            b.x += b.speed;
+            if (b.x > canvas.width) bullets.splice(index, 1);
+        });
+
+        // Враги
+        enemies.forEach((e, index) => {
+            e.x -= e.speed;
+            if (e.x < 0) e.x = canvas.width; // Возвращаем врага, если ушел за экран
+
+            // Столкновение с игроком (проигрыш)
+            if (player.x < e.x + e.width && player.x + player.width > e.x &&
+                player.y < e.y + e.height && player.y + player.height > e.y) {
+                gameOver = true;
+            }
+
+            // Столкновение с пулями
+            bullets.forEach((b, bIndex) => {
+                if (b.x < e.x + e.width && b.x + b.width > e.x &&
+                    b.y < e.y + e.height && b.y + b.height > e.y) {
+                    enemies.splice(index, 1);
+                    bullets.splice(bIndex, 1);
+                    score += 10;
+                    // Возрождаем врага через время (для теста)
+                    setTimeout(() => {
+                        if(!gameOver) enemies.push({ x: canvas.width, y: 300, width: 40, height: 40, speed: 1.5, type: 'Заяц' });
+                    }, 2000);
+                }
+            });
+        });
+
+        // Монеты
+        coins.forEach((c, index) => {
+            if (player.x < c.x + c.width && player.x + player.width > c.x &&
+                player.y < c.y + c.height && player.y + player.height > c.y) {
+                coins.splice(index, 1);
+                score += 5;
+            }
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Платформы
+        ctx.fillStyle = '#8B4513';
+        platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
+
+        // Монеты
+        ctx.fillStyle = '#FFD700';
+        coins.forEach(c => ctx.fillRect(c.x, c.y, c.width, c.height));
+
+        // Враги
+        ctx.fillStyle = '#FF4500';
+        enemies.forEach(e => {
+            ctx.fillRect(e.x, e.y, e.width, e.height);
+            ctx.fillStyle = '#000'; ctx.font = '16px Arial'; ctx.fillText(e.type, e.x, e.y - 10);
+            ctx.fillStyle = '#FF4500';
+        });
+
+        // Пули
+        ctx.fillStyle = '#FF0000';
+        bullets.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
+
+        // Колобок
+        ctx.fillStyle = '#F4A460';
+        ctx.beginPath();
+        ctx.arc(player.x + player.width/2, player.y + player.height/2, player.width/2, 0, Math.PI*2);
+        ctx.fill();
+        // Глаза колобка
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(player.x + 15, player.y + 15, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(player.x + 25, player.y + 15, 3, 0, Math.PI*2); ctx.fill();
+
+        // Интерфейс
+        ctx.fillStyle = '#000'; ctx.font = 'bold 24px Arial';
+        ctx.fillText(`Счет: ${score}`, 20, 40);
+
+        if (gameOver) {
+            ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#FFF'; ctx.font = '48px Arial';
+            ctx.fillText('ИГРА ОКОНЧЕНА', 200, 180);
+            ctx.font = '24px Arial';
+            ctx.fillText('Нажмите чтобы перезапустить', 230, 240);
+        }
+    }
+
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    canvas.addEventListener('click', () => { if (gameOver) location.reload(); });
+
+    loop();
+</script>
+</body>
+</html>
