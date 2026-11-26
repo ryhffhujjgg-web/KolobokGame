@@ -78,6 +78,53 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
+    // --- ЗВУКОВАЯ СИСТЕМА ---
+    let audioCtx;
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function playTone(freq, type, duration, vol = 0.1) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function soundShoot() { playTone(800, 'square', 0.1, 0.05); }
+    function soundCoin() { playTone(1200, 'square', 0.1, 0.08); setTimeout(() => playTone(1600, 'square', 0.15, 0.08), 50); }
+    function soundHit() { playTone(150, 'sawtooth', 0.3, 0.1); }
+    function soundWin() { 
+        playTone(400, 'square', 0.2, 0.1);
+        setTimeout(() => playTone(500, 'square', 0.2, 0.1), 200);
+        setTimeout(() => playTone(600, 'square', 0.4, 0.1), 400);
+    }
+    // Новый звук прыжка (восходящий тон)
+    function soundJump() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+    }
+    // ------------------------
+
     let keys = { right: false, left: false };
     let score = 0;
     let gameOver = false;
@@ -131,6 +178,7 @@
     }
 
     startBtn.addEventListener('click', () => {
+        initAudio(); // Инициализируем звук при первом клике
         startScreen.style.display = 'none';
         gameStarted = true;
         setupLevel(level);
@@ -141,7 +189,11 @@
         if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = true; player.facingRight = true; }
         if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keys.left = true; player.facingRight = false; }
         if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
-            if (player.grounded) { player.vy = player.jumpPower; player.grounded = false; }
+            if (player.grounded) { 
+                player.vy = player.jumpPower; 
+                player.grounded = false; 
+                soundJump(); // Звук прыжка
+            }
         }
         if (e.code === 'KeyF') shoot();
     });
@@ -156,8 +208,13 @@
     document.getElementById('btnLeft').addEventListener('touchend', (e) => { e.preventDefault(); keys.left = false; });
     document.getElementById('btnShoot').addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); });
     
+    // Прыжок по тапу на экран (со звуком)
     canvas.addEventListener('touchstart', (e) => { 
-        if (gameStarted && player.grounded) { player.vy = player.jumpPower; player.grounded = false; }
+        if (gameStarted && player.grounded) { 
+            player.vy = player.jumpPower; 
+            player.grounded = false; 
+            soundJump(); // Звук прыжка
+        }
     });
 
     function shoot() {
@@ -167,6 +224,7 @@
             let speed = player.facingRight ? 12 : -12;
             bullets.push({ x: startX, y: player.y + 10, width: 10, height: 5, speed: speed });
             player.cooldown = 15;
+            soundShoot();
         }
     }
 
@@ -178,7 +236,6 @@
         if (keys.right) player.x += player.speed;
         if (keys.left) player.x -= player.speed;
 
-        // Камера движется только если игра не окончена
         if (!gameOver) {
             if (player.x > cw / 2) {
                 cameraX = player.x - cw / 2;
@@ -213,7 +270,10 @@
 
             if (player.x < e.x + e.width && player.x + player.width > e.x &&
                 player.y < e.y + e.height && player.y + player.height > e.y) {
-                gameOver = true;
+                if (!gameOver) {
+                    gameOver = true;
+                    soundHit();
+                }
             }
 
             bullets.forEach((b, bIndex) => {
@@ -231,6 +291,7 @@
                 player.y < c.y + c.height && player.y + player.height > c.y) {
                 coins.splice(index, 1);
                 score += 5;
+                soundCoin();
             }
         });
 
@@ -241,6 +302,7 @@
                 alert(`Уровень ${level}!`);
             } else {
                 gameOver = true; 
+                soundWin();
                 showWinScreen();
             }
         }
@@ -296,7 +358,6 @@
     function draw() {
         ctx.clearRect(0, 0, cw, ch);
 
-        // Если игра окончена на 3-м уровне, рисуем финал
         if (gameOver && level === 3) {
             showWinScreen();
             return;
@@ -332,7 +393,6 @@
         ctx.fillText(`Счет: ${score}`, 10, 25);
         ctx.fillText(`Уровень: ${level} / 3`, 10, 45);
 
-        // Экран "Игра окончена" только если проиграли (не на 3-м уровне)
         if (gameOver && level < 3) {
             ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, cw, ch);
             ctx.fillStyle = '#FFF'; ctx.textAlign = 'center';
