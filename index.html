@@ -123,20 +123,16 @@
         osc.stop(audioCtx.currentTime + 0.15);
     }
     
-    // Функция для озвучивания текста (крик врагов)
     function speak(text) {
         if (!window.speechSynthesis) return;
-        // Отменяем предыдущую речь, чтобы не было наложения
         window.speechSynthesis.cancel(); 
-        
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'ru-RU';
-        utterance.pitch = 1.6; // Делаем голос еще выше (как у мультяшных зверюшек)
-        utterance.rate = 1.4;  // Быстро, чтобы звучало как вскрик
-        utterance.volume = 1.0; // Максимальная громкость
+        utterance.pitch = 1.6;
+        utterance.rate = 1.4;
+        utterance.volume = 1.0;
         window.speechSynthesis.speak(utterance);
     }
-    // ------------------------
 
     let keys = { right: false, left: false };
     let score = 0;
@@ -146,7 +142,7 @@
     let levelGoal = 2500;
 
     const player = {
-        x: 100, y: 0, width: 30, height: 30, 
+        x: 0, y: 0, width: 30, height: 30, // Стартуем с x=0
         speed: 5, vy: 0, gravity: 0.6, jumpPower: -11,
         grounded: false, cooldown: 0, facingRight: true
     };
@@ -158,7 +154,8 @@
     let cameraX = 0;
 
     function setupLevel(lvl) {
-        player.x = 100;
+        // При старте уровня ставим Колобка в самое начало
+        player.x = 50; 
         let groundY = ch - 80;
         player.y = groundY - 30; 
         
@@ -166,7 +163,7 @@
         enemies = [];
         coins = [];
         platforms = [];
-        cameraX = 0;
+        cameraX = 0; // Камера в самом начале
         levelGoal = 2500 * lvl; 
 
         platforms.push({ x: -2000, y: groundY, width: 10000, height: 100 });
@@ -248,6 +245,10 @@
         if (keys.right) player.x += player.speed;
         if (keys.left) player.x -= player.speed;
 
+        // Ограничение, чтобы не уйти за левый край экрана
+        if (player.x < 0) player.x = 0;
+
+        // Камера: начинает двигаться, только когда игрок доходит до середины экрана
         if (!gameOver) {
             if (player.x > cw / 2) {
                 cameraX = player.x - cw / 2;
@@ -280,7 +281,6 @@
             if (e.x > player.x) e.x -= e.speed;
             else e.x += e.speed;
 
-            // Если враг дотронулся до Колобка (Колобок проиграл)
             if (player.x < e.x + e.width && player.x + player.width > e.x &&
                 player.y < e.y + e.height && player.y + player.height > e.y) {
                 if (!gameOver) {
@@ -289,14 +289,13 @@
                 }
             }
 
-            // Если пуля попала во врага (Враг умирает и кричит)
             bullets.forEach((b, bIndex) => {
                 if (b.x < e.x + e.width && b.x + b.width > e.x &&
                     b.y < e.y + e.height && b.y + b.height > e.y) {
                     enemies.splice(index, 1);
                     bullets.splice(bIndex, 1);
                     score += 10;
-                    speak("Ай, блядь!"); // <--- ЗДЕСЬ КРИЧИТ ВРАГ
+                    speak("Ай, блядь!"); 
                 }
             });
         });
