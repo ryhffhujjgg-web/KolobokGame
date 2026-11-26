@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -14,7 +13,7 @@
 }
 body {
   margin: 0;
-  padding: 12px;
+  padding: 12px 12px 140px;
   background: #17283c;
   color: white;
   font-family: Arial, sans-serif;
@@ -46,41 +45,91 @@ canvas {
   background: #8bd7f5;
   touch-action: none;
 }
+
+/* ===== УПРАВЛЕНИЕ ===== */
 .controls {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 12px;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 12px auto;
-  max-width: 900px;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0 14px;
+  gap: 12px;
+  pointer-events: none;
+  z-index: 10;
+}
+.left-group,
+.right-group {
+  display: flex;
+  gap: 12px;
+  pointer-events: auto;
 }
 button {
   border: 0;
-  border-radius: 14px;
+  border-radius: 50%;
   background: #f4cf43;
   color: #263238;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: bold;
-  padding: 14px 20px;
-  min-width: 68px;
   box-shadow: 0 4px 0 #b28d20;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 74px;
+  height: 74px;
+  min-width: 74px;
 }
 button:active {
   transform: translateY(3px);
   box-shadow: 0 1px 0 #b28d20;
 }
-#jump { background: #4aa9ef; color: white; box-shadow: 0 4px 0 #2673ae; }
-#shoot { background: #e85b50; color: white; box-shadow: 0 4px 0 #a8322b; }
-#restart { font-size: 16px; padding: 10px 16px; }
+#jump {
+  background: #4aa9ef;
+  color: white;
+  box-shadow: 0 4px 0 #2673ae;
+  width: 84px;
+  height: 84px;
+  font-size: 18px;
+}
+#shoot {
+  background: #e85b50;
+  color: white;
+  box-shadow: 0 4px 0 #a8322b;
+  width: 84px;
+  height: 84px;
+  font-size: 18px;
+}
+#restart {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 11;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  border-radius: 14px;
+  font-size: 14px;
+  padding: 10px 14px;
+  background: #f4cf43;
+  color: #263238;
+  box-shadow: 0 4px 0 #b28d20;
+}
 #message {
   min-height: 28px;
   font-size: 18px;
   font-weight: bold;
   color: #ffe77b;
   margin: 8px;
+}
+@media (max-height: 620px) {
+  .left-group button,
+  .right-group button { width: 64px; height: 64px; min-width: 64px; font-size: 22px; }
+  #jump, #shoot { width: 72px; height: 72px; font-size: 16px; }
+  body { padding-bottom: 120px; }
 }
 </style>
 </head>
@@ -96,12 +145,17 @@ button:active {
 <div id="message">Вперёд, Колобок!</div>
 
 <div class="controls">
-  <button id="left">◀</button>
-  <button id="right">▶</button>
-  <button id="jump">ПРЫЖОК</button>
-  <button id="shoot">🔫 ОГОНЬ</button>
-  <button id="restart">↻ ЗАНОВО</button>
+  <div class="left-group">
+    <button id="left">◀</button>
+    <button id="right">▶</button>
+  </div>
+  <div class="right-group">
+    <button id="jump">ПРЫЖОК</button>
+    <button id="shoot">🔫 ОГОНЬ</button>
+  </div>
 </div>
+
+<button id="restart">↻ ЗАНОВО</button>
 
 <script>
 const canvas = document.getElementById("game");
@@ -114,7 +168,6 @@ const H = canvas.height;
 const LEVEL_WIDTH = 2400;
 const GRAVITY = 0.65;
 
-// Ключ сохранения
 const SAVE_KEY = "kolobok_adventure_save_v1";
 
 const worlds = [
@@ -140,54 +193,32 @@ let totalStars = 0;
 let frame = 0;
 let keys = {};
 let soundContext = null;
-
-// Защита от слишком частых записей
 let lastSaveFrame = 0;
 
-// ==============================
-// СОХРАНЕНИЕ И ЗАГРУЗКА
-// ==============================
-
+/* ===== СОХРАНЕНИЕ ===== */
 function saveProgress() {
   try {
     const data = {
       version: 1,
       world: world,
       totalStars: totalStars,
-
       player: {
-        x: player.x,
-        y: player.y,
-        health: player.health,
-        facing: player.facing
+        x: player.x, y: player.y,
+        health: player.health, facing: player.facing
       },
-
       enemies: enemies.map(e => ({
-        x: e.x,
-        y: e.y,
-        vx: e.vx,
-        vy: e.vy,
-        alive: e.alive,
-        jumpTimer: e.jumpTimer,
-        onGround: e.onGround
+        x: e.x, y: e.y, vx: e.vx, vy: e.vy,
+        alive: e.alive, jumpTimer: e.jumpTimer, onGround: e.onGround
       })),
-
       stars: stars.map(s => s.taken),
-
       boss: {
-        x: boss.x,
-        y: boss.y,
-        hp: boss.hp,
-        alive: boss.alive,
-        shootTimer: boss.shootTimer,
-        jumpTimer: boss.jumpTimer
+        x: boss.x, y: boss.y, hp: boss.hp, alive: boss.alive,
+        shootTimer: boss.shootTimer, jumpTimer: boss.jumpTimer
       },
-
       bossBattle: bossBattle,
       gameOver: gameOver,
       victory: victory
     };
-
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   } catch (error) {
     console.warn("Не удалось сохранить игру:", error);
@@ -197,18 +228,14 @@ function saveProgress() {
 function loadProgress() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-
     if (!raw) return false;
-
     const data = JSON.parse(raw);
-
     if (!data || data.version !== 1) return false;
     if (!Number.isInteger(data.world) || data.world < 0 || data.world > 3) return false;
 
     world = data.world;
     totalStars = Math.max(0, Number(data.totalStars) || 0);
 
-    // Создаём обычный уровень, затем восстанавливаем прогресс
     makeLevel();
 
     if (data.player) {
@@ -221,11 +248,9 @@ function loadProgress() {
       player.invincible = 0;
     }
 
-    // Восстанавливаем врагов
     if (Array.isArray(data.enemies)) {
       data.enemies.forEach((saved, i) => {
         if (!enemies[i] || !saved) return;
-
         enemies[i].x = Number(saved.x) || enemies[i].x;
         enemies[i].y = Number(saved.y) || enemies[i].y;
         enemies[i].vx = Number(saved.vx) || enemies[i].vx;
@@ -236,14 +261,12 @@ function loadProgress() {
       });
     }
 
-    // Восстанавливаем собранные звёзды
     if (Array.isArray(data.stars)) {
       data.stars.forEach((taken, i) => {
         if (stars[i]) stars[i].taken = taken === true;
       });
     }
 
-    // Восстанавливаем босса
     if (data.boss) {
       boss.x = Number(data.boss.x) || boss.x;
       boss.y = Number(data.boss.y) || boss.y;
@@ -259,10 +282,8 @@ function loadProgress() {
     victory = data.victory === true;
 
     camera = Math.max(0, Math.min(LEVEL_WIDTH - W, player.x - W * 0.38));
-
     updateInfo();
     return true;
-
   } catch (error) {
     console.warn("Не удалось загрузить сохранение:", error);
     return false;
@@ -270,20 +291,13 @@ function loadProgress() {
 }
 
 function deleteSave() {
-  try {
-    localStorage.removeItem(SAVE_KEY);
-  } catch (error) {
-    console.warn("Не удалось удалить сохранение:", error);
-  }
+  try { localStorage.removeItem(SAVE_KEY); }
+  catch (error) { console.warn("Не удалось удалить сохранение:", error); }
 }
 
-// ==============================
-// ЗВУК И РЕЧЬ
-// ==============================
-
+/* ===== ЗВУК И РЕЧЬ ===== */
 function say(text) {
   message.textContent = text;
-
   if ("speechSynthesis" in window) {
     speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -298,28 +312,18 @@ function sound(freq=440, duration=0.1, type="square") {
     soundContext = soundContext || new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = soundContext.createOscillator();
     const gain = soundContext.createGain();
-
     oscillator.type = type;
     oscillator.frequency.value = freq;
     gain.gain.value = 0.07;
-
     oscillator.connect(gain);
     gain.connect(soundContext.destination);
     oscillator.start();
-
-    gain.gain.exponentialRampToValueAtTime(
-      0.001,
-      soundContext.currentTime + duration
-    );
-
+    gain.gain.exponentialRampToValueAtTime(0.001, soundContext.currentTime + duration);
     oscillator.stop(soundContext.currentTime + duration);
   } catch(e) {}
 }
 
-// ==============================
-// СОЗДАНИЕ УРОВНЯ
-// ==============================
-
+/* ===== УРОВЕНЬ ===== */
 function makeLevel() {
   player = {
     x:70, y:330, vx:0, vy:0,
@@ -337,7 +341,6 @@ function makeLevel() {
 
   for (let i=0; i<5; i++) {
     const x = 390 + i*370;
-
     enemies.push({
       x, y:350, vx:1.2 + world*0.18,
       vy:0, min:x-95, max:x+95,
@@ -380,10 +383,7 @@ function updateInfo() {
     " | ❤️ " + (player ? player.health : 3);
 }
 
-// ==============================
-// ФОН И ПАРАЛЛАКС
-// ==============================
-
+/* ===== ФОН ===== */
 function drawCloud(x,y,scale=1) {
   ctx.save();
   ctx.translate(x,y);
@@ -412,66 +412,53 @@ function drawTree(x,y,scale=1) {
   ctx.save();
   ctx.translate(x,y);
   ctx.scale(scale,scale);
-
   ctx.fillStyle="#68452b";
   ctx.fillRect(-7,-55,14,58);
-
   ctx.fillStyle="#276b3c";
   ctx.beginPath();
   ctx.arc(0,-65,27,0,Math.PI*2);
   ctx.arc(-18,-48,19,0,Math.PI*2);
   ctx.arc(18,-48,19,0,Math.PI*2);
   ctx.fill();
-
   ctx.restore();
 }
 
 function drawBackground() {
   const theme = worlds[world];
   const gradient = ctx.createLinearGradient(0,0,0,H);
-
   gradient.addColorStop(0,theme.sky);
   gradient.addColorStop(1,"#e8f5d4");
-
   ctx.fillStyle=gradient;
   ctx.fillRect(0,0,W,H);
 
-  // Дальний слой: облака
   for (let i=0;i<7;i++) {
     let x = ((i*190 - camera*0.12) % 1100 + 1100) % 1100 - 80;
     drawCloud(x,55+(i%3)*40,0.8+(i%2)*0.2);
   }
 
-  // Дальний слой: горы
   for (let i=0;i<8;i++) {
     let x = i*180 - (camera*0.20 % 180);
     drawMountain(x,290,190,125,world===3?"#dba36c":"#83b5a0");
   }
 
-  // Средний слой: холмы
   ctx.fillStyle=world===3?"#a8bd62":"#70ad68";
   ctx.beginPath();
   ctx.moveTo(0,350);
-
   for(let x=0;x<=W+20;x+=20) {
     const wx=x+camera*0.42;
     const y=325+Math.sin(wx*0.008)*20+Math.sin(wx*0.018)*9;
     ctx.lineTo(x,y);
   }
-
   ctx.lineTo(W,H);
   ctx.lineTo(0,H);
   ctx.fill();
 
-  // Деревья среднего плана
   for(let i=0;i<13;i++) {
     let x=((i*125-camera*0.48)%1250+1250)%1250-100;
     drawTree(x,360,0.65);
   }
 
-  // Ближний слой кустов
   ctx.fillStyle=world===3?"#598c39":"#347b3d";
-
   for(let i=0;i<18;i++) {
     let x=((i*85-camera*0.72)%1100+1100)%1100-70;
     ctx.beginPath();
@@ -479,10 +466,8 @@ function drawBackground() {
     ctx.fill();
   }
 
-  // Земля
   ctx.fillStyle=theme.ground;
   ctx.fillRect(0,385,W,55);
-
   ctx.fillStyle="#367b36";
   for(let i=0;i<40;i++) {
     const x=((i*35-camera)%950+950)%950;
@@ -490,18 +475,13 @@ function drawBackground() {
   }
 }
 
-// ==============================
-// ОТРИСОВКА ИГРОКА И ВРАГОВ
-// ==============================
-
+/* ===== ОТРИСОВКА ===== */
 function drawPlatforms() {
   for(const p of platforms) {
     const x=p.x-camera;
     if(x<-180 || x>W+180) continue;
-
     ctx.fillStyle="#80552f";
     ctx.fillRect(x,p.y,p.w,p.h);
-
     ctx.fillStyle="#55a84c";
     ctx.fillRect(x,p.y,p.w,5);
   }
@@ -510,7 +490,6 @@ function drawPlatforms() {
 function drawPlayer() {
   const x=player.x-camera;
   const y=player.y;
-
   if(player.invincible>0 && Math.floor(frame/5)%2===0) return;
 
   ctx.fillStyle="#4b3025";
@@ -526,7 +505,6 @@ function drawPlayer() {
   ctx.beginPath();
   ctx.arc(x,y-9,19,0,Math.PI*2);
   ctx.fill();
-
   ctx.strokeStyle="#a86a1e";
   ctx.lineWidth=2;
   ctx.stroke();
@@ -543,31 +521,24 @@ function drawPlayer() {
   ctx.arc(x,y-5,6,0.15,Math.PI-0.15);
   ctx.stroke();
 
-  // Винтовка
   ctx.save();
   ctx.translate(x,y-1);
   ctx.scale(player.facing,1);
-
   ctx.fillStyle="#49382b";
   ctx.fillRect(8,-5,27,5);
-
   ctx.fillStyle="#222";
   ctx.fillRect(27,-8,13,3);
-
   ctx.fillStyle="#a7a7a7";
   ctx.fillRect(34,-9,8,2);
-
   ctx.restore();
 }
 
 function drawEnemy(e) {
   const x=e.x-camera;
   if(x<-60 || x>W+60 || !e.alive) return;
-
   ctx.font="34px Arial";
   ctx.textAlign="center";
   ctx.fillText(worlds[world].enemy,x,e.y+5);
-
   if(Math.abs(e.vy)>1) {
     ctx.fillStyle="rgba(0,0,0,0.12)";
     ctx.beginPath();
@@ -578,19 +549,14 @@ function drawEnemy(e) {
 
 function drawBoss() {
   if(world!==3 || !bossBattle || !boss.alive) return;
-
   const x=boss.x-camera;
-
   ctx.font="58px Arial";
   ctx.textAlign="center";
   ctx.fillText("🦊",x,boss.y+10);
-
   ctx.fillStyle="#381d1d";
   ctx.fillRect(x-32,boss.y-49,64,8);
-
   ctx.fillStyle="#e33";
   ctx.fillRect(x-32,boss.y-49,64*(boss.hp/boss.maxHp),8);
-
   ctx.fillStyle="white";
   ctx.font="13px Arial";
   ctx.fillText("БОСС",x,boss.y-55);
@@ -598,15 +564,12 @@ function drawBoss() {
 
 function drawBullets() {
   ctx.fillStyle="#292929";
-
   for(const b of bullets) {
     ctx.beginPath();
     ctx.arc(b.x-camera,b.y,5,0,Math.PI*2);
     ctx.fill();
   }
-
   ctx.fillStyle="#ffdb45";
-
   for(const b of enemyBullets) {
     ctx.save();
     ctx.translate(b.x-camera,b.y);
@@ -619,10 +582,8 @@ function drawBullets() {
 function drawStars() {
   for(const s of stars) {
     if(s.taken) continue;
-
     const x=s.x-camera;
     if(x<-30 || x>W+30) continue;
-
     ctx.font="24px Arial";
     ctx.textAlign="center";
     ctx.fillText("⭐",x,s.y);
@@ -633,9 +594,7 @@ function draw() {
   drawBackground();
   drawPlatforms();
   drawStars();
-
   for(const e of enemies) drawEnemy(e);
-
   drawBoss();
   drawBullets();
   drawPlayer();
@@ -643,24 +602,18 @@ function draw() {
   if(gameOver || victory) {
     ctx.fillStyle="rgba(0,0,0,0.58)";
     ctx.fillRect(0,0,W,H);
-
     ctx.fillStyle="white";
     ctx.textAlign="center";
     ctx.font="bold 42px Arial";
     ctx.fillText(victory?"ПОБЕДА!":"ИГРА ОКОНЧЕНА",W/2,190);
-
     ctx.font="24px Arial";
     ctx.fillText(victory?"Колобок спас лес!":"Попробуй ещё раз!",W/2,235);
   }
 }
 
-// ==============================
-// ДЕЙСТВИЯ ИГРОКА
-// ==============================
-
+/* ===== ДЕЙСТВИЯ ===== */
 function jump() {
   if(gameOver || victory) return;
-
   if(player.onGround) {
     player.vy=-12.5;
     player.onGround=false;
@@ -670,56 +623,45 @@ function jump() {
 
 function shoot() {
   if(gameOver || victory) return;
-
   const now=Date.now();
   if(now-(player.lastShot||0)<260) return;
-
   player.lastShot=now;
-
   bullets.push({
     x:player.x+player.facing*25,
     y:player.y-7,
     vx:player.facing*9,
     life:100
   });
-
   sound(180,0.07,"sawtooth");
 }
 
 function hurtPlayer() {
   if(player.invincible>0 || gameOver || victory) return;
-
   player.health--;
   player.invincible=90;
   player.vy=-6;
   player.vx=-player.facing*3;
-
   sound(100,0.2,"sawtooth");
   updateInfo();
-
   if(player.health<=0) {
     gameOver=true;
     say("Колобок, попробуй ещё раз!");
   }
-
   saveProgress();
 }
 
 function updatePlayer() {
   let moving=false;
-
   if(keys.left) {
     player.vx=-player.speed;
     player.facing=-1;
     moving=true;
   }
-
   if(keys.right) {
     player.vx=player.speed;
     player.facing=1;
     moving=true;
   }
-
   if(!moving) player.vx*=0.78;
 
   player.x+=player.vx;
@@ -734,14 +676,12 @@ function updatePlayer() {
     player.onGround=false;
   }
 
-  // Платформы
   for(const p of platforms) {
     if(player.vy>=0 &&
        player.x+player.r>p.x &&
        player.x-player.r<p.x+p.w &&
        player.y+player.r>=p.y &&
        player.y+player.r<=p.y+15) {
-
       player.y=p.y-player.r;
       player.vy=0;
       player.onGround=true;
@@ -749,21 +689,16 @@ function updatePlayer() {
   }
 
   player.x=Math.max(player.r,Math.min(LEVEL_WIDTH-20,player.x));
-
   if(player.invincible>0) player.invincible--;
 
   camera=player.x-W*0.38;
   camera=Math.max(0,Math.min(LEVEL_WIDTH-W,camera));
 }
 
-// ==============================
-// ПОВЕДЕНИЕ ВРАГОВ
-// ==============================
-
+/* ===== ВРАГИ ===== */
 function updateEnemies() {
   for(const e of enemies) {
     if(!e.alive) continue;
-
     e.jumpTimer--;
     const distance=player.x-e.x;
 
@@ -775,10 +710,7 @@ function updateEnemies() {
 
     if(Math.abs(distance)<230) {
       e.vx += Math.sign(distance)*0.035;
-      e.vx=Math.max(
-        -2.5-world*0.25,
-        Math.min(2.5+world*0.25,e.vx)
-      );
+      e.vx=Math.max(-2.5-world*0.25, Math.min(2.5+world*0.25,e.vx));
     } else {
       if(e.x<e.min) e.vx=Math.abs(e.vx);
       if(e.x>e.max) e.vx=-Math.abs(e.vx);
@@ -800,10 +732,7 @@ function updateEnemies() {
   }
 }
 
-// ==============================
-// БОСС
-// ==============================
-
+/* ===== БОСС ===== */
 function updateBoss() {
   if(world!==3) return;
 
@@ -816,15 +745,10 @@ function updateBoss() {
   if(!bossBattle || !boss.alive) return;
 
   const distance=player.x-boss.x;
-
-  if(Math.abs(distance)>70) {
-    boss.vx=Math.sign(distance)*1.5;
-  } else {
-    boss.vx=0;
-  }
+  if(Math.abs(distance)>70) boss.vx=Math.sign(distance)*1.5;
+  else boss.vx=0;
 
   boss.x+=boss.vx;
-
   boss.jumpTimer--;
 
   if(boss.jumpTimer<=0 && boss.y>=350) {
@@ -841,21 +765,15 @@ function updateBoss() {
   }
 
   boss.shootTimer--;
-
   if(boss.shootTimer<=0) {
     const dx=player.x-boss.x;
     const dy=(player.y-10)-(boss.y-10);
     const length=Math.sqrt(dx*dx+dy*dy)||1;
-
     enemyBullets.push({
-      x:boss.x,
-      y:boss.y-10,
-      vx:dx/length*6,
-      vy:dy/length*6,
-      angle:Math.atan2(dy,dx),
-      life:130
+      x:boss.x, y:boss.y-10,
+      vx:dx/length*6, vy:dy/length*6,
+      angle:Math.atan2(dy,dx), life:130
     });
-
     boss.shootTimer=85;
     sound(260,0.1,"sawtooth");
   }
@@ -865,10 +783,7 @@ function updateBoss() {
   }
 }
 
-// ==============================
-// ПУЛИ И ПОПАДАНИЯ
-// ==============================
-
+/* ===== ПУЛИ ===== */
 function updateBullets() {
   for(const b of bullets) {
     b.x+=b.vx;
@@ -878,7 +793,6 @@ function updateBullets() {
       if(e.alive &&
          Math.abs(b.x-e.x)<25 &&
          Math.abs(b.y-e.y)<30) {
-
         e.alive=false;
         b.life=0;
         say("Ёба-Боба!");
@@ -890,35 +804,27 @@ function updateBullets() {
     if(world===3 && bossBattle && boss.alive &&
        Math.abs(b.x-boss.x)<38 &&
        Math.abs(b.y-boss.y)<45) {
-
       boss.hp--;
       b.life=0;
       sound(240,0.08);
-
       if(boss.hp<=0) {
         boss.alive=false;
         say("А меня за что?");
-
         setTimeout(()=>{
           if(!victory) message.textContent="⭐ Лиса побеждена!";
         },1800);
-
         totalStars+=10;
       }
-
       saveProgress();
     }
   }
 
-  bullets=bullets.filter(
-    b=>b.life>0 && b.x>-100 && b.x<LEVEL_WIDTH+100
-  );
+  bullets=bullets.filter(b=>b.life>0 && b.x>-100 && b.x<LEVEL_WIDTH+100);
 
   for(const b of enemyBullets) {
     b.x+=b.vx;
     b.y+=b.vy;
     b.life--;
-
     if(Math.abs(b.x-player.x)<20 && Math.abs(b.y-player.y)<20) {
       b.life=0;
       hurtPlayer();
@@ -928,19 +834,14 @@ function updateBullets() {
   enemyBullets=enemyBullets.filter(b=>b.life>0);
 }
 
-// ==============================
-// ЗВЁЗДЫ И ПЕРЕХОДЫ
-// ==============================
-
+/* ===== ЗВЁЗДЫ ===== */
 function updateStars() {
   for(const s of stars) {
     if(!s.taken &&
        Math.abs(player.x-s.x)<27 &&
        Math.abs(player.y-s.y)<35) {
-
       s.taken=true;
       totalStars++;
-
       sound(760,0.12,"sine");
       updateInfo();
       saveProgress();
@@ -963,16 +864,12 @@ function checkLevelEnd() {
     saveProgress();
   }
 
-  // Не даём пройти мимо живого босса
   if(world===3 && bossBattle && boss.alive && player.x>2110) {
     player.x=2110;
   }
 }
 
-// ==============================
-// ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ
-// ==============================
-
+/* ===== ЦИКЛ ===== */
 function update() {
   if(gameOver || victory) {
     draw();
@@ -980,7 +877,6 @@ function update() {
   }
 
   frame++;
-
   updatePlayer();
   updateEnemies();
   updateBoss();
@@ -990,7 +886,6 @@ function update() {
   updateInfo();
   draw();
 
-  // Автоматическое сохранение примерно раз в секунду
   if(frame-lastSaveFrame>=60) {
     saveProgress();
     lastSaveFrame=frame;
@@ -999,22 +894,16 @@ function update() {
   requestAnimationFrame(update);
 }
 
-// ==============================
-// УПРАВЛЕНИЕ КЛАВИАТУРОЙ
-// ==============================
-
+/* ===== КЛАВИАТУРА ===== */
 document.addEventListener("keydown",e=>{
   if(["ArrowLeft","ArrowRight","ArrowUp","Space"].includes(e.code)) {
     e.preventDefault();
   }
-
   if(e.code==="ArrowLeft" || e.code==="KeyA") keys.left=true;
   if(e.code==="ArrowRight" || e.code==="KeyD") keys.right=true;
-
   if((e.code==="ArrowUp" || e.code==="Space" || e.code==="KeyW") && !e.repeat) {
     jump();
   }
-
   if((e.code==="KeyJ" || e.code==="KeyF") && !e.repeat) {
     shoot();
   }
@@ -1025,27 +914,18 @@ document.addEventListener("keyup",e=>{
   if(e.code==="ArrowRight" || e.code==="KeyD") keys.right=false;
 });
 
-// ==============================
-// МОБИЛЬНЫЕ КНОПКИ
-// ==============================
-
+/* ===== МОБИЛЬНЫЕ КНОПКИ ===== */
 function bindHold(id,key) {
   const button=document.getElementById(id);
-
   button.addEventListener("pointerdown",e=>{
     e.preventDefault();
     keys[key]=true;
-
-    try {
-      button.setPointerCapture(e.pointerId);
-    } catch(err) {}
+    try { button.setPointerCapture(e.pointerId); } catch(err) {}
   });
-
   const release=e=>{
     e.preventDefault();
     keys[key]=false;
   };
-
   button.addEventListener("pointerup",release);
   button.addEventListener("pointercancel",release);
   button.addEventListener("lostpointercapture",()=>keys[key]=false);
@@ -1058,12 +938,10 @@ bindHold("right","right");
 
 function bindTap(id,action) {
   const button=document.getElementById(id);
-
   button.addEventListener("pointerdown",e=>{
     e.preventDefault();
     action();
   });
-
   button.addEventListener("contextmenu",e=>e.preventDefault());
   button.addEventListener("selectstart",e=>e.preventDefault());
 }
@@ -1071,17 +949,12 @@ function bindTap(id,action) {
 bindTap("jump",jump);
 bindTap("shoot",shoot);
 
-// ==============================
-// НОВАЯ ИГРА
-// ==============================
-
+/* ===== НОВАЯ ИГРА ===== */
 document.getElementById("restart").addEventListener("click",()=>{
   const confirmed = confirm("Начать игру заново? Старое сохранение будет удалено.");
-
   if(!confirmed) return;
 
   deleteSave();
-
   world=0;
   totalStars=0;
   gameOver=false;
@@ -1092,17 +965,12 @@ document.getElementById("restart").addEventListener("click",()=>{
 
   makeLevel();
   say("Новое приключение начинается!");
-
   saveProgress();
   draw();
-
   requestAnimationFrame(update);
 });
 
-// ==============================
-// ЗАЩИТА МОБИЛЬНОГО УПРАВЛЕНИЯ
-// ==============================
-
+/* ===== ЗАЩИТА ===== */
 document.addEventListener("contextmenu",e=>{
   if(e.target.tagName==="BUTTON" || e.target.tagName==="CANVAS") {
     e.preventDefault();
@@ -1123,15 +991,11 @@ document.addEventListener("visibilitychange",()=>{
   }
 });
 
-// Сохраняем при закрытии или перезагрузке страницы
 window.addEventListener("pagehide",()=>{
   saveProgress();
 });
 
-// ==============================
-// ЗАПУСК ИГРЫ И ЗАГРУЗКА ПРОГРЕССА
-// ==============================
-
+/* ===== ЗАПУСК ===== */
 makeLevel();
 
 const hasSave = loadProgress();
@@ -1145,7 +1009,6 @@ if(hasSave) {
 
 draw();
 requestAnimationFrame(update);
-
 </script>
 </body>
 </html>
