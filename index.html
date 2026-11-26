@@ -3,434 +3,859 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Колобок: Возвращение</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Колобок: Большое приключение</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#111;color:white;font-family:Arial;overflow:hidden;touch-action:none}
-#game{display:block;width:100vw;height:100vh;background:#73c8ef}
-#controls{position:fixed;bottom:18px;left:0;right:0;display:flex;justify-content:space-between;padding:0 18px;pointer-events:none}
-.group{display:flex;gap:12px;pointer-events:auto}
-button{width:65px;height:65px;border:3px solid white;border-radius:18px;background:#222b;color:white;font-size:25px;font-weight:bold;opacity:.85;touch-action:none}
-#shoot{background:#9b2424}
-#message{position:fixed;top:12%;left:0;width:100%;text-align:center;font-size:25px;font-weight:bold;color:#fff;text-shadow:2px 3px 4px #000;pointer-events:none}
-#help{position:fixed;top:8px;left:10px;font-size:13px;text-shadow:1px 1px 2px #000}
+* {
+  box-sizing:border-box;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
+}
+html,body {
+  margin:0;
+  padding:0;
+  background:#17283c;
+  color:white;
+  font-family:Arial;
+  text-align:center;
+  overscroll-behavior:none;
+}
+body {
+  touch-action:pan-y;
+}
+header {
+  padding:10px;
+  background:#263e59;
+}
+h1 {
+  font-size:22px;
+  margin:5px;
+}
+#info {
+  font-size:16px;
+  margin:8px;
+}
+canvas {
+  display:block;
+  width:100%;
+  max-width:900px;
+  height:auto;
+  margin:auto;
+  background:#8bd7f5;
+  border:2px solid white;
+  touch-action:none;
+}
+#controls {
+  display:flex;
+  justify-content:center;
+  gap:9px;
+  margin:12px auto;
+  flex-wrap:wrap;
+  touch-action:none;
+}
+button {
+  font-size:20px;
+  padding:13px 17px;
+  border:0;
+  border-radius:12px;
+  background:#ffcf55;
+  font-weight:bold;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-appearance:none;
+  appearance:none;
+  outline:none;
+}
+#shoot {
+  background:#e95b43;
+  color:white;
+}
+#jump {
+  background:#69c7ff;
+}
+#message {
+  padding:8px;
+  min-height:30px;
+}
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
-<div id="help">← → движение · ↑ прыжок · 🔫 выстрел</div>
-<div id="message"></div>
+<header>
+<h1>🥯 Колобок: Большое приключение</h1>
+<div id="info"></div>
+</header>
+
+<canvas id="game" width="900" height="440"></canvas>
+
+<div id="message">Помоги Колобку пройти четыре мира!</div>
+
 <div id="controls">
-  <div class="group">
-    <button id="left">◀</button>
-    <button id="right">▶</button>
-  </div>
-  <div class="group">
-    <button id="jump">⬆</button>
-    <button id="shoot">🔫</button>
-  </div>
+<button id="left">◀</button>
+<button id="right">▶</button>
+<button id="jump">ПРЫЖОК</button>
+<button id="shoot">🔫 ОГОНЬ</button>
 </div>
 
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
+const info=document.getElementById("info");
 const message=document.getElementById("message");
 
-function resize(){
-  canvas.width=window.innerWidth;
-  canvas.height=window.innerHeight;
-}
-window.addEventListener("resize",resize);
-resize();
+const worlds=[
+ {name:"Лесная тропинка",sky:"#8bd7f5",ground:"#55a84c",enemy:"🐰"},
+ {name:"Волчий лес",sky:"#829ac5",ground:"#477b42",enemy:"🐺"},
+ {name:"Медвежья поляна",sky:"#a6d5a0",ground:"#438b46",enemy:"🐻"},
+ {name:"Лисья опушка",sky:"#ffc47b",ground:"#68a34b",enemy:"🦊"}
+];
 
-const W=2600;
-const ground=()=>canvas.height-90;
-let level=1, camera=0, gameOver=false, victory=false;
-let transition=false, transitionTimer=0;
-let keys={left:false,right:false,jump:false,shoot:false};
-let bullets=[], darts=[], stars=[];
-let boss=null, bossDefeated=false;
-let lastShot=0, frame=0;
+let world=0;
+let stars=0;
+let lives=3;
+let finished=false;
+let camera=0;
+let keys={left:false,right:false};
+let bullets=[],darts=[];
+let audioCtx=null;
+let audioStarted=false;
+let gameFrame=0;
 
 const player={
- x:80,y:0,w:42,h:48,vx:0,vy:0,
- speed:4.2,jumping:false,face:1,
- lives:3,invincible:0
+ x:70,y:300,vx:0,vy:0,r:19,
+ onGround:false,face:1,cooldown:0,invulnerable:0
 };
 
-function say(text){
- message.textContent=text;
- if("speechSynthesis" in window){
-   speechSynthesis.cancel();
-   const utter=new SpeechSynthesisUtterance(text);
-   utter.lang="ru-RU";
-   utter.rate=0.9;
-   utter.pitch=1.1;
-   speechSynthesis.speak(utter);
- }
-}
-function sound(freq=300,duration=.12){
+let platforms=[],enemies=[],items=[];
+
+let boss={
+ x:2220,y:340,hp:10,maxHp:10,
+ alive:true,vy:0,jumpTimer:70,
+ dartTimer:50,hitCooldown:0
+};
+
+let bossBattle=false;
+let bossDefeated=false;
+let bossIntroShown=false;
+
+const gravity=.55;
+const levelWidth=2400;
+
+function sound(freq=400,duration=.12,type="square"){
  try{
-  const ac=new (window.AudioContext||window.webkitAudioContext)();
-  const osc=ac.createOscillator();
-  const gain=ac.createGain();
-  osc.connect(gain);gain.connect(ac.destination);
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended")audioCtx.resume();
+  const osc=audioCtx.createOscillator();
+  const gain=audioCtx.createGain();
+  osc.type=type;
   osc.frequency.value=freq;
-  gain.gain.setValueAtTime(.12,ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(.001,ac.currentTime+duration);
-  osc.start();osc.stop(ac.currentTime+duration);
+  gain.gain.setValueAtTime(.12,audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime+duration);
  }catch(e){}
 }
 
-const levelNames=["Лес","Поле","Горы","Логово лисы"];
-const enemies=[];
-function createEnemies(){
- enemies.length=0;
- const positions=[
-  [430,850,1300,1750],
-  [350,760,1180,1640,1950],
-  [400,900,1400,1850],
-  [420,900,1400,1850]
+function startAudio(){
+ if(audioStarted){
+  if(audioCtx&&audioCtx.state==="suspended")audioCtx.resume();
+  return;
+ }
+ audioStarted=true;
+ sound(500,.12);
+}
+
+function speak(text){
+ message.textContent=text;
+ try{
+  if("speechSynthesis" in window){
+   speechSynthesis.cancel();
+   const utterance=new SpeechSynthesisUtterance(text);
+   utterance.lang="ru-RU";
+   utterance.rate=.9;
+   utterance.pitch=1.1;
+   utterance.volume=1;
+   speechSynthesis.speak(utterance);
+  }
+ }catch(e){}
+}
+
+function speakFox(){
+ speak("А меня за что?");
+ message.textContent="🦊 А МЕНЯ ЗА ЧТО?!";
+}
+
+function makeLevel(){
+ platforms=[
+  {x:0,y:385,w:500,h:60},
+  {x:560,y:385,w:280,h:60},
+  {x:900,y:385,w:400,h:60},
+  {x:1370,y:385,w:350,h:60},
+  {x:1800,y:385,w:600,h:60},
+  {x:300,y:310,w:130,h:18},
+  {x:650,y:295,w:130,h:18},
+  {x:1020,y:305,w:140,h:18},
+  {x:1460,y:285,w:140,h:18},
+  {x:1850,y:300,w:150,h:18}
  ];
- positions[level-1].forEach((x,i)=>{
-  enemies.push({x,y:0,w:40,h:42,dir:i%2? -1:1,
-   min:x-90,max:x+90,alive:true,speed:1.1+i*.12});
- });
-}
-function createBoss(){
- boss={
-  x:2240,y:0,w:65,h:75,hp:10,maxHp:10,
-  vx:-1.5,vy:0,dir:-1,shootTimer:0,jumpTimer:0
- };
- bossDefeated=false;
+
+ enemies=[
+  {x:380,y:350,alive:true,min:330,max:470,dir:1},
+  {x:760,y:350,alive:true,min:590,max:810,dir:-1},
+  {x:1160,y:350,alive:true,min:950,max:1260,dir:1},
+  {x:1550,y:350,alive:true,min:1400,max:1680,dir:-1},
+  {x:1900,y:350,alive:true,min:1850,max:2050,dir:1}
+ ];
+
+ items=[
+  {x:350,y:270,taken:false},
+  {x:700,y:255,taken:false},
+  {x:1080,y:265,taken:false},
+  {x:1510,y:245,taken:false},
+  {x:1900,y:260,taken:false},
+  {x:2100,y:340,taken:false}
+ ];
+
+ bullets=[];
  darts=[];
-}
-function startLevel(n){
- level=n;
- player.x=80;player.y=ground()-player.h;
- player.vx=0;player.vy=0;
+
+ boss={
+  x:2220,y:340,hp:10,maxHp:10,
+  alive:true,vy:0,jumpTimer:60,
+  dartTimer:50,hitCooldown:0
+ };
+
+ bossBattle=false;
+ bossDefeated=false;
+ bossIntroShown=false;
+
+ player.x=70;
+ player.y=300;
+ player.vx=0;
+ player.vy=0;
+ player.onGround=false;
+ player.face=1;
+ player.cooldown=0;
+ player.invulnerable=0;
  camera=0;
- bullets=[];darts=[];stars=[];
- boss=null;bossDefeated=false;
- createEnemies();
- if(level===4) boss=null;
- message.textContent="УРОВЕНЬ "+level+" — "+levelNames[level-1];
- setTimeout(()=>{if(!transition&&!gameOver)message.textContent="";},1800);
 }
-startLevel(1);
 
 function drawBackground(){
- const g=ctx.createLinearGradient(0,0,0,canvas.height);
- const colors=[
-  ["#66c9f5","#d5f6ff"],
-  ["#ffcc76","#fff0bd"],
-  ["#7896bd","#d8e8f6"],
-  ["#382b48","#9b5266"]
- ];
- g.addColorStop(0,colors[level-1][0]);
- g.addColorStop(1,colors[level-1][1]);
- ctx.fillStyle=g;ctx.fillRect(0,0,canvas.width,canvas.height);
+ ctx.fillStyle=worlds[world].sky;
+ ctx.fillRect(0,0,900,440);
 
- // Облака
- ctx.fillStyle="rgba(255,255,255,.65)";
- for(let i=0;i<7;i++){
-  let x=((i*370-camera*.25)%(canvas.width+200)+canvas.width+200)%(canvas.width+200)-70;
-  let y=65+(i%3)*55;
-  ctx.beginPath();ctx.arc(x,y,24,0,Math.PI*2);
-  ctx.arc(x+25,y-10,30,0,Math.PI*2);
-  ctx.arc(x+52,y,22,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle="#fff";
+ for(let i=0;i<5;i++){
+  let x=((i*230-camera*.25)%1100+1100)%1100;
+  ctx.beginPath();
+  ctx.arc(x,75+i%2*35,24,0,Math.PI*2);
+  ctx.arc(x+25,75+i%2*35,30,0,Math.PI*2);
+  ctx.fill();
  }
- // Дальний пейзаж
- ctx.fillStyle=level===4?"#49354f":"rgba(50,110,90,.35)";
+
  for(let i=0;i<12;i++){
-  let x=i*270-camera*.45;
-  ctx.beginPath();ctx.moveTo(x,ground());
-  ctx.lineTo(x+135,ground()-180-(i%3)*35);
-  ctx.lineTo(x+270,ground());ctx.fill();
+  let x=((i*190-camera*.45)%1100+1100)%1100;
+  ctx.fillStyle="#397e48";
+  ctx.beginPath();
+  ctx.arc(x,360,55,Math.PI,0);
+  ctx.fill();
+  ctx.fillStyle="#23613b";
+  ctx.fillRect(x-5,290,10,75);
  }
 }
-function drawGround(){
- ctx.fillStyle=level===4?"#493b35":"#39853b";
- ctx.fillRect(0,ground(),canvas.width,canvas.height-ground());
- ctx.fillStyle="#245b2b";
- ctx.fillRect(0,ground()+13,canvas.width,canvas.height-ground());
- for(let x=0;x<canvas.width;x+=35){
-  ctx.fillStyle="#65ad49";
-  ctx.fillRect(x,ground()+2,17,5);
- }
-}
+
 function drawPlayer(){
- const x=player.x-camera,y=player.y;
  ctx.save();
- if(player.invincible>0&&frame%8<4)ctx.globalAlpha=.35;
+ ctx.translate(player.x,player.y);
+
+ if(player.invulnerable>0&&gameFrame%8<4){
+  ctx.globalAlpha=.4;
+ }
+
  // Ноги
- ctx.fillStyle="#292329";
- ctx.fillRect(x+8,y+35,11,13);
- ctx.fillRect(x+25,y+35,11,13);
- // Колобок
- ctx.fillStyle="#e8a83c";
- ctx.beginPath();ctx.arc(x+21,y+18,20,0,Math.PI*2);ctx.fill();
- ctx.strokeStyle="#9a5c22";ctx.lineWidth=2;ctx.stroke();
- // Лицо
- ctx.fillStyle="#222";
- ctx.beginPath();ctx.arc(x+14,y+15,2.5,0,7);ctx.arc(x+27,y+15,2.5,0,7);ctx.fill();
- ctx.strokeStyle="#642d18";ctx.lineWidth=2;
- ctx.beginPath();ctx.arc(x+21,y+21,7,.15,Math.PI-.15);ctx.stroke();
+ ctx.fillStyle="#34251c";
+ ctx.fillRect(-12,12,10,12);
+ ctx.fillRect(3,12,10,12);
+
  // Кожаная куртка
- ctx.fillStyle="#512b19";
- ctx.fillRect(x+5,y+28,32,12);
- ctx.strokeStyle="#d4a15c";ctx.strokeRect(x+5,y+28,32,12);
- ctx.fillStyle="#e2c17a";ctx.fillRect(x+20,y+29,2,10);
+ ctx.fillStyle="#5a301b";
+ ctx.beginPath();
+ ctx.roundRect(-17,-8,34,27,8);
+ ctx.fill();
+
+ ctx.strokeStyle="#c18a4c";
+ ctx.lineWidth=2;
+ ctx.beginPath();
+ ctx.moveTo(0,-5);
+ ctx.lineTo(0,15);
+ ctx.stroke();
+
+ // Колобок
+ ctx.beginPath();
+ ctx.arc(0,-12,19,0,Math.PI*2);
+ ctx.fillStyle="#f5b83d";
+ ctx.fill();
+ ctx.lineWidth=3;
+ ctx.strokeStyle="#a96b17";
+ ctx.stroke();
+
+ // Глаза
+ ctx.fillStyle="#38240b";
+ ctx.beginPath();
+ ctx.arc(-7,-16,2.8,0,7);
+ ctx.arc(7,-16,2.8,0,7);
+ ctx.fill();
+
+ // Улыбка
+ ctx.strokeStyle="#8b3c16";
+ ctx.lineWidth=2;
+ ctx.beginPath();
+ ctx.arc(0,-10,7,.2,2.9);
+ ctx.stroke();
+
  // Ружьё
  ctx.save();
- if(player.face<0){ctx.translate(x+21,y+28);ctx.scale(-1,1);ctx.translate(-(x+21),-(y+28));}
- ctx.fillStyle="#292929";ctx.fillRect(x+27,y+24,29,5);
- ctx.fillStyle="#79502b";ctx.fillRect(x+25,y+27,12,7);
+ if(player.face<0)ctx.scale(-1,1);
+ ctx.fillStyle="#654321";
+ ctx.fillRect(10,-8,22,7);
+ ctx.fillStyle="#252525";
+ ctx.fillRect(24,-7,23,4);
+ ctx.fillStyle="#999";
+ ctx.fillRect(43,-8,5,6);
  ctx.restore();
+
  ctx.restore();
 }
-function drawEnemy(e){
- const x=e.x-camera,y=e.y;
- ctx.fillStyle="#703a29";
- ctx.beginPath();ctx.ellipse(x+20,y+23,19,19,0,0,Math.PI*2);ctx.fill();
- ctx.fillStyle="#fff";
- ctx.fillRect(x+8,y+15,8,8);ctx.fillRect(x+25,y+15,8,8);
- ctx.fillStyle="#111";
- ctx.fillRect(x+11,y+18,4,4);ctx.fillRect(x+28,y+18,4,4);
- ctx.fillStyle="#302019";ctx.fillRect(x+5,y+39,12,4);ctx.fillRect(x+25,y+39,12,4);
-}
+
 function drawBoss(){
- if(!boss||bossDefeated)return;
- const x=boss.x-camera,y=boss.y;
- // Лиса
- ctx.fillStyle="#e66b22";
- ctx.beginPath();ctx.ellipse(x+32,y+43,29,32,0,0,Math.PI*2);ctx.fill();
- // Голова
- ctx.beginPath();ctx.arc(x+32,y+14,25,0,Math.PI*2);ctx.fill();
+ // Лиса не показывается в первых трёх мирах
+ if(world!==3||!bossBattle||!boss.alive)return;
+
+ ctx.save();
+ ctx.translate(boss.x,boss.y);
+
+ // Лисий хвост
+ ctx.fillStyle="#e87824";
+ ctx.beginPath();
+ ctx.ellipse(-25,7,25,9,-.3,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle="#fff";
+ ctx.beginPath();
+ ctx.arc(-44,1,8,0,Math.PI*2);
+ ctx.fill();
+
+ // Тело
+ ctx.fillStyle="#d96820";
+ ctx.beginPath();
+ ctx.ellipse(0,0,25,29,0,0,Math.PI*2);
+ ctx.fill();
+
+ ctx.fillStyle="#fff0d5";
+ ctx.beginPath();
+ ctx.ellipse(0,9,14,17,0,0,Math.PI*2);
+ ctx.fill();
+
  // Уши
- ctx.beginPath();ctx.moveTo(x+10,y+2);ctx.lineTo(x+7,y-24);ctx.lineTo(x+25,y-5);
- ctx.moveTo(x+42,y-5);ctx.lineTo(x+59,y-24);ctx.lineTo(x+55,y+4);ctx.fill();
- // Мордочка
- ctx.fillStyle="#fff0d7";
- ctx.beginPath();ctx.ellipse(x+32,y+23,17,11,0,0,Math.PI*2);ctx.fill();
- ctx.fillStyle="#111";
- ctx.beginPath();ctx.arc(x+23,y+12,3,0,7);ctx.arc(x+42,y+12,3,0,7);ctx.fill();
- ctx.beginPath();ctx.arc(x+32,y+22,4,0,7);ctx.fill();
- // Хвост
- ctx.fillStyle="#e66b22";
- ctx.beginPath();ctx.moveTo(x+50,y+48);ctx.quadraticCurveTo(x+85,y+25,x+65,y+4);
- ctx.quadraticCurveTo(x+88,y+44,x+50,y+60);ctx.fill();
- ctx.fillStyle="#fff";ctx.fillRect(x+60,y+5,10,10);
+ ctx.fillStyle="#d96820";
+ ctx.beginPath();
+ ctx.moveTo(-16,-20);
+ ctx.lineTo(-21,-48);
+ ctx.lineTo(-3,-28);
+ ctx.fill();
+
+ ctx.beginPath();
+ ctx.moveTo(10,-27);
+ ctx.lineTo(20,-49);
+ ctx.lineTo(23,-18);
+ ctx.fill();
+
+ // Морда
+ ctx.fillStyle="#fff0d5";
+ ctx.beginPath();
+ ctx.ellipse(0,-17,17,12,0,0,Math.PI*2);
+ ctx.fill();
+
+ ctx.fillStyle="#20130c";
+ ctx.beginPath();
+ ctx.arc(-7,-23,3,0,7);
+ ctx.arc(8,-23,3,0,7);
+ ctx.arc(2,-14,3,0,7);
+ ctx.fill();
+
+ ctx.fillStyle="#b95319";
+ ctx.fillRect(-18,19,12,12);
+ ctx.fillRect(7,19,12,12);
+ ctx.restore();
+
  // Здоровье босса
- ctx.fillStyle="#222";ctx.fillRect(x-5,y-42,75,9);
- ctx.fillStyle="#e22";ctx.fillRect(x-5,y-42,75*boss.hp/boss.maxHp,9);
- ctx.fillStyle="white";ctx.font="14px Arial";
- ctx.fillText("ЛИСА "+boss.hp+"/10",x-5,y-49);
-}
-function drawBullets(){
- ctx.fillStyle="#ffe66a";
- bullets.forEach(b=>{ctx.beginPath();ctx.arc(b.x-camera,b.y,5,0,7);ctx.fill();});
  ctx.fillStyle="#222";
- darts.forEach(d=>{
-  ctx.save();ctx.translate(d.x-camera,d.y);ctx.rotate(d.angle);
-  ctx.fillRect(-12,-2,24,4);
-  ctx.fillStyle="#ddd";ctx.beginPath();ctx.moveTo(12,-5);ctx.lineTo(19,0);ctx.lineTo(12,5);ctx.fill();
-  ctx.restore();ctx.fillStyle="#222";
- });
-}
-function drawHUD(){
- ctx.fillStyle="white";ctx.font="bold 20px Arial";
- ctx.fillText("Уровень: "+level+"/4",15,35);
- ctx.fillText("❤️ "+player.lives,15,62);
- ctx.fillText("⭐ "+stars.length,15,89);
-}
-function overlap(a,b){
- return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+ ctx.fillRect(boss.x-40,boss.y-65,80,10);
+ ctx.fillStyle="#e32e36";
+ ctx.fillRect(boss.x-40,boss.y-65,80*(boss.hp/boss.maxHp),10);
+ ctx.strokeStyle="white";
+ ctx.strokeRect(boss.x-40,boss.y-65,80,10);
+
+ ctx.fillStyle="#fff";
+ ctx.font="bold 14px Arial";
+ ctx.textAlign="center";
+ ctx.fillText("БОСС ЛИСА",boss.x,boss.y-72);
+ ctx.textAlign="left";
 }
 
-function killEnemy(e){
- e.alive=false;
- stars.push({x:e.x,y:e.y});
- say("Ёба-Боба!");
- sound(180,.2);
-}
-function damagePlayer(){
- if(player.invincible>0)return;
- player.lives--;
- player.invincible=100;
- sound(100,.25);
- if(player.lives<=0){
-  gameOver=true;say("Колобок проиграл!");
-  message.textContent="ИГРА ОКОНЧЕНА — обнови страницу";
- }
-}
-function shoot(){
- if(frame-lastShot<16)return;
- lastShot=frame;
- bullets.push({x:player.x+(player.face>0?48:-8),y:player.y+27,vx:player.face*9});
- sound(520,.05);
-}
-function update(){
- if(gameOver||victory||transition)return;
- frame++;
- if(player.invincible>0)player.invincible--;
-
- player.vx=0;
- if(keys.left){player.vx=-player.speed;player.face=-1;}
- if(keys.right){player.vx=player.speed;player.face=1;}
- if(keys.jump&&!player.jumping){
-  player.vy=-12;player.jumping=true;sound(350,.08);
- }
- if(keys.shoot)shoot();
-
- player.x+=player.vx;
- player.vy+=.55;
- player.y+=player.vy;
- if(player.y+player.h>=ground()){
-  player.y=ground()-player.h;
-  player.vy=0;player.jumping=false;
- }
- player.x=Math.max(0,Math.min(W-player.w,player.x));
-
- // Враги только обычные, лисы среди них нет
- enemies.forEach(e=>{
-  if(!e.alive)return;
-  e.y=ground()-e.h;
-  e.x+=e.dir*e.speed;
-  if(e.x<e.min||e.x>e.max)e.dir*=-1;
-  if(overlap(player,e))damagePlayer();
- });
-
- // Пули Колобка
- bullets.forEach(b=>{
-  b.x+=b.vx;
-  enemies.forEach(e=>{
-   if(e.alive&&b.x>e.x&&b.x<e.x+e.w&&b.y>e.y&&b.y<e.y+e.h){
-    killEnemy(e);b.x=-9999;
-   }
-  });
-  // Босс существует только на четвёртом уровне
-  if(level===4&&boss&&!bossDefeated&&
-     b.x>boss.x&&b.x<boss.x+boss.w&&
-     b.y>boss.y&&b.y<boss.y+boss.h){
-    boss.hp--;b.x=-9999;sound(240,.08);
-    if(boss.hp<=0){
-     bossDefeated=true;darts=[];
-     stars.push({x:boss.x,y:boss.y});
-     say("А меня за что?!");
-     message.textContent="🦊 А МЕНЯ ЗА ЧТО?!";
-    }
-   }
-  });
- bullets=bullets.filter(b=>b.x>-100&&b.x<W+100);
-
- // Лиса создаётся только в конце четвёртого уровня
- if(level===4&&player.x>1950&&!boss&&!bossDefeated){
-  createBoss();
-  boss.y=ground()-boss.h;
-  message.textContent="ОСТОРОЖНО! ЛИСА-БОСС!";
-  sound(120,.4);
- }
- if(level===4&&boss&&!bossDefeated){
-  boss.y=ground()-boss.h;
-  boss.jumpTimer++;
-  boss.shootTimer++;
-  // Лиса прыгает
-  if(boss.jumpTimer>85){
-   boss.vy=-11;boss.jumpTimer=0;
-  }
-  if(boss.vy===undefined)boss.vy=0;
-  boss.vy+=.5;boss.y+=boss.vy;
-  if(boss.y+boss.h>=ground()){
-   boss.y=ground()-boss.h;boss.vy=0;
-  }
-  // Лиса перемещается возле конца уровня
-  if(boss.x>player.x+100)boss.x-=1.1;
-  else if(boss.x<player.x+230)boss.x+=.6;
-  boss.x=Math.max(2110,Math.min(2320,boss.x));
-  // Дротики летят в сторону Колобка
-  if(boss.shootTimer>=55){
-   boss.shootTimer=0;
-   const dx=(player.x+20)-(boss.x+30);
-   const dy=(player.y+20)-(boss.y+30);
-   const len=Math.sqrt(dx*dx+dy*dy)||1;
-   darts.push({x:boss.x+30,y:boss.y+30,
-    vx:dx/len*7,vy:dy/len*7,angle:Math.atan2(dy,dx),w:20,h:5});
-   sound(700,.06);
-  }
- }
- darts.forEach(d=>{
-  d.x+=d.vx;d.y+=d.vy;
-  if(overlap(player,{x:d.x-8,y:d.y-4,w:16,h:8}))damagePlayer();
- });
- darts=darts.filter(d=>d.x>-100&&d.x<W+100&&d.y>-100&&d.y<canvas.height+100);
-
- // Нельзя пройти мимо живого босса
- if(level===4&&boss&&!bossDefeated&&player.x>2110)player.x=2110;
-
- // Завершение уровня
- const endPoint=level===4?2440:W-120;
- if(player.x>=endPoint){
-  if(level<4){
-   transition=true;transitionTimer=130;
-   say("Алби Бэк!");
-   message.textContent="АЛБИ БЭК! УРОВЕНЬ ПРОЙДЕН!";
-  }else if(bossDefeated){
-   victory=true;
-   say("Алби Бэк!");
-   message.textContent="ПОБЕДА! КОЛОБОК СПАС МИР!";
-  }
- }
- camera=Math.max(0,Math.min(W-canvas.width,player.x-canvas.width*.35));
-}
 function draw(){
  drawBackground();
- drawGround();
- enemies.forEach(e=>{if(e.alive)drawEnemy(e);});
- if(level===4)drawBoss();
+
+ ctx.save();
+ ctx.translate(-camera,0);
+
+ platforms.forEach(p=>{
+  ctx.fillStyle=worlds[world].ground;
+  ctx.fillRect(p.x,p.y,p.w,p.h);
+  ctx.fillStyle="#9b6335";
+  ctx.fillRect(p.x,p.y+12,p.w,p.h);
+ });
+
+ items.forEach(s=>{
+  if(!s.taken){
+   ctx.font="27px Arial";
+   ctx.fillText("⭐",s.x-12,s.y+10);
+  }
+ });
+
+ enemies.forEach(e=>{
+  if(e.alive){
+   ctx.font="38px Arial";
+   ctx.fillText(worlds[world].enemy,e.x-18,e.y+12);
+  }
+ });
+
+ bullets.forEach(b=>{
+  ctx.fillStyle="#ffeb68";
+  ctx.fillRect(b.x,b.y,19,5);
+  ctx.fillStyle="#ff713b";
+  ctx.fillRect(b.x+15,b.y,5,5);
+ });
+
+ darts.forEach(d=>{
+  ctx.save();
+  ctx.translate(d.x,d.y);
+  ctx.rotate(Math.atan2(d.vy,d.vx));
+  ctx.fillStyle="#292929";
+  ctx.fillRect(-10,-2,20,4);
+  ctx.fillStyle="#eee";
+  ctx.beginPath();
+  ctx.moveTo(10,-5);
+  ctx.lineTo(18,0);
+  ctx.lineTo(10,5);
+  ctx.fill();
+  ctx.restore();
+ });
+
+ drawBoss();
+
+ ctx.fillStyle="#fff";
+ ctx.fillRect(2320,245,8,140);
+ ctx.fillStyle="#ff4444";
+ ctx.fillRect(2328,245,65,38);
+ ctx.font="25px Arial";
+ ctx.fillText("🏁",2310,230);
+
  drawPlayer();
- drawBullets();
- drawHUD();
+ ctx.restore();
+
+ info.textContent="Мир "+(world+1)+" — "+worlds[world].name+
+ " · Жизни: "+"❤️".repeat(lives)+" · Звёзды: "+stars;
 }
-function loop(){
- update();
- draw();
- if(transition){
-  transitionTimer--;
-  if(transitionTimer<=0){
-   transition=false;
-   startLevel(level+1);
+
+function jump(){
+ startAudio();
+ if(player.onGround){
+  player.vy=-12;
+  player.onGround=false;
+  sound(550,.13,"sine");
+ }
+}
+
+function shoot(){
+ startAudio();
+ if(player.cooldown>0||finished)return;
+
+ player.cooldown=18;
+
+ bullets.push({
+  x:player.x+player.face*35,
+  y:player.y-17,
+  vx:player.face*10,
+  hit:false
+ });
+
+ sound(100,.16,"sawtooth");
+ setTimeout(()=>sound(65,.1,"square"),65);
+}
+
+function hitPlayer(){
+ if(player.invulnerable>0)return;
+
+ lives--;
+ player.invulnerable=90;
+ player.vy=-7;
+ player.x=Math.max(70,player.x-35);
+ sound(120,.3,"sawtooth");
+
+ if(lives<=0){
+  lives=3;
+  stars=0;
+  world=0;
+  makeLevel();
+  speak("Колобок проиграл! Начнём сначала.");
+ }else{
+  message.textContent="Осторожно! Колобок получил урон!";
+ }
+}
+
+function updateBoss(){
+ if(world!==3||!boss.alive)return;
+
+ if(player.x>1950&&!bossBattle){
+  bossBattle=true;
+  bossIntroShown=true;
+  message.textContent="🦊 ВНИМАНИЕ! ПОЯВИЛАСЬ ЛИСА-БОСС!";
+  sound(180,.5,"sawtooth");
+ }
+
+ if(!bossBattle)return;
+
+ // Лиса прыгает
+ boss.jumpTimer--;
+ if(boss.jumpTimer<=0&&boss.y>=340){
+  boss.vy=-13;
+  boss.jumpTimer=90;
+  sound(260,.12,"sine");
+ }
+
+ boss.vy+=.48;
+ boss.y+=boss.vy;
+
+ if(boss.y>340){
+  boss.y=340;
+  boss.vy=0;
+ }
+
+ // Лиса перемещается около Колобка
+ boss.x+=Math.sign(player.x-boss.x)*.9;
+ boss.x=Math.max(2110,Math.min(2310,boss.x));
+
+ // Лиса бросает дротики прямо в сторону Колобка
+ boss.dartTimer--;
+ if(boss.dartTimer<=0){
+  boss.dartTimer=65;
+
+  const startX=boss.x;
+  const startY=boss.y-15;
+  const targetX=player.x;
+  const targetY=player.y-10;
+
+  const dx=targetX-startX;
+  const dy=targetY-startY;
+  const length=Math.sqrt(dx*dx+dy*dy)||1;
+
+  darts.push({
+   x:startX,
+   y:startY,
+   vx:dx/length*7,
+   vy:dy/length*7,
+   hit:false
+  });
+
+  sound(700,.15,"triangle");
+  message.textContent="🦊 Лиса бросает дротик!";
+ }
+
+ if(Math.abs(player.x-boss.x)<40&&
+    Math.abs(player.y-boss.y)<42){
+  hitPlayer();
+ }
+
+ if(boss.hitCooldown>0)boss.hitCooldown--;
+}
+
+function update(){
+ if(finished){
+  draw();
+  return;
+ }
+
+ gameFrame++;
+
+ player.vx=0;
+
+ if(keys.left){
+  player.vx=-4;
+  player.face=-1;
+ }
+ if(keys.right){
+  player.vx=4;
+  player.face=1;
+ }
+
+ let nextX=player.x+player.vx;
+
+ // Пока лиса жива, пройти мимо неё нельзя
+ if(world===3&&bossBattle&&boss.alive&&nextX>2110){
+  nextX=2110;
+ }
+
+ player.x=Math.max(player.r,Math.min(levelWidth-player.r,nextX));
+
+ player.vy+=gravity;
+ player.y+=player.vy;
+ player.onGround=false;
+
+ platforms.forEach(p=>{
+  if(player.x+player.r>p.x&&
+     player.x-player.r<p.x+p.w&&
+     player.y+player.r>=p.y&&
+     player.y+player.r<=p.y+22&&
+     player.vy>=0){
+   player.y=p.y-player.r;
+   player.vy=0;
+   player.onGround=true;
+  }
+ });
+
+ // Движение врагов
+ enemies.forEach(e=>{
+  if(!e.alive)return;
+
+  e.x+=e.dir*1.25;
+
+  if(e.x<e.min||e.x>e.max)e.dir*=-1;
+
+  if(Math.abs(player.x-e.x)<160){
+   e.x+=Math.sign(player.x-e.x)*.5;
+  }
+ });
+
+ // Полёт пуль
+ bullets.forEach(b=>{
+  b.x+=b.vx;
+
+  enemies.forEach(e=>{
+   if(e.alive&&Math.abs(b.x-e.x)<28&&Math.abs(b.y-e.y)<35){
+    e.alive=false;
+    b.hit=true;
+    stars++;
+
+    // Реплика обычного врага
+    speak("Ёба-Боба!");
+    sound(180,.2,"sawtooth");
+   }
+  });
+
+  // Попадание в лису только в четвёртом мире
+  if(world===3&&bossBattle&&boss.alive&&
+     Math.abs(b.x-boss.x)<36&&
+     Math.abs(b.y-(boss.y-15))<45&&
+     boss.hitCooldown<=0){
+
+   boss.hp--;
+   boss.hitCooldown=15;
+   b.hit=true;
+   sound(200,.15,"square");
+   message.textContent="Попадание по Лисе! Здоровье: "+boss.hp;
+
+   if(boss.hp<=0){
+    boss.alive=false;
+    bossDefeated=true;
+    darts=[];
+    stars+=5;
+
+    speakFox();
+    sound(350,.3,"sine");
+   }
+  }
+ });
+
+ bullets=bullets.filter(b=>
+  !b.hit&&b.x>camera-50&&b.x<camera+1000
+ );
+
+ // Дротики
+ darts.forEach(d=>{
+  d.x+=d.vx;
+  d.y+=d.vy;
+
+  if(Math.abs(d.x-player.x)<22&&
+     Math.abs(d.y-(player.y-10))<25){
+   d.hit=true;
+   hitPlayer();
+  }
+ });
+
+ darts=darts.filter(d=>
+  !d.hit&&
+  d.x>camera-100&&
+  d.x<camera+1000&&
+  d.y<450&&
+  d.y>-50
+ );
+
+ // Сбор звёзд
+ items.forEach(s=>{
+  if(!s.taken&&
+     Math.abs(player.x-s.x)<28&&
+     Math.abs(player.y-s.y)<30){
+
+   s.taken=true;
+   stars++;
+   sound(800,.2,"sine");
+   message.textContent="Ты нашёл звёздочку ⭐";
+  }
+ });
+
+ // Столкновение с обычными врагами
+ enemies.forEach(e=>{
+  if(!e.alive)return;
+
+  if(Math.abs(player.x-e.x)<31&&
+     Math.abs(player.y-e.y)<32){
+   hitPlayer();
+   e.x+=player.x<e.x?80:-80;
+  }
+ });
+
+ if(player.invulnerable>0)player.invulnerable--;
+ if(player.cooldown>0)player.cooldown--;
+
+ updateBoss();
+
+ if(player.y>490){
+  hitPlayer();
+  player.y=280;
+  player.vy=0;
+ }
+
+ // Переход между мирами
+ if(player.x>2320){
+  if(world<3){
+   world++;
+   makeLevel();
+
+   speak("Алби Бэк!");
+   message.textContent="АЛБИ БЭК! Новый мир: "+worlds[world].name+"!";
+   sound(700,.3,"sine");
+
+  }else if(bossDefeated){
+   finished=true;
+   speak("Алби Бэк!");
+   message.textContent="🏆 ПОБЕДА! Колобок победил Лису!";
+   sound(900,.5,"sine");
   }
  }
- requestAnimationFrame(loop);
-}
-loop();
 
-// Кнопки управления
-function bindButton(id,key){
- const el=document.getElementById(id);
- el.addEventListener("pointerdown",e=>{e.preventDefault();keys[key]=true;});
- ["pointerup","pointercancel","pointerleave"].forEach(ev=>
-  el.addEventListener(ev,e=>{e.preventDefault();keys[key]=false;}));
+ camera=Math.max(0,Math.min(levelWidth-900,player.x-300));
+
+ draw();
+ requestAnimationFrame(update);
 }
+
+// Защита от меню копирования и долгого нажатия
+const controls=document.getElementById("controls");
+
+controls.addEventListener("contextmenu",e=>{
+ e.preventDefault();
+});
+
+controls.addEventListener("selectstart",e=>{
+ e.preventDefault();
+});
+
+function releaseButtons(){
+ keys.left=false;
+ keys.right=false;
+}
+
+function bindButton(id,key){
+ const b=document.getElementById(id);
+
+ b.addEventListener("contextmenu",e=>e.preventDefault());
+ b.addEventListener("selectstart",e=>e.preventDefault());
+
+ b.addEventListener("pointerdown",e=>{
+  e.preventDefault();
+  startAudio();
+  keys[key]=true;
+
+  try{
+   b.setPointerCapture(e.pointerId);
+  }catch(err){}
+ });
+
+ b.addEventListener("pointerup",e=>{
+  e.preventDefault();
+  keys[key]=false;
+ });
+
+ b.addEventListener("pointercancel",()=>{
+  keys[key]=false;
+ });
+
+ b.addEventListener("lostpointercapture",()=>{
+  keys[key]=false;
+ });
+}
+
 bindButton("left","left");
 bindButton("right","right");
-bindButton("jump","jump");
-bindButton("shoot","shoot");
 
-window.addEventListener("keydown",e=>{
+document.getElementById("jump").addEventListener("pointerdown",e=>{
+ e.preventDefault();
+ startAudio();
+ jump();
+});
+
+document.getElementById("shoot").addEventListener("pointerdown",e=>{
+ e.preventDefault();
+ startAudio();
+ shoot();
+});
+
+// Если палец убран с экрана или приложение свернуто
+window.addEventListener("blur",releaseButtons);
+document.addEventListener("visibilitychange",()=>{
+ if(document.hidden)releaseButtons();
+});
+
+document.addEventListener("keydown",e=>{
+ startAudio();
+
  if(e.key==="ArrowLeft"||e.key==="a")keys.left=true;
  if(e.key==="ArrowRight"||e.key==="d")keys.right=true;
- if(e.key==="ArrowUp"||e.key===" "||e.key==="w")keys.jump=true;
- if(e.key==="x"||e.key==="Control")keys.shoot=true;
+
+ if((e.key==="ArrowUp"||e.key===" "||e.key==="w")&&!e.repeat){
+  e.preventDefault();
+  jump();
+ }
+
+ if((e.key==="z"||e.key==="x")&&!e.repeat){
+  shoot();
+ }
 });
-window.addEventListener("keyup",e=>{
+
+document.addEventListener("keyup",e=>{
  if(e.key==="ArrowLeft"||e.key==="a")keys.left=false;
  if(e.key==="ArrowRight"||e.key==="d")keys.right=false;
- if(e.key==="ArrowUp"||e.key===" "||e.key==="w")keys.jump=false;
- if(e.key==="x"||e.key==="Control")keys.shoot=false;
 });
+
+makeLevel();
+draw();
+requestAnimationFrame(update);
 </script>
 </body>
 </html>
