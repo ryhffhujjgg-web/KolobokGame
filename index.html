@@ -57,14 +57,12 @@
     let canvasWidth = window.innerWidth;
     let canvasHeight = window.innerHeight;
 
-    // Проверка ориентации
     function checkOrientation() {
-        if (window.innerHeight > window.innerWidth) {
+        // Показываем подсказку, только если игра уже запущена и телефон вертикально
+        if (gameStarted && window.innerHeight > window.innerWidth) {
             rotateMsg.style.display = 'flex';
-            if (gameStarted) gameStarted = false; // Пауза, если повернули вертикально
         } else {
             rotateMsg.style.display = 'none';
-            if (!gameOver && startScreen.style.display === 'none') gameStarted = true;
         }
     }
 
@@ -83,9 +81,8 @@
         }
     }
     window.addEventListener('resize', resizeCanvas);
-    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 100));
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
     
-    // Вызываем сразу при загрузке
     resizeCanvas();
 
     let keys = { right: false, left: false };
@@ -109,6 +106,7 @@
 
     function setupLevel(lvl) {
         player.x = 100;
+        // Ставим игрока на землю, даже если экран горизонтальный
         player.y = canvasHeight - 130; 
         bullets = [];
         enemies = [];
@@ -136,12 +134,11 @@
 
     startBtn.addEventListener('click', () => {
         startScreen.style.display = 'none';
-        if (window.innerHeight < window.innerWidth) {
-            gameStarted = true;
-            level = 1;
-            score = 0;
-            setupLevel(level);
-        }
+        gameStarted = true;
+        level = 1;
+        score = 0;
+        setupLevel(level);
+        checkOrientation(); // Проверяем ориентацию сразу после старта
     });
 
     window.addEventListener('keydown', (e) => {
@@ -179,7 +176,8 @@
     }
 
     function update() {
-        if (gameOver || !gameStarted) return;
+        if (gameOver || !gameStarted || window.innerHeight > window.innerWidth) return; // Пауза, если вертикально
+        
         if (player.cooldown > 0) player.cooldown--;
 
         if (keys.right) player.x += player.speed;
