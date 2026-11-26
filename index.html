@@ -131,9 +131,9 @@
         
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'ru-RU';
-        utterance.pitch = 1.2; // Чуть повыше, но не пискляво
-        utterance.rate = 1.3;  // Быстро
-        utterance.volume = 0.8; // Громко
+        utterance.pitch = 1.6; // Делаем голос еще выше (как у мультяшных зверюшек)
+        utterance.rate = 1.4;  // Быстро, чтобы звучало как вскрик
+        utterance.volume = 1.0; // Максимальная громкость
         window.speechSynthesis.speak(utterance);
     }
     // ------------------------
@@ -296,7 +296,7 @@
                     enemies.splice(index, 1);
                     bullets.splice(bIndex, 1);
                     score += 10;
-                    speak("Ай блядь!"); // <--- ЗДЕСЬ КРИЧИТ ВРАГ
+                    speak("Ай, блядь!"); // <--- ЗДЕСЬ КРИЧИТ ВРАГ
                 }
             });
         });
