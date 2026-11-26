@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Колобок: Большое приключение (Mega Polish Edition)</title>
+<title>Колобок: Большое приключение (Polish Edition)</title>
 <style>
 * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; margin: 0; padding: 0; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #17283c; color: white; font-family: Arial, sans-serif; }
 body { display: flex; flex-direction: column; align-items: center; justify-content: center; touch-action: none; }
 
-/* Экран загрузки / Меню */
 #menu-screen { position: fixed; inset: 0; background: #17283c; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; transition: opacity 0.5s; }
 #menu-screen.hidden { opacity: 0; pointer-events: none; }
 #menu-screen h1 { font-size: 48px; color: #f4cf43; text-shadow: 0 4px 0 #b28d20; margin-bottom: 10px; text-align: center; }
@@ -33,7 +32,7 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
 #restart { pointer-events: auto; border: 0; border-radius: 14px; font-size: 13px; padding: 8px 12px; background: #f4cf43; color: #263238; font-weight: bold; box-shadow: 0 4px 0 #b28d20; -webkit-tap-highlight-color: transparent; }
 
 .controls { width: 100%; height: 110px; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; background: #000; border-top: 2px solid #222; z-index: 30; flex-shrink: 0; }
-.left-group, .right-group { display: flex; gap: 15px; }
+.left-group, .right-group { display: flex; gap: 20px; }
 button.ctrl { border: 0; border-radius: 50%; background: #f4cf43; color: #263238; font-size: 22px; font-weight: bold; box-shadow: 0 4px 0 #b28d20; touch-action: none; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; min-width: 64px; }
 button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 #b28d20; }
 #jump { background: #4aa9ef; color: white; box-shadow: 0 4px 0 #2673ae; width: 76px; height: 76px; font-size: 15px; }
@@ -51,7 +50,6 @@ button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 #b28d20; }
 </head>
 <body>
 
-<!-- МЕНЮ -->
 <div id="menu-screen">
   <h1>КОЛОБОК</h1>
   <p>Большое приключение</p>
@@ -87,7 +85,7 @@ const LEVEL_WIDTH = 2400;
 const GRAVITY = 0.55;
 const GROUND_Y = 470;
 const TOTAL_LEVELS = 10;
-const SAVE_KEY = "kolobok_adventure_polish_v1";
+const SAVE_KEY = "kolobok_adventure_polish_v2";
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"rabbit", weather:"leaves"},
@@ -108,10 +106,8 @@ let bossBattle = false; let gameOver = false; let victory = false; let totalStar
 let pickups = []; let particles = []; let floatingTexts = []; let shakeTime = 0;
 let playerDashing = 0; let playerDashCooldown = 0;
 
-/* ===== ВСТРЯСКА ЭКРАНА ===== */
 function triggerShake(intensity) { shakeTime = intensity; }
 
-/* ===== ВСПЛЫВАЮЩИЙ ТЕКСТ ===== */
 function addFloatingText(x, y, text, color) {
   floatingTexts.push({ x, y, text, color, life: 60, maxLife: 60 });
 }
@@ -120,7 +116,7 @@ function addFloatingText(x, y, text, color) {
 function saveProgress() {
   try {
     const data = {
-      version: 1, world, totalStars, lastSafeX,
+      version: 2, world, totalStars, lastSafeX,
       player: { x: player.x, y: player.y, health: player.health, facing: player.facing },
       bossBattle, gameOver, victory
     };
@@ -133,7 +129,7 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 1 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
+    if (!data || data.version !== 2 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
     world = data.world; totalStars = Math.max(0, Number(data.totalStars) || 0); lastSafeX = Number(data.lastSafeX) || 70;
     makeLevel();
     if (data.player) {
@@ -225,7 +221,7 @@ function updateInfo() { info.textContent = "Мир " + (world+1) + "/" + TOTAL_L
 /* ===== ПРОПАСТЬ ===== */
 function isOverGap(x) { return gaps.some(g => x + player.r * 0.5 > g.x && x - player.r * 0.5 < g.x + g.w); }
 
-/* ===== НОВЫЕ ОТРИСОВКИ ВРАГОВ ===== */
+/* ===== ОТРИСОВКИ ВРАГОВ ===== */
 function drawFrog(x, y, isMoving, facing) {
   const hop = isMoving ? Math.abs(Math.sin(frame * 0.2)) * 10 : 0;
   ctx.save(); ctx.translate(x, y - hop); ctx.scale(facing, 1);
@@ -276,7 +272,7 @@ function drawDragon(x, y, isMoving, facing) {
   ctx.restore();
 }
 
-/* ===== ОТРИСОВКА ФОНА ===== */
+/* ===== ФОН ===== */
 function drawCloud(x,y,s=1) {
   ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
   ctx.fillStyle="rgba(100,120,140,0.3)"; ctx.beginPath(); ctx.arc(0,18,22,0,7); ctx.arc(25,8,27,0,7); ctx.arc(52,20,21,0,7); ctx.arc(28,25,26,0,7); ctx.fill();
@@ -434,7 +430,6 @@ function drawPlayer() {
   const x=player.x-camera, y=player.y;
   if(player.invincible>0 && Math.floor(frame/5)%2===0) return;
   
-  // HP Bar над головой
   const barW = 40;
   const barH = 6;
   const barX = x - barW/2;
@@ -446,7 +441,6 @@ function drawPlayer() {
     ctx.fillRect(barX + i * (barW / 3), barY, (barW / 3) - 2, barH);
   }
   
-  // Тело
   ctx.fillStyle="#4b3025"; ctx.fillRect(x-14,y+14,12,14); ctx.fillRect(x+4,y+14,12,14);
   ctx.fillStyle="#70452c"; ctx.beginPath(); ctx.roundRect(x-19,y-6,38,28,10); ctx.fill();
   ctx.fillStyle="#e7a72f"; ctx.beginPath(); ctx.arc(x,y-10,22,0,7); ctx.fill();
@@ -454,7 +448,6 @@ function drawPlayer() {
   ctx.fillStyle="#382719"; ctx.beginPath(); ctx.arc(x-7,y-14,2.5,0,7); ctx.arc(x+7,y-14,2.5,0,7); ctx.fill();
   ctx.strokeStyle="#6b301b"; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(x,y-5,7,0.15,Math.PI-0.15); ctx.stroke();
   
-  // Дробовик
   ctx.save(); ctx.translate(x,y-2); ctx.scale(player.facing,1); ctx.fillStyle="#49382b"; ctx.fillRect(10,-6,30,6); ctx.fillStyle="#222"; ctx.fillRect(30,-10,15,4); ctx.fillStyle="#a7a7a7"; ctx.fillRect(38,-11,10,3); ctx.restore();
   
   if (playerDashing > 0) {
@@ -508,43 +501,45 @@ function drawBear(b) {
   if (b.hp < b.maxHp) { const hx=x-22, hy=b.y-65; ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(hx-2,hy-2,48,10); for(let i=0;i<b.maxHp;i++){ ctx.fillStyle=i<b.hp?"#e33":"#444"; ctx.fillRect(hx+i*15,hy,13,5); } }
 }
 
-// === ВОТ ЗДЕСЬ ИСПРАВЛЕНА БАБА-ЯГА (СТУПА + ПОМЕЛО) ===
+/* ===== БАБА-ЯГА В СТУПЕ (ИСПРАВЛЕНО) ===== */
 function drawWitch(w) {
-  const x=w.x-camera; if(x<-100||x>W+100||!w.alive) return;
+  const x = w.x - camera;
+  if (x < -100 || x > W + 100 || !w.alive) return;
   
-  // 1. Отрисовка ступы (деревянная ступка)
-  ctx.fillStyle="#5a3a22"; 
-  ctx.beginPath(); 
-  ctx.ellipse(x, w.y+25, 22, 28, 0, 0, 7); 
+  // 1. Ступа (основание)
+  ctx.fillStyle = "#5a3a22";
+  ctx.beginPath();
+  ctx.ellipse(x, w.y + 25, 22, 28, 0, 0, 7);
   ctx.fill();
   
-  // Ободок ступы
-  ctx.fillStyle="#3b2414"; 
-  ctx.fillRect(x-24, w.y+5, 48, 7);
+  // Тёмная окантовка ступы
+  ctx.fillStyle = "#3b2414";
+  ctx.fillRect(x - 24, w.y + 5, 48, 7);
   
-  // 2. Отрисовка помела (палка)
-  ctx.strokeStyle="#c9a26b"; 
-  ctx.lineWidth=5; 
-  ctx.beginPath(); 
-  ctx.moveTo(x+14, w.y+18); 
-  ctx.lineTo(x+38, w.y-7); 
+  // 2. Помело (метла)
+  ctx.strokeStyle = "#c9a26b";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(x + 14, w.y + 18);
+  ctx.lineTo(x + 38, w.y - 7);
   ctx.stroke();
   
-  // 3. Отрисовка рук бабки (держит помело)
-  ctx.fillStyle="#d9b87c"; 
-  ctx.beginPath(); 
-  ctx.arc(x+40, w.y-9, 7, 0, 7); 
+  // Кисточка помела
+  ctx.fillStyle = "#d9b87c";
+  ctx.beginPath();
+  ctx.arc(x + 40, w.y - 9, 7, 0, 7);
   ctx.fill();
   
-  // 4. Сама бабка (эмодзи)
-  ctx.font="40px Arial"; 
-  ctx.textAlign="center"; 
+  // 3. Сама Баба-Яга (эмодзи)
+  ctx.font = "40px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
   ctx.fillText("🧙‍♀️", x, w.y);
   
-  // 5. Красный огонек/глаз для устрашения
-  ctx.fillStyle="#ff0000"; 
-  ctx.beginPath(); 
-  ctx.arc(x, w.y-32, 3, 0, 7); 
+  // 4. Красный огонёк (индикатор врага)
+  ctx.fillStyle = "#ff0000";
+  ctx.beginPath();
+  ctx.arc(x, w.y - 32, 3, 0, 7);
   ctx.fill();
 }
 
@@ -606,7 +601,7 @@ function draw() {
   drawStars();
   drawPickups();
   for(const e of enemies) drawEnemy(e);
-  for(const w of witches) drawWitch(w);
+  for(const w of witches) drawWitch(w); // <-- ИСПРАВЛЕНА ОТРИСОВКА БАБЫ-ЯГИ
   for(const l of lizards) drawLizard(l);
   for(const b of bears) drawBear(b);
   drawBoss(); 
@@ -901,8 +896,8 @@ if (!hasSave) {
 
 document.getElementById("btn-continue").addEventListener("click", () => {
   menuScreen.classList.add("hidden");
-  makeLevel();
-  loadProgress();
+  makeLevel(); 
+  loadProgress(); 
   draw();
   startGameLoop();
 });
