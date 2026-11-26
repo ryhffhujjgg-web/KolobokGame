@@ -52,7 +52,6 @@
     let level = 1;
     let levelGoal = 2000;
 
-    // УМЕНЬШЕННЫЙ ПЕРСОНАЖ
     const player = {
         x: 100, y: 0, width: 30, height: 30, 
         speed: 5, vy: 0, gravity: 0.6, jumpPower: -11,
@@ -67,7 +66,10 @@
 
     function setupLevel(lvl) {
         player.x = 100;
-        player.y = ch - 100; 
+        // Поднимаем землю и персонажа выше, чтобы кнопки не мешали
+        let groundY = ch - 150; 
+        player.y = groundY - 30; 
+        
         bullets = [];
         enemies = [];
         coins = [];
@@ -75,30 +77,27 @@
         cameraX = 0;
         levelGoal = 2000 * lvl; 
 
-        // Земля
-        platforms.push({ x: -2000, y: ch - 60, width: 10000, height: 100 });
+        // Земля (поднята выше)
+        platforms.push({ x: -2000, y: groundY, width: 10000, height: 100 });
 
-        // Враги (уменьшенные)
+        // Враги (замедлены для баланса)
         if (lvl === 1) {
-            enemies.push({ x: cw + 300, y: ch - 80, width: 30, height: 30, speed: 1.5, type: '🐇' });
-            enemies.push({ x: cw + 900, y: ch - 80, width: 30, height: 30, speed: 1.6, type: '🐇' });
-            enemies.push({ x: cw + 1500, y: ch - 80, width: 30, height: 30, speed: 1.7, type: '🐇' });
+            enemies.push({ x: cw + 400, y: groundY - 30, width: 30, height: 30, speed: 1.2, type: '🐇' });
+            enemies.push({ x: cw + 1000, y: groundY - 30, width: 30, height: 30, speed: 1.3, type: '🐇' });
         } else if (lvl === 2) {
-            enemies.push({ x: cw + 300, y: ch - 80, width: 30, height: 30, speed: 1.8, type: '🐺' });
-            enemies.push({ x: cw + 700, y: ch - 80, width: 30, height: 30, speed: 1.9, type: '🐻' });
-            enemies.push({ x: cw + 1200, y: ch - 80, width: 30, height: 30, speed: 2.0, type: '🐺' });
-            enemies.push({ x: cw + 1800, y: ch - 80, width: 30, height: 30, speed: 2.1, type: '🐻' });
+            enemies.push({ x: cw + 400, y: groundY - 30, width: 30, height: 30, speed: 1.4, type: '🐺' });
+            enemies.push({ x: cw + 900, y: groundY - 30, width: 30, height: 30, speed: 1.5, type: '🐻' });
+            enemies.push({ x: cw + 1400, y: groundY - 30, width: 30, height: 30, speed: 1.6, type: '🐺' });
         } else if (lvl === 3) {
-            enemies.push({ x: cw + 300, y: ch - 80, width: 30, height: 30, speed: 2.2, type: '🦊' });
-            enemies.push({ x: cw + 700, y: ch - 80, width: 30, height: 30, speed: 2.3, type: '🐺' });
-            enemies.push({ x: cw + 1200, y: ch - 80, width: 30, height: 30, speed: 2.4, type: '🦊' });
-            enemies.push({ x: cw + 1600, y: ch - 80, width: 30, height: 30, speed: 2.5, type: '🐻' });
-            enemies.push({ x: cw + 2200, y: ch - 80, width: 30, height: 30, speed: 2.6, type: '🐺' });
+            enemies.push({ x: cw + 400, y: groundY - 30, width: 30, height: 30, speed: 1.7, type: '🦊' });
+            enemies.push({ x: cw + 800, y: groundY - 30, width: 30, height: 30, speed: 1.8, type: '🐺' });
+            enemies.push({ x: cw + 1300, y: groundY - 30, width: 30, height: 30, speed: 1.9, type: '🦊' });
+            enemies.push({ x: cw + 1800, y: groundY - 30, width: 30, height: 30, speed: 2.0, type: '🐻' });
         }
 
-        // Монеты
-        for (let i = 0; i < 30; i++) {
-            coins.push({ x: 400 + i * 100, y: ch - 120 - Math.random() * 60, width: 15, height: 15 });
+        // Монеты (чуть выше земли)
+        for (let i = 0; i < 25; i++) {
+            coins.push({ x: 400 + i * 120, y: groundY - 80 - Math.random() * 40, width: 15, height: 15 });
         }
     }
 
@@ -276,7 +275,8 @@
         platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
 
         ctx.fillStyle = '#228B22';
-        ctx.fillRect(-2000, ch - 60, 10000, 15);
+        let groundY = ch - 150;
+        ctx.fillRect(-2000, groundY, 10000, 15);
 
         ctx.font = '20px Arial';
         coins.forEach(c => { ctx.fillText('🪙', c.x, c.y + 20); });
