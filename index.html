@@ -669,4 +669,26 @@ function bindTap(id,action) {
 }
 bindTap("jump",jump); bindTap("shoot",shoot);
 
-/* ===== НОВА
+/* ===== НОВАЯ ИГРА ===== */
+document.getElementById("restart").addEventListener("click",()=>{
+  if(!confirm("Начать игру заново? Старое сохранение будет удалено.")) return;
+  deleteSave(); world=0; totalStars=0; gameOver=false; victory=false; frame=0; lastSaveFrame=0; keys={};
+  makeLevel(); say("Новое приключение начинается!"); saveProgress(); draw(); startGameLoop();
+});
+
+/* ===== ЗАЩИТА ===== */
+document.addEventListener("contextmenu",e=>{ if(e.target.tagName==="BUTTON"||e.target.tagName==="CANVAS") e.preventDefault(); });
+window.addEventListener("blur",()=>{ keys.left=false; keys.right=false; saveProgress(); });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden){ keys.left=false; keys.right=false; saveProgress(); } });
+window.addEventListener("pagehide",()=>{ saveProgress(); });
+
+/* ===== ЗАПУСК ===== */
+makeLevel();
+const hasSave = loadProgress();
+if(hasSave) say("Сохранение загружено! Продолжаем приключение!");
+else { say("Вперёд, Колобок!"); saveProgress(); }
+draw();
+startGameLoop();
+</script>
+</body>
+</html>
