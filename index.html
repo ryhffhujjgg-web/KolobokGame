@@ -1,432 +1,269 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Колобок: Побег</title>
-    <style>
-        body { margin: 0; padding: 0; background: #111; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
-        
-        #gameContainer {
-            position: relative;
-            width: 100vw;
-            height: 400px;
-            background: #87CEEB;
-            border-top: 2px solid #000;
-            border-bottom: 2px solid #000;
-            overflow: hidden;
-        }
-        
-        canvas { display: block; width: 100%; height: 100%; touch-action: none; image-rendering: pixelated; }
-        
-        #controlsContainer {
-            width: 100vw;
-            height: calc(50vh - 200px);
-            background: #222;
-            position: relative;
-        }
-        
-        #controls { position: absolute; top: 20px; display: flex; width: 100%; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; }
-        .btn { background: rgba(255,255,255,0.4); border: 2px solid #fff; border-radius: 15px; width: 70px; height: 70px; font-size: 30px; font-weight: bold; color: #000; display: flex; justify-content: center; align-items: center; user-select: none; pointer-events: auto; }
-        .btn:active { background: rgba(255,255,255,0.8); transform: translateY(2px); }
-        #btnShoot { position: absolute; right: 20px; top: -85px; background: rgba(255,0,0,0.6); color: white; border-color: white; }
-        
-        #startScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; z-index: 10; }
-        h1 { font-size: 32px; margin-bottom: 10px; color: #FFD700; }
-        p { font-size: 16px; line-height: 1.5; margin-bottom: 20px; }
-        #startBtn { padding: 15px 30px; font-size: 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-weight: bold; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Колобок: Большое приключение</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#182b42;color:white;font-family:Arial,sans-serif;text-align:center}
+header{padding:12px;background:#263e59}
+h1{font-size:25px;margin:5px}
+#info{font-size:17px;margin:8px}
+#game{display:block;width:100%;max-width:900px;margin:auto;background:#8bd7f5;border:3px solid #fff;border-radius:8px;touch-action:none}
+#controls{display:flex;justify-content:center;gap:25px;margin:14px}
+button{font-size:24px;padding:13px 25px;border:0;border-radius:14px;background:#ffcf55;color:#38240b;font-weight:bold;touch-action:none}
+#jump{background:#ff9255}
+#message{padding:8px;min-height:28px}
+</style>
 </head>
 <body>
-    <div style="width: 100vw; height: calc(50vh - 200px); background: #222; display: flex; justify-content: center; align-items: flex-end; padding-bottom: 10px;">
-         <h2 style="color: #FFF; margin: 0; font-size: 20px;">КОЛОБОК: ПОБЕГ</h2>
-    </div>
-
-    <div id="gameContainer">
-        <div id="startScreen">
-            <h1>КОЛОБОК: ПОБЕГ</h1>
-            <p>Бабушка и дедушка хотели тебя съесть!<br>Хватай дробовик, собирай монеты и беги к заправке.</p>
-            <button id="startBtn">НАЧАТЬ ИГРУ</button>
-        </div>
-
-        <canvas id="gameCanvas"></canvas>
-    </div>
-
-    <div id="controlsContainer">
-        <div id="controls">
-            <div class="btn" id="btnLeft">◀</div>
-            <div class="btn" id="btnRight">▶</div>
-        </div>
-        <div class="btn" id="btnShoot">🔫</div>
-    </div>
-
+<header>
+<h1>🥯 Колобок: Большое приключение</h1>
+<div id="info">Мир 1 · Жизни: ❤️❤️❤️ · Звёзды: 0</div>
+</header>
+<canvas id="game" width="900" height="440"></canvas>
+<div id="message">Помоги Колобку пройти все четыре мира!</div>
+<div id="controls">
+<button id="left">◀</button>
+<button id="jump">ПРЫЖОК ⬆</button>
+<button id="right">▶</button>
+</div>
 <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const startScreen = document.getElementById('startScreen');
-    const startBtn = document.getElementById('startBtn');
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const info=document.getElementById("info");
+const message=document.getElementById("message");
 
-    let cw = window.innerWidth;
-    let ch = 400; 
+const worlds=[
+ {name:"Лесная тропинка",sky:"#8bd7f5",ground:"#55a84c",enemy:"🐰"},
+ {name:"Волчий лес",sky:"#829ac5",ground:"#477b42",enemy:"🐺"},
+ {name:"Медвежья поляна",sky:"#a6d5a0",ground:"#438b46",enemy:"🐻"},
+ {name:"Лисья опушка",sky:"#ffc47b",ground:"#68a34b",enemy:"🦊"}
+];
 
-    function resizeCanvas() {
-        cw = window.innerWidth;
-        ch = 400;
-        canvas.width = cw;
-        canvas.height = ch;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+let world=0,stars=0,lives=3,finished=false;
+let camera=0;
+let keys={left:false,right:false};
+let player={x:70,y:300,vx:0,vy:0,r:19,onGround:false};
+let platforms=[],enemies=[],items=[];
+const gravity=.55;
+const levelWidth=2400;
 
-    // --- ЗВУКОВАЯ СИСТЕМА ---
-    let audioCtx;
-    function initAudio() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-    }
+function makeLevel(){
+ platforms=[
+  {x:0,y:385,w:500,h:60},
+  {x:560,y:385,w:280,h:60},
+  {x:900,y:385,w:400,h:60},
+  {x:1370,y:385,w:350,h:60},
+  {x:1800,y:385,w:600,h:60},
+  {x:300,y:310,w:130,h:18},
+  {x:650,y:295,w:130,h:18},
+  {x:1020,y:305,w:140,h:18},
+  {x:1460,y:285,w:140,h:18},
+  {x:1850,y:300,w:150,h:18}
+ ];
+ enemies=[
+  {x:380,y:350,alive:true},
+  {x:760,y:350,alive:true},
+  {x:1160,y:350,alive:true},
+  {x:1550,y:350,alive:true},
+  {x:2000,y:350,alive:true}
+ ];
+ items=[
+  {x:350,y:270,taken:false},
+  {x:700,y:255,taken:false},
+  {x:1080,y:265,taken:false},
+  {x:1510,y:245,taken:false},
+  {x:1900,y:260,taken:false},
+  {x:2200,y:340,taken:false}
+ ];
+ player.x=70;player.y=300;player.vx=0;player.vy=0;
+ camera=0;
+}
+makeLevel();
 
-    function playTone(freq, type, duration, vol = 0.1) {
-        if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
-    }
+function drawBackground(){
+ ctx.fillStyle=worlds[world].sky;
+ ctx.fillRect(0,0,900,440);
+ ctx.fillStyle="#ffffff";
+ for(let i=0;i<5;i++){
+  let x=((i*230-camera*.25)%1100+1100)%1100;
+  ctx.beginPath();ctx.arc(x,75+i%2*35,24,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(x+25,75+i%2*35,30,0,Math.PI*2);ctx.fill();
+ }
+ for(let i=0;i<12;i++){
+  let x=((i*190-camera*.45)%1100+1100)%1100;
+  ctx.fillStyle="#397e48";
+  ctx.beginPath();ctx.arc(x,360,55,Math.PI,0);ctx.fill();
+  ctx.fillStyle="#23613b";
+  ctx.fillRect(x-5,290,10,75);
+ }
+}
 
-    function soundShoot() { playTone(800, 'square', 0.1, 0.05); }
-    function soundCoin() { playTone(1200, 'square', 0.1, 0.08); setTimeout(() => playTone(1600, 'square', 0.15, 0.08), 50); }
-    function soundHit() { playTone(150, 'sawtooth', 0.3, 0.1); }
-    function soundWin() { 
-        playTone(400, 'square', 0.2, 0.1);
-        setTimeout(() => playTone(500, 'square', 0.2, 0.1), 200);
-        setTimeout(() => playTone(600, 'square', 0.4, 0.1), 400);
-    }
-    function soundJump() {
-        if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.15);
-    }
-    
-    function speak(text) {
-        if (!window.speechSynthesis) return;
-        window.speechSynthesis.cancel(); 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'ru-RU';
-        utterance.pitch = 1.6;
-        utterance.rate = 1.4;
-        utterance.volume = 1.0;
-        window.speechSynthesis.speak(utterance);
-    }
+function draw(){
+ drawBackground();
+ ctx.save();
+ ctx.translate(-camera,0);
 
-    let keys = { right: false, left: false };
-    let score = 0;
-    let gameOver = false;
-    let gameStarted = false;
-    let level = 1;
-    let levelGoal = 2500;
+ // Земля и платформы
+ platforms.forEach(p=>{
+  ctx.fillStyle=worlds[world].ground;
+  ctx.fillRect(p.x,p.y,p.w,p.h);
+  ctx.fillStyle="#9b6335";
+  ctx.fillRect(p.x,p.y+12,p.w,p.h);
+ });
 
-    const player = {
-        x: 100, y: 0, width: 30, height: 30, // Начинаем с x = 100 (отступ от левого края)
-        speed: 5, vy: 0, gravity: 0.6, jumpPower: -11,
-        grounded: false, cooldown: 0, facingRight: true
-    };
+ // Звёзды
+ items.forEach(s=>{
+  if(!s.taken){
+   ctx.font="27px Arial";
+   ctx.fillText("⭐",s.x-12,s.y+10);
+  }
+ });
 
-    let bullets = [];
-    let enemies = [];
-    let coins = [];
-    let platforms = [];
-    let cameraX = 0;
+ // Враги
+ enemies.forEach(e=>{
+  if(e.alive){
+   ctx.font="38px Arial";
+   ctx.fillText(worlds[world].enemy,e.x-18,e.y+12);
+  }
+ });
 
-    function setupLevel(lvl) {
-        player.x = 100; // Ставим Колобка на левую сторону
-        let groundY = ch - 80;
-        player.y = groundY - 30; 
-        
-        bullets = [];
-        enemies = [];
-        coins = [];
-        platforms = [];
-        cameraX = 0; 
-        levelGoal = 2500 * lvl; 
+ // Финиш
+ ctx.fillStyle="#fff";
+ ctx.fillRect(2320,245,8,140);
+ ctx.fillStyle="#ff4444";
+ ctx.fillRect(2328,245,65,38);
+ ctx.font="25px Arial";
+ ctx.fillText("🏁",2310,230);
 
-        platforms.push({ x: -2000, y: groundY, width: 10000, height: 100 });
+ // Колобок
+ ctx.beginPath();
+ ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
+ ctx.fillStyle="#f5b83d";ctx.fill();
+ ctx.lineWidth=3;ctx.strokeStyle="#a96b17";ctx.stroke();
+ ctx.fillStyle="#38240b";
+ ctx.beginPath();ctx.arc(player.x-7,player.y-4,2.8,0,7);ctx.fill();
+ ctx.beginPath();ctx.arc(player.x+7,player.y-4,2.8,0,7);ctx.fill();
+ ctx.strokeStyle="#8b3c16";ctx.lineWidth=2;
+ ctx.beginPath();ctx.arc(player.x,player.y+3,7,.2,2.9);ctx.stroke();
+ ctx.restore();
 
-        // Враги находятся справа (их x больше, чем у игрока)
-        if (lvl === 1) {
-            enemies.push({ x: cw + 400, y: groundY - 30, width: 30, height: 30, speed: 1.2, type: '🐇' });
-            enemies.push({ x: cw + 1000, y: groundY - 30, width: 30, height: 30, speed: 1.3, type: '🐇' });
-        } else if (lvl === 2) {
-            enemies.push({ x: cw + 400, y: groundY - 30, width: 30, height: 30, speed: 1.4, type: '🐺' });
-            enemies.push({ x: cw + 900, y: groundY - 30, width: 30, height: 30, speed: 1.5, type: '🐻' });
-            enemies.push({ x: cw + 1400, y: groundY - 30, width: 30, height: 30, speed: 1.6, type: '🐺' });
-        } else if (lvl === 3) {
-            enemies.push({ x: cw + 400, y: groundY - 30, width: 30, height: 30, speed: 1.7, type: '🦊' });
-            enemies.push({ x: cw + 800, y: groundY - 30, width: 30, height: 30, speed: 1.8, type: '🐺' });
-            enemies.push({ x: cw + 1300, y: groundY - 30, width: 30, height: 30, speed: 1.9, type: '🦊' });
-            enemies.push({ x: cw + 1800, y: groundY - 30, width: 30, height: 30, speed: 2.0, type: '🐻' });
-        }
+ info.textContent="Мир "+(world+1)+" — "+worlds[world].name+
+ " · Жизни: "+ "❤️".repeat(lives)+" · Звёзды: "+stars;
+}
 
-        for (let i = 0; i < 25; i++) {
-            coins.push({ x: 400 + i * 120, y: groundY - 60 - Math.random() * 40, width: 15, height: 15 });
-        }
-    }
+function collide(a,b){
+ return a.x+a.r>b.x && a.x-a.r<b.x+b.w &&
+ a.y+a.r>b.y && a.y-a.r<b.y+b.h;
+}
 
-    startBtn.addEventListener('click', () => {
-        initAudio(); 
-        startScreen.style.display = 'none';
-        gameStarted = true;
-        setupLevel(level);
-    });
+function update(){
+ if(finished)return;
 
-    window.addEventListener('keydown', (e) => {
-        if (!gameStarted) return;
-        if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = true; player.facingRight = true; }
-        if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keys.left = true; player.facingRight = false; }
-        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
-            if (player.grounded) { 
-                player.vy = player.jumpPower; 
-                player.grounded = false; 
-                soundJump(); 
-            }
-        }
-        if (e.code === 'KeyF') shoot();
-    });
-    window.addEventListener('keyup', (e) => {
-        if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
-        if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
-    });
+ player.vx=0;
+ if(keys.left)player.vx=-4;
+ if(keys.right)player.vx=4;
 
-    document.getElementById('btnRight').addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; player.facingRight = true; });
-    document.getElementById('btnRight').addEventListener('touchend', (e) => { e.preventDefault(); keys.right = false; });
-    document.getElementById('btnLeft').addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; player.facingRight = false; });
-    document.getElementById('btnLeft').addEventListener('touchend', (e) => { e.preventDefault(); keys.left = false; });
-    document.getElementById('btnShoot').addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); });
-    
-    canvas.addEventListener('touchstart', (e) => { 
-        if (gameStarted && player.grounded) { 
-            player.vy = player.jumpPower; 
-            player.grounded = false; 
-            soundJump(); 
-        }
-    });
+ player.x+=player.vx;
+ player.x=Math.max(player.r,Math.min(levelWidth-player.r,player.x));
+ player.vy+=gravity;
+ player.y+=player.vy;
+ player.onGround=false;
 
-    function shoot() {
-        if (gameOver || !gameStarted) return;
-        if (player.cooldown <= 0) {
-            let startX = player.facingRight ? player.x + player.width : player.x - 10;
-            let speed = player.facingRight ? 12 : -12;
-            bullets.push({ x: startX, y: player.y + 10, width: 10, height: 5, speed: speed });
-            player.cooldown = 15;
-            soundShoot();
-        }
-    }
+ platforms.forEach(p=>{
+  if(player.x+player.r>p.x && player.x-player.r<p.x+p.w &&
+     player.y+player.r>=p.y && player.y+player.r<=p.y+22 &&
+     player.vy>=0){
+   player.y=p.y-player.r;
+   player.vy=0;
+   player.onGround=true;
+  }
+ });
 
-    function update() {
-        if (gameOver || !gameStarted) return;
-        
-        if (player.cooldown > 0) player.cooldown--;
+ items.forEach(s=>{
+  if(!s.taken && Math.abs(player.x-s.x)<28 && Math.abs(player.y-s.y)<30){
+   s.taken=true;stars++;
+   message.textContent="Отлично! Ты нашёл звёздочку ⭐";
+  }
+ });
 
-        if (keys.right) player.x += player.speed;
-        if (keys.left) player.x -= player.speed;
+ enemies.forEach(e=>{
+  if(!e.alive)return;
+  let dx=Math.abs(player.x-e.x),dy=Math.abs(player.y-e.y);
+  if(dx<34 && dy<35){
+   if(player.vy>1 && player.y<e.y-5){
+    e.alive=false;player.vy=-9;
+    message.textContent="Враг побеждён!";
+   }else{
+    lives--;
+    player.x=Math.max(70,player.x-100);
+    player.y=280;player.vy=-5;
+    if(lives<=0){
+     lives=3;stars=0;world=0;makeLevel();
+     message.textContent="Попробуй ещё раз!";
+    }else message.textContent="Осторожно! Колобок потерял жизнь.";
+   }
+  }
+ });
 
-        // Ограничение, чтобы не уйти за левый край экрана
-        if (player.x < 0) player.x = 0;
+ if(player.y>490){
+  lives--;
+  player.x=Math.max(70,player.x-120);
+  player.y=280;player.vy=0;
+  if(lives<=0){lives=3;stars=0;world=0;makeLevel();}
+ }
 
-        // Камера движется, только если игрок дошел до середины экрана
-        if (!gameOver) {
-            if (player.x > cw / 2) {
-                cameraX = player.x - cw / 2;
-            } else {
-                cameraX = 0;
-            }
-        }
+ if(player.x>2320){
+  if(world<3){
+   world++;
+   makeLevel();
+   message.textContent="Новый мир: "+worlds[world].name+"!";
+  }else{
+   finished=true;
+   message.textContent="🎉 Победа! Колобок прошёл все четыре мира!";
+  }
+ }
 
-        player.vy += player.gravity;
-        player.y += player.vy;
-        player.grounded = false;
+ camera=Math.max(0,Math.min(levelWidth-900,player.x-300));
+ draw();
+ requestAnimationFrame(update);
+}
 
-        platforms.forEach(p => {
-            if (player.x + player.width > p.x && player.x < p.x + p.width &&
-                player.y + player.height > p.y && player.y < p.y + p.height) {
-                if (player.vy > 0 && player.y + player.height - player.vy <= p.y) {
-                    player.y = p.y - player.height;
-                    player.vy = 0;
-                    player.grounded = true;
-                }
-            }
-        });
+function jump(){
+ if(player.onGround){
+  player.vy=-12;
+  player.onGround=false;
+ }
+}
 
-        bullets.forEach((b, index) => {
-            b.x += b.speed;
-            if (b.x > player.x + cw || b.x < player.x - cw) bullets.splice(index, 1);
-        });
+function bindButton(id,key){
+ const b=document.getElementById(id);
+ b.addEventListener("pointerdown",e=>{e.preventDefault();keys[key]=true;});
+ b.addEventListener("pointerup",()=>keys[key]=false);
+ b.addEventListener("pointerleave",()=>keys[key]=false);
+ b.addEventListener("pointercancel",()=>keys[key]=false);
+}
+bindButton("left","left");
+bindButton("right","right");
+document.getElementById("jump").addEventListener("pointerdown",e=>{
+ e.preventDefault();jump();
+});
 
-        enemies.forEach((e, index) => {
-            if (e.x > player.x) e.x -= e.speed;
-            else e.x += e.speed;
+document.addEventListener("keydown",e=>{
+ if(e.key==="ArrowLeft"||e.key==="a")keys.left=true;
+ if(e.key==="ArrowRight"||e.key==="d")keys.right=true;
+ if(e.key==="ArrowUp"||e.key===" "||e.key==="w")jump();
+});
+document.addEventListener("keyup",e=>{
+ if(e.key==="ArrowLeft"||e.key==="a")keys.left=false;
+ if(e.key==="ArrowRight"||e.key==="d")keys.right=false;
+});
 
-            if (player.x < e.x + e.width && player.x + player.width > e.x &&
-                player.y < e.y + e.height && player.y + player.height > e.y) {
-                if (!gameOver) {
-                    gameOver = true;
-                    soundHit();
-                }
-            }
-
-            bullets.forEach((b, bIndex) => {
-                if (b.x < e.x + e.width && b.x + b.width > e.x &&
-                    b.y < e.y + e.height && b.y + b.height > e.y) {
-                    enemies.splice(index, 1);
-                    bullets.splice(bIndex, 1);
-                    score += 10;
-                    speak("Ай, блядь!"); 
-                }
-            });
-        });
-
-        coins.forEach((c, index) => {
-            if (player.x < c.x + c.width && player.x + player.width > c.x &&
-                player.y < c.y + c.height && player.y + player.height > c.y) {
-                coins.splice(index, 1);
-                score += 5;
-                soundCoin();
-            }
-        });
-
-        if (player.x > levelGoal) {
-            if (level < 3) {
-                level++;
-                setupLevel(level);
-                alert(`Уровень ${level}!`);
-            } else {
-                gameOver = true; 
-                soundWin();
-                showWinScreen();
-            }
-        }
-    }
-
-    function showWinScreen() {
-        ctx.fillStyle = '#FF8C00'; 
-        ctx.fillRect(0, 0, cw, ch);
-        ctx.fillStyle = '#FFFF00'; 
-        ctx.beginPath(); ctx.arc(cw / 2, ch / 2, 60, 0, Math.PI * 2); ctx.fill();
-        
-        ctx.font = '80px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('🚗', cw / 2, ch - 80);
-        ctx.fillText('🥯', cw / 2 - 40, ch - 80);
-
-        ctx.fillStyle = '#FFF'; ctx.font = 'bold 30px "Courier New", Courier, monospace';
-        ctx.fillText('ПОБЕГ УДАЛСЯ!', cw / 2, 80);
-        ctx.font = '20px "Courier New", Courier, monospace';
-        ctx.fillText('Колобок уехал в закат', cw / 2, 120);
-
-        ctx.fillStyle = '#000'; ctx.fillRect(cw / 2 - 80, ch - 40, 160, 30);
-        ctx.fillStyle = '#FFF'; ctx.font = '16px Arial';
-        ctx.fillText('Играть снова', cw / 2, ch - 20);
-        ctx.textAlign = 'left';
-    }
-
-    function drawKolobok(x, y, w, h, facingRight) {
-        ctx.save();
-        ctx.fillStyle = '#D2B48C';
-        ctx.beginPath(); ctx.arc(x + w/2, y + h/2, w/2, 0, Math.PI*2); ctx.fill();
-        ctx.strokeStyle = '#8B4513'; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.fillStyle = '#333';
-        ctx.beginPath(); ctx.arc(x + w/2, y + h/2, w/2 - 1, 0, Math.PI, false); ctx.fill();
-        ctx.strokeStyle = '#CCC'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(x + w/2, y + h/2 + 3); ctx.lineTo(x + w/2, y + h - 3); ctx.stroke();
-        ctx.fillStyle = '#000';
-        if (facingRight) {
-            ctx.beginPath(); ctx.arc(x + w/2 + 4, y + h/2 - 3, 2, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(x + w/2 + 9, y + h/2 - 3, 2, 0, Math.PI*2); ctx.fill();
-        } else {
-            ctx.beginPath(); ctx.arc(x + w/2 - 9, y + h/2 - 3, 2, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(x + w/2 - 4, y + h/2 - 3, 2, 0, Math.PI*2); ctx.fill();
-        }
-        ctx.beginPath(); ctx.arc(x + w/2, y + h/2 + 3, 4, 0.1, Math.PI - 0.1); ctx.stroke();
-        ctx.fillStyle = '#555';
-        ctx.fillRect(facingRight ? x + w - 3 : x - 10, y + h/2 + 3, 13, 4);
-        ctx.fillStyle = '#8B4513';
-        ctx.fillRect(facingRight ? x + w - 10 : x + 3, y + h/2 + 4, 7, 5);
-        ctx.restore();
-    }
-
-    function draw() {
-        ctx.clearRect(0, 0, cw, ch);
-
-        if (gameOver && level === 3) {
-            showWinScreen();
-            return;
-        }
-
-        if (level === 1) { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, cw, ch); }
-        else if (level === 2) { ctx.fillStyle = '#2E8B57'; ctx.fillRect(0, 0, cw, ch); }
-        else { ctx.fillStyle = '#FF8C00'; ctx.fillRect(0, 0, cw, ch); }
-
-        ctx.save();
-        ctx.translate(-cameraX, 0);
-
-        ctx.fillStyle = level === 2 ? '#556B2F' : '#8B4513';
-        platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
-
-        ctx.fillStyle = '#228B22';
-        let groundY = ch - 80;
-        ctx.fillRect(-2000, groundY, 10000, 15);
-
-        ctx.font = '20px Arial';
-        coins.forEach(c => { ctx.fillText('🪙', c.x, c.y + 20); });
-
-        ctx.font = '35px Arial';
-        enemies.forEach(e => { ctx.fillText(e.type, e.x, e.y + 35); });
-
-        ctx.fillStyle = '#FF0000';
-        bullets.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
-
-        drawKolobok(player.x, player.y, player.width, player.height, player.facingRight);
-        ctx.restore();
-
-        ctx.fillStyle = '#000'; ctx.font = 'bold 18px "Courier New", Courier, monospace';
-        ctx.fillText(`Счет: ${score}`, 10, 25);
-        ctx.fillText(`Уровень: ${level} / 3`, 10, 45);
-
-        if (gameOver && level < 3) {
-            ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, cw, ch);
-            ctx.fillStyle = '#FFF'; ctx.textAlign = 'center';
-            ctx.font = '36px "Courier New", Courier, monospace';
-            ctx.fillText('ИГРА ОКОНЧЕНА', cw / 2, ch / 2 - 30);
-            ctx.font = '18px "Courier New", Courier, monospace';
-            ctx.fillText('Нажмите чтобы перезапустить', cw / 2, ch / 2 + 10);
-            ctx.textAlign = 'left';
-        }
-    }
-
-    function loop() {
-        update();
-        draw();
-        requestAnimationFrame(loop);
-    }
-
-    canvas.addEventListener('click', () => { if (gameOver) location.reload(); });
-
-    loop();
+draw();
+requestAnimationFrame(update);
 </script>
 </body>
 </html>
