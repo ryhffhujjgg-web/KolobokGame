@@ -65,7 +65,6 @@ button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 #b28d20; }
   <h1>КОЛОБОК</h1>
   <p>Большое приключение</p>
   
-  <!-- Выбор оружия -->
   <div class="weapon-select">
     <button class="weapon-btn active" id="wpn-shotgun" data-weapon="shotgun">
       <span class="weapon-icon">🔫</span>
@@ -139,20 +138,17 @@ let currentWeapon = "shotgun";
 let autoFireInterval = null;
 let isHoldingShoot = false;
 
-// Спец. враги
 let mermaids = [];
 let sharks = [];
 let trees = [];
-let gopniks = []; // Маленькие лисы-гопники
+let gopniks = [];
 
-function getGravity() { return world === 10 ? 0.15 : 0.55; } // Меньше гравитации под водой
+function getGravity() { return world === 10 ? 0.15 : 0.55; }
 
-/* ===== ВСПЛЫВАЮЩИЙ ТЕКСТ ===== */
 function addFloatingText(x, y, text, color) {
   floatingTexts.push({ x, y, text, color, life: 60, maxLife: 60 });
 }
 
-/* ===== СИСТЕМА ЧАСТИЦ ===== */
 function spawnParticles(x, y, color, count) {
   for (let i = 0; i < count; i++) {
     particles.push({
@@ -172,7 +168,7 @@ function updateParticles() {
     let p = particles[i];
     p.x += p.vx;
     p.y += p.vy;
-    p.vy += (world === 10 ? 0.05 : 0.2); // Частицы тоже медленнее под водой
+    p.vy += (world === 10 ? 0.05 : 0.2);
     p.life--;
     if (p.life <= 0) particles.splice(i, 1);
   }
@@ -189,7 +185,6 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
-/* ===== СОХРАНЕНИЕ ===== */
 function saveProgress() {
   try {
     const data = {
@@ -225,7 +220,6 @@ function loadProgress() {
 
 function deleteSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
 
-/* ===== ЗВУК ===== */
 function say(text) {
   message.textContent = text;
   if ("speechSynthesis" in window) { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = "ru-RU"; u.rate = 1; speechSynthesis.speak(u); }
@@ -254,7 +248,6 @@ function soundShoot() {
       const gain = soundContext.createGain(); gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
       osc.connect(gain); gain.connect(soundContext.destination); osc.start(t); osc.stop(t + 0.07);
     } else if (currentWeapon === "ak47") {
-      // Более резкий, сухой звук
       const osc = soundContext.createOscillator(); osc.type = "sawtooth"; osc.frequency.setValueAtTime(400, t); osc.frequency.exponentialRampToValueAtTime(80, t + 0.04);
       const gain = soundContext.createGain(); gain.gain.setValueAtTime(0.15, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
       osc.connect(gain); gain.connect(soundContext.destination); osc.start(t); osc.stop(t + 0.06);
@@ -273,7 +266,6 @@ function sound(freq=440, duration=0.1, type="square") {
   } catch(e) {}
 }
 
-/* ===== УРОВЕНЬ ===== */
 function makeLevel() {
   player = { x:70, y:GROUND_Y - 19, vx:0, vy:0, r:19, speed: (world === 10 ? 2.2 : 3.2), facing:1, onGround:false, health:3, invincible:0, jumpsLeft:2, maxJumps:2 };
   lastSafeX = 70; camera = 0; bullets = []; enemyBullets = []; enemies = []; witches = []; lizards = []; bears = []; stars = []; platforms = []; gaps = []; bossBattle = false; isTransitioning = false; pickups = []; particles = []; floatingTexts = []; shakeTime = 0;
@@ -307,7 +299,6 @@ function makeLevel() {
     if (world % 4 >= 2) bears.push({ x:1350, y:GROUND_Y - 30, vx:0.6, vy:0, hp:3, maxHp:3, alive:true, onGround:true, facing:1, throwTimer:140, hurtFlash:0 });
   }
   
-  // Добавляем гопников на каждый уровень (кроме финального босса, если хотите, но пусть будут)
   for(let i=0; i<3; i++) {
     gopniks.push({ x: 600 + i*500, y: GROUND_Y - 20, vx: 0.8, vy:0, min: 600 + i*500 - 50, max: 600 + i*500 + 50, alive: true, onGround: true, shootTimer: 120 + i*40 });
   }
@@ -333,16 +324,11 @@ function isOverGap(x) { return gaps.some(g => x + player.r * 0.5 > g.x && x - pl
 function drawGopnik(g) {
   const x=g.x-camera; if(x<-50||x>W+50||!g.alive) return;
   ctx.save(); ctx.translate(x, g.y);
-  // Тело (спортивка)
   ctx.fillStyle = "#222"; ctx.fillRect(-10, -15, 20, 25);
-  // Голова лисы
   ctx.fillStyle = "#d96a1e"; ctx.beginPath(); ctx.arc(0, -20, 12, 0, 7); ctx.fill();
-  // Ушки
   ctx.beginPath(); ctx.moveTo(-8, -28); ctx.lineTo(-12, -38); ctx.lineTo(-2, -28); ctx.fill();
   ctx.beginPath(); ctx.moveTo(8, -28); ctx.lineTo(12, -38); ctx.lineTo(2, -28); ctx.fill();
-  // Кепка
   ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(0, -25, 13, Math.PI, 0); ctx.fill();
-  // Семечки в руке
   ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(12, -5, 3, 0, 7); ctx.fill();
   ctx.restore();
 }
@@ -453,7 +439,6 @@ function drawTreeMonster(x, y, isMoving, facing) {
   ctx.restore();
 }
 
-/* ===== ОТРИСОВКА ФОНА ===== */
 function drawCloud(x,y,s=1) {
   ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
   ctx.fillStyle="rgba(100,120,140,0.3)"; ctx.beginPath(); ctx.arc(0,18,22,0,7); ctx.arc(25,8,27,0,7); ctx.arc(52,20,21,0,7); ctx.arc(28,25,26,0,7); ctx.fill();
@@ -548,7 +533,6 @@ function drawGroundSegment(startX, width, theme) {
   ctx.fillStyle=lg; ctx.fillRect(sx, GROUND_Y+18, width, H-GROUND_Y-18);
 }
 
-/* ===== ОТРИСОВКА ПЕРСОНАЖЕЙ ===== */
 function drawRabbit(x, y, isMoving, facing) {
   const legSwing = isMoving ? Math.sin(frame * 0.3) * 6 : 0;
   ctx.save(); ctx.translate(x, y); ctx.scale(facing, 1);
@@ -606,7 +590,6 @@ function drawFoxBody(x, y, isMoving, facing) {
   ctx.restore();
 }
 
-/* ===== ОТРИСОВКА ОБЪЕКТОВ ===== */
 function drawPlatforms() {
   for(const p of platforms) {
     const x=p.x-camera; if(x<-200||x>W+200) continue;
@@ -662,11 +645,10 @@ function drawPlayer() {
     ctx.fillStyle="#555"; ctx.fillRect(35,-10,20,4); ctx.fillRect(35,-4,20,4);
     ctx.fillStyle="#a7a7a7"; ctx.fillRect(45,-9,5,2); ctx.fillRect(45,-3,5,2);
   } else if (currentWeapon === "ak47") {
-    // АК-47
-    ctx.fillStyle="#5c3a21"; ctx.fillRect(10,-5,15,8); // Приклад/рукоятка
-    ctx.fillStyle="#222"; ctx.fillRect(25,-6,25,4); // Ствол
-    ctx.fillStyle="#8b4513"; ctx.fillRect(20,-2,10,6); // Магазин
-    ctx.fillStyle="#555"; ctx.fillRect(35,-7,8,2); // Газовая трубка
+    ctx.fillStyle="#5c3a21"; ctx.fillRect(10,-5,15,8);
+    ctx.fillStyle="#222"; ctx.fillRect(25,-6,25,4);
+    ctx.fillStyle="#8b4513"; ctx.fillRect(20,-2,10,6);
+    ctx.fillStyle="#555"; ctx.fillRect(35,-7,8,2);
   }
   ctx.restore();
   
@@ -740,7 +722,7 @@ function drawBullets() {
   ctx.fillStyle="#292929"; for(const b of bullets){ ctx.beginPath(); ctx.arc(b.x-camera,b.y,6,0,7); ctx.fill(); }
   for(const b of enemyBullets){ ctx.save(); ctx.translate(b.x-camera,b.y); ctx.rotate(b.angle||0); 
     if (b.isGreen) ctx.fillStyle = "#44ff44"; 
-    else if (b.isSeed) { ctx.fillStyle = "#222"; ctx.fillRect(-4,-2,8,4); } // Семечки
+    else if (b.isSeed) { ctx.fillStyle = "#222"; ctx.fillRect(-4,-2,8,4); }
     else ctx.fillStyle = "#ffdb45";
     ctx.fillRect(-9,-4,18,8); ctx.restore(); }
 }
@@ -822,17 +804,14 @@ function draw() {
   }
 }
 
-/* ===== ДЕЙСТВИЯ ===== */
 function jump() { 
   if(gameOver||victory||isTransitioning) return; 
   if(world === 10) {
-    // Плавание под водой (Марио-стайл)
     player.vy = -3.5;
     player.onGround = false;
     sound(520,0.08);
     spawnParticles(player.x, player.y + player.r, "rgba(255,255,255,0.5)", 5);
   } else {
-    // Обычный прыжок
     if(player.onGround || player.jumpsLeft > 0){ 
       player.vy = player.onGround ? -11 : -9; 
       player.onGround = false; 
@@ -852,7 +831,6 @@ function dash() {
   }
 }
 
-// Стрельба
 function startShoot() {
   if(gameOver||victory||isTransitioning) return;
   isHoldingShoot = true;
@@ -860,8 +838,8 @@ function startShoot() {
     shootShotgun();
   } else {
     if (!autoFireInterval) {
-      shootAuto(); // Выстрел сразу
-      const speed = currentWeapon === "minigun" ? 80 : 100; // АК чуть медленнее минигана
+      shootAuto();
+      const speed = currentWeapon === "minigun" ? 80 : 100;
       autoFireInterval = setInterval(shootAuto, speed);
     }
   }
@@ -884,6 +862,7 @@ function shootShotgun() {
 }
 
 function shootAuto() {
+  if(gameOver||victory) { stopShoot(); return; }
   const now=Date.now(); if(now-(player.lastShot||0)<50) return; player.lastShot=now;
   if (currentWeapon === "minigun") {
     bullets.push({ x:player.x+player.facing*30, y:player.y-7 + (Math.random()-0.5)*5, vx:player.facing*11, life:100 });
@@ -904,17 +883,21 @@ function hurtPlayer() {
   sound(100,0.2,"sawtooth"); updateInfo();
   spawnParticles(player.x, player.y, "#ff3333", 15);
   say("Ой-ой-ой!"); 
-  if(player.health<=0){ gameOver=true; say("Колобок, попробуй ещё раз!"); }
+  if(player.health<=0){ 
+    gameOver=true; 
+    stopShoot(); // <--- ВАЖНО: Останавливаем стрельбу при смерти
+    say("Колобок, попробуй ещё раз!"); 
+  }
   saveProgress();
 }
 
 function respawnFromGap() {
   player.x=lastSafeX; player.y=GROUND_Y-19; player.vx=0; player.vy=0; player.invincible=90;
   triggerShake(15);
+  stopShoot(); // <--- ВАЖНО: Останавливаем стрельбу при падении
   hurtPlayer(); if(!gameOver) say("Осторожно, обрыв!");
 }
 
-/* ===== ОБНОВЛЕНИЕ ИГРЫ ===== */
 function updatePlayer() {
   if (isTransitioning) return;
   
@@ -930,11 +913,10 @@ function updatePlayer() {
     player.x+=player.vx;
   }
   
-  // Гравитация и плавание
   if (world === 10) {
     player.vy += getGravity(); 
-    if (player.vy > 4) player.vy = 4; // Ограничение скорости падения под водой
-    if (keys.up || isHoldingShoot) player.vy -= 0.4; // Плавание вверх при зажатии (используем Shoot как вторую кнопку или Up)
+    if (player.vy > 4) player.vy = 4;
+    if (keys.up || isHoldingShoot) player.vy -= 0.4;
   } else {
     player.vy+=getGravity(); 
   }
@@ -944,10 +926,9 @@ function updatePlayer() {
   const overGap=isOverGap(player.x);
   
   if (world === 10) {
-    // Под водой нет пропастей (дно есть везде)
     if(player.y > H - player.r) { player.y = H - player.r; player.vy = 0; player.onGround = true; }
     if(player.y < player.r) { player.y = player.r; player.vy = 0; }
-    player.onGround = false; // Под водой всегда плаваем
+    player.onGround = false; 
     player.jumpsLeft = player.maxJumps;
   } else {
     if(player.y>H+40){ if(overGap||player.y>H+60){ respawnFromGap(); return; } }
@@ -977,7 +958,6 @@ function updateGopniks() {
       }
       g.shootTimer--;
       if(g.shootTimer <= 0) {
-        // Плюется семечками
         const dx = player.x - g.x;
         const dy = player.y - (g.y - 20);
         const len = Math.sqrt(dx*dx + dy*dy) || 1;
@@ -986,13 +966,11 @@ function updateGopniks() {
         sound(600, 0.05, "square");
       }
     } else {
-      // Патрулирование
       if (g.x < g.min) g.vx = Math.abs(g.vx) || 0.8;
       if (g.x > g.max) g.vx = -Math.abs(g.vx) || -0.8;
     }
     g.x += g.vx;
     
-    // Прыжок на голову гопнику
     if(Math.abs(player.x-g.x)<35 && Math.abs(player.y-g.y)<35) {
       if (player.vy > 0 && player.y < g.y - 10) {
         g.alive = false;
@@ -1252,7 +1230,9 @@ function checkLevelEnd() {
   if (isTransitioning || gameOver || victory) return;
   const hutX = LEVEL_WIDTH - 140;
   if (player.x > hutX + 40 && player.x < hutX + 85) {
-    isTransitioning = true; say("В избушку!"); sound(880, 0.3, "sine");
+    isTransitioning = true; 
+    stopShoot(); // <--- ВАЖНО: Останавливаем стрельбу при переходе
+    say("В избушку!"); sound(880, 0.3, "sine");
     setTimeout(() => {
       if (world < TOTAL_LEVELS - 1) {
         world++; makeLevel(); say("Мир " + (world+1) + ": " + worlds[world].name); saveProgress(); isTransitioning = false;
@@ -1284,7 +1264,7 @@ document.addEventListener("keydown",e=>{
   if(e.code==="ArrowLeft"||e.code==="KeyA") keys.left=true;
   if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=true;
   if((e.code==="ArrowUp"||e.code==="Space"||e.code==="KeyW")&&!e.repeat) jump();
-  if(e.code==="ArrowUp"||e.code==="KeyW") keys.up = true; // Для плавания
+  if(e.code==="ArrowUp"||e.code==="KeyW") keys.up = true;
   if((e.code==="KeyJ"||e.code==="KeyF")&&!e.repeat) startShoot();
   if((e.code==="ShiftLeft"||e.code==="KeyK")&&!e.repeat) dash();
 });
@@ -1324,13 +1304,12 @@ function bindShoot() {
 }
 bindShoot();
 
-// Для мобильных: кнопка прыжка работает и как "всплытие" под водой при удержании
 function bindJump() {
   const button = document.getElementById("jump");
   button.addEventListener("pointerdown", e => {
     e.preventDefault();
-    jump(); // Обычный прыжок
-    keys.up = true; // Включаем подъем (для воды)
+    jump();
+    keys.up = true;
     try{ button.setPointerCapture(e.pointerId); }catch(err){}
   });
   const stop = e => {
