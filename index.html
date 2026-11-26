@@ -713,4 +713,108 @@ function updateBullets() {
     for(const e of enemies) if(e.alive&&Math.abs(b.x-e.x)<25&&Math.abs(b.y-e.y)<30){ e.alive=false; b.life=0; say("Ай!"); sound(330,0.12); saveProgress(); }
     for(const w of witches) if(w.alive&&Math.abs(b.x-w.x)<30&&Math.abs(b.y-w.y)<34){ w.alive=false; b.life=0; say("Куда ты, бабуля?"); sound(220,0.15,"triangle"); saveProgress(); }
     for(const l of lizards) if(l.alive&&Math.abs(b.x-l.x)<24&&Math.abs(b.y-l.y)<24){ l.alive=false; b.life=0; say("Хвост отвалился!"); sound(280,0.12,"triangle"); saveProgress(); }
-    for(const bear of bears) if(bear.alive&&Math.abs(b.x-bear.x)<26&&Math
+    for(const bear of bears) if(bear.alive&&Math.abs(b.x-bear.x)<26&&Math.abs(b.y-bear.y)<26){
+      bear.hp--; bear.hurtFlash=20; b.life=0; sound(200,0.08);
+      if(bear.hp<=0){ bear.alive=false; say("Медведь ушёл в лес!"); totalStars+=5; }
+      saveProgress();
+    }
+    if(boss && boss.isBossLevel && bossBattle && boss.alive && Math.abs(b.x-boss.x)<38 && Math.abs(b.y-boss.y)<45){
+      boss.hp--; b.life=0; sound(240,0.08);
+      if(boss.hp<=0){ boss.alive=false; say("А меня за что?"); setTimeout(()=>{ if(!victory) message.textContent="⭐ Лиса побеждена!"; },1800); totalStars+=10; }
+      saveProgress();
+    }
+  }
+  bullets=bullets.filter(b=>b.life>0&&b.x>-100&&b.x<LEVEL_WIDTH+100);
+  for(const b of enemyBullets){
+    b.x+=b.vx; b.y+=b.vy; b.life--;
+    if(Math.abs(b.x-player.x)<20&&Math.abs(b.y-player.y)<20){ b.life=0; hurtPlayer(); }
+  }
+  enemyBullets=enemyBullets.filter(b=>b.life>0);
+}
+
+/* ===== ЗВЁЗДЫ И ПЕРЕХОД ===== */
+function updateStars() {
+  for(const s of stars) if(!s.taken&&Math.abs(player.x-s.x)<27&&Math.abs(player.y-s.y)<35){ s.taken=true; totalStars++; sound(760,0.12,"sine"); updateInfo(); saveProgress(); }
+}
+function checkLevelEnd() {
+  if (isTransitioning || gameOver || victory) return;
+  const hutX = LEVEL_WIDTH - 120;
+  if (player.x > hutX + 30 && player.x < hutX + 70) {
+    isTransitioning = true; say("В избушку!"); sound(880, 0.3, "sine");
+    setTimeout(() => {
+      if (world < TOTAL_LEVELS - 1) {
+        world++; makeLevel(); say("Мир " + (world+1) + ": " + worlds[world].name); saveProgress(); isTransitioning = false;
+      } else {
+        victory = true; say("Победа! Колобок спас лес!"); saveProgress(); isTransitioning = false;
+      }
+    }, 1000);
+  }
+  if (boss && boss.isBossLevel && bossBattle && boss.alive && player.x > 2110) { player.x = 2110; }
+}
+
+/* ===== ЦИКЛ ===== */
+function update() {
+  if(gameOver||victory){ draw(); gameLoopRunning=false; return; }
+  frame++; updatePlayer(); updateEnemies(); updateWitches(); updateLizards(); updateBears(); updateBoss(); updateBullets(); updateStars(); checkLevelEnd(); updateInfo(); draw();
+  if(frame-lastSaveFrame>=60){ saveProgress(); lastSaveFrame=frame; }
+  requestAnimationFrame(update);
+}
+function startGameLoop() { if(gameLoopRunning) return; gameLoopRunning=true; requestAnimationFrame(update); }
+
+/* ===== КЛАВИАТУРА ===== */
+document.addEventListener("keydown",e=>{
+  if(["ArrowLeft","ArrowRight","ArrowUp","Space"].includes(e.code)) e.preventDefault();
+  if(e.code==="ArrowLeft"||e.code==="KeyA") keys.left=true;
+  if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=true;
+  if((e.code==="ArrowUp"||e.code==="Space"||e.code==="KeyW")&&!e.repeat) jump();
+  if((e.code==="KeyJ"||e.code==="KeyF")&&!e.repeat) shoot();
+});
+document.addEventListener("keyup",e=>{
+  if(e.code==="ArrowLeft"||e.code==="KeyA") keys.left=false;
+  if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=false;
+});
+
+/* ===== МОБИЛЬНЫЕ КНОПКИ ===== */
+function bindHold(id,key) {
+  const button=document.getElementById(id);
+  button.addEventListener("pointerdown",e=>{ e.preventDefault(); keys[key]=true; try{ button.setPointerCapture(e.pointerId); }catch(err){} });
+  const release=e=>{ e.preventDefault(); keys[key]=false; };
+  button.addEventListener("pointerup",release);
+  button.addEventListener("pointercancel",release);
+  button.addEventListener("lostpointercapture",()=>keys[key]=false);
+  button.addEventListener("contextmenu",e=>e.preventDefault());
+  button.addEventListener("selectstart",e=>e.preventDefault());
+}
+bindHold("left","left"); bindHold("right","right");
+
+function bindTap(id,action) {
+  const button=document.getElementById(id);
+  button.addEventListener("pointerdown",e=>{ e.preventDefault(); action(); });
+  button.addEventListener("contextmenu",e=>e.preventDefault());
+  button.addEventListener("selectstart",e=>e.preventDefault());
+}
+bindTap("jump",jump); bindTap("shoot",shoot);
+
+/* ===== НОВАЯ ИГРА ===== */
+document.getElementById("restart").addEventListener("click",()=>{
+  if(!confirm("Начать игру заново? Старое сохранение будет удалено.")) return;
+  deleteSave(); world=0; totalStars=0; gameOver=false; victory=false; frame=0; lastSaveFrame=0; keys={};
+  makeLevel(); say("Новое приключение начинается!"); saveProgress(); draw(); startGameLoop();
+});
+
+/* ===== ЗАЩИТА ===== */
+document.addEventListener("contextmenu",e=>{ if(e.target.tagName==="BUTTON"||e.target.tagName==="CANVAS") e.preventDefault(); });
+window.addEventListener("blur",()=>{ keys.left=false; keys.right=false; saveProgress(); });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden){ keys.left=false; keys.right=false; saveProgress(); } });
+window.addEventListener("pagehide",()=>{ saveProgress(); });
+
+/* ===== ЗАПУСК ===== */
+makeLevel();
+const hasSave = loadProgress();
+if(hasSave) say("Сохранение загружено! Продолжаем приключение!");
+else { say("Вперёд, Колобок!"); saveProgress(); }
+draw();
+startGameLoop();
+</script>
+</body>
+</html>
