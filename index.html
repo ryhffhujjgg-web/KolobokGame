@@ -22,15 +22,22 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
 #message { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 15px; font-weight: bold; color: #ffe77b; background: rgba(23,40,60,0.7); padding: 6px 14px; border-radius: 12px; pointer-events: none; z-index: 21; max-width: 60vw; text-align: center; }
 #restart { pointer-events: auto; border: 0; border-radius: 14px; font-size: 13px; padding: 8px 12px; background: #f4cf43; color: #263238; font-weight: bold; box-shadow: 0 4px 0 #b28d20; -webkit-tap-highlight-color: transparent; }
 
-/* === ЕЩЁ БОЛЬШЕ РАССТОЯНИЯ МЕЖДУ КНОПКАМИ === */
-.controls { width: 100%; height: 110px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; background: #000; border-top: 2px solid #222; z-index: 30; flex-shrink: 0; }
-.left-group, .right-group { display: flex; gap: 50px; /* было 28px */ }
+/* === МАКСИМАЛЬНО РАЗДВИНУТЫЕ КНОПКИ === */
+.controls { width: 100%; height: 110px; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; background: #000; border-top: 2px solid #222; z-index: 30; flex-shrink: 0; }
+.left-group, .right-group { display: flex; gap: 80px; /* ОГРОМНОЕ расстояние между кнопками внутри группы */ }
 button.ctrl { border: 0; border-radius: 50%; background: #f4cf43; color: #263238; font-size: 22px; font-weight: bold; box-shadow: 0 4px 0 #b28d20; touch-action: none; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; min-width: 64px; }
 button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 #b28d20; }
-#jump { background: #4aa9ef; color: white; box-shadow: 0 4px 0 #2673ae; width: 76px; height: 76px; font-size: 15px; margin-right: 20px; /* отдельно от 🔫 */ }
+#jump { background: #4aa9ef; color: white; box-shadow: 0 4px 0 #2673ae; width: 76px; height: 76px; font-size: 15px; margin-right: 30px; }
 #shoot { background: #e85b50; color: white; box-shadow: 0 4px 0 #a8322b; width: 76px; height: 76px; font-size: 22px; }
 
-@media (max-height: 400px) { button.ctrl { width: 52px; height: 52px; min-width: 52px; font-size: 18px; } #jump, #shoot { width: 62px; height: 62px; font-size: 13px; } .controls { height: 84px; padding: 0 15px; } .left-group, .right-group { gap: 25px; } #message { font-size: 13px; padding: 4px 10px; } #info { font-size: 11px; padding: 4px 8px; } }
+@media (max-height: 400px) { 
+  button.ctrl { width: 52px; height: 52px; min-width: 52px; font-size: 18px; } 
+  #jump, #shoot { width: 62px; height: 62px; font-size: 13px; } 
+  .controls { height: 84px; padding: 0 10px; } 
+  .left-group, .right-group { gap: 50px; } 
+  #message { font-size: 13px; padding: 4px 10px; } 
+  #info { font-size: 11px; padding: 4px 8px; } 
+}
 </style>
 </head>
 <body>
@@ -57,7 +64,7 @@ const LEVEL_WIDTH = 2400;
 const GRAVITY = 0.55;
 const GROUND_Y = 470;
 const TOTAL_LEVELS = 10;
-const SAVE_KEY = "kolobok_adventure_save_v17";
+const SAVE_KEY = "kolobok_adventure_save_v18";
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"rabbit"},
@@ -79,7 +86,7 @@ let bossBattle = false; let gameOver = false; let victory = false; let totalStar
 function saveProgress() {
   try {
     const data = {
-      version: 17, world, totalStars, lastSafeX,
+      version: 18, world, totalStars, lastSafeX,
       player: { x: player.x, y: player.y, health: player.health, facing: player.facing },
       enemies: enemies.map(e => ({ x: e.x, y: e.y, vx: e.vx, vy: e.vy, alive: e.alive, jumpTimer: e.jumpTimer, onGround: e.onGround })),
       witches: witches.map(w => ({ x: w.x, baseY: w.baseY, vx: w.vx, alive: w.alive, shootTimer: w.shootTimer, phase: w.phase })),
@@ -98,7 +105,7 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 17 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
+    if (!data || data.version !== 18 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
     world = data.world; totalStars = Math.max(0, Number(data.totalStars) || 0); lastSafeX = Number(data.lastSafeX) || 70;
     makeLevel();
     if (data.player) {
@@ -201,10 +208,8 @@ function isOverGap(x) { return gaps.some(g => x + player.r * 0.5 > g.x && x - pl
 /* ===== ГЛУБОКИЙ ФОН (3D-ЭФФЕКТ) ===== */
 function drawCloud(x,y,s=1) {
   ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
-  // Тень облака (снизу)
   ctx.fillStyle="rgba(100,120,140,0.3)";
   ctx.beginPath(); ctx.arc(0,18,22,0,7); ctx.arc(25,8,27,0,7); ctx.arc(52,20,21,0,7); ctx.arc(28,25,26,0,7); ctx.fill();
-  // Основное облако
   const grad = ctx.createRadialGradient(10, 0, 10, 25, 10, 40);
   grad.addColorStop(0, "#ffffff");
   grad.addColorStop(1, "#dce8f0");
