@@ -7,11 +7,10 @@
     <style>
         body { margin: 0; padding: 0; background: #111; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
         
-        /* Контейнер для игры: фиксированная высота, чтобы не растягивался на весь экран */
         #gameContainer {
             position: relative;
             width: 100vw;
-            height: 400px; /* Фиксированная высота! */
+            height: 400px;
             background: #87CEEB;
             border-top: 2px solid #000;
             border-bottom: 2px solid #000;
@@ -20,10 +19,9 @@
         
         canvas { display: block; width: 100%; height: 100%; touch-action: none; image-rendering: pixelated; }
         
-        /* Кнопки управления находятся на черном фоне под игрой */
         #controlsContainer {
             width: 100vw;
-            height: calc(50vh - 200px); /* Оставшееся место снизу */
+            height: calc(50vh - 200px);
             background: #222;
             position: relative;
         }
@@ -33,7 +31,6 @@
         .btn:active { background: rgba(255,255,255,0.8); transform: translateY(2px); }
         #btnShoot { position: absolute; right: 20px; top: -85px; background: rgba(255,0,0,0.6); color: white; border-color: white; }
         
-        /* Стартовый экран */
         #startScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; z-index: 10; }
         h1 { font-size: 32px; margin-bottom: 10px; color: #FFD700; }
         p { font-size: 16px; line-height: 1.5; margin-bottom: 20px; }
@@ -41,7 +38,6 @@
     </style>
 </head>
 <body>
-    <!-- Верхняя черная полоса -->
     <div style="width: 100vw; height: calc(50vh - 200px); background: #222; display: flex; justify-content: center; align-items: flex-end; padding-bottom: 10px;">
          <h2 style="color: #FFF; margin: 0; font-size: 20px;">КОЛОБОК: ПОБЕГ</h2>
     </div>
@@ -56,7 +52,6 @@
         <canvas id="gameCanvas"></canvas>
     </div>
 
-    <!-- Нижняя черная полоса с кнопками -->
     <div id="controlsContainer">
         <div id="controls">
             <div class="btn" id="btnLeft">◀</div>
@@ -71,7 +66,6 @@
     const startScreen = document.getElementById('startScreen');
     const startBtn = document.getElementById('startBtn');
 
-    // Теперь высота фиксирована (400px), ширина - по экрану
     let cw = window.innerWidth;
     let ch = 400; 
 
@@ -89,7 +83,7 @@
     let gameOver = false;
     let gameStarted = false;
     let level = 1;
-    let levelGoal = 2000;
+    let levelGoal = 2500; // Увеличили цель, чтобы уровень длился дольше
 
     const player = {
         x: 100, y: 0, width: 30, height: 30, 
@@ -105,7 +99,7 @@
 
     function setupLevel(lvl) {
         player.x = 100;
-        let groundY = ch - 80; // Земля внизу контейнера
+        let groundY = ch - 80;
         player.y = groundY - 30; 
         
         bullets = [];
@@ -113,7 +107,7 @@
         coins = [];
         platforms = [];
         cameraX = 0;
-        levelGoal = 2000 * lvl; 
+        levelGoal = 2500 * lvl; 
 
         platforms.push({ x: -2000, y: groundY, width: 10000, height: 100 });
 
@@ -299,6 +293,12 @@
     function draw() {
         ctx.clearRect(0, 0, cw, ch);
 
+        // Если мы победили на 3-м уровне, рисуем экран победы и выходим
+        if (gameOver && level === 3) {
+            showWinScreen();
+            return;
+        }
+
         if (level === 1) { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, cw, ch); }
         else if (level === 2) { ctx.fillStyle = '#2E8B57'; ctx.fillRect(0, 0, cw, ch); }
         else { ctx.fillStyle = '#FF8C00'; ctx.fillRect(0, 0, cw, ch); }
@@ -329,6 +329,7 @@
         ctx.fillText(`Счет: ${score}`, 10, 25);
         ctx.fillText(`Уровень: ${level} / 3`, 10, 45);
 
+        // Экран "Игра окончена" только если проиграли (не на 3-м уровне)
         if (gameOver && level < 3) {
             ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, cw, ch);
             ctx.fillStyle = '#FFF'; ctx.textAlign = 'center';
@@ -346,7 +347,7 @@
         requestAnimationFrame(loop);
     }
 
-    canvas.addEventListener('click', () => { if (gameOver && level < 3) location.reload(); });
+    canvas.addEventListener('click', () => { if (gameOver) location.reload(); });
 
     loop();
 </script>
