@@ -3,33 +3,38 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Колобок: Большое приключение</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#182b42;color:white;font-family:Arial,sans-serif;text-align:center}
-header{padding:12px;background:#263e59}
-h1{font-size:25px;margin:5px}
-#info{font-size:17px;margin:8px}
-#game{display:block;width:100%;max-width:900px;margin:auto;background:#8bd7f5;border:3px solid #fff;border-radius:8px;touch-action:none}
-#controls{display:flex;justify-content:center;gap:25px;margin:14px}
-button{font-size:24px;padding:13px 25px;border:0;border-radius:14px;background:#ffcf55;color:#38240b;font-weight:bold;touch-action:none}
-#jump{background:#ff9255}
-#message{padding:8px;min-height:28px}
+body{margin:0;background:#17283c;color:white;font-family:Arial;text-align:center}
+header{padding:10px;background:#263e59}
+h1{font-size:22px;margin:5px}
+#info{font-size:16px;margin:8px}
+canvas{display:block;width:100%;max-width:900px;margin:auto;background:#8bd7f5;border:2px solid white;touch-action:none}
+#controls{display:flex;justify-content:center;gap:9px;margin:12px auto;flex-wrap:wrap}
+button{font-size:20px;padding:13px 17px;border:0;border-radius:12px;background:#ffcf55;font-weight:bold;touch-action:none}
+#shoot{background:#e95b43;color:white}
+#jump{background:#69c7ff}
+#message{padding:8px;min-height:30px}
 </style>
 </head>
 <body>
 <header>
 <h1>🥯 Колобок: Большое приключение</h1>
-<div id="info">Мир 1 · Жизни: ❤️❤️❤️ · Звёзды: 0</div>
+<div id="info"></div>
 </header>
+
 <canvas id="game" width="900" height="440"></canvas>
-<div id="message">Помоги Колобку пройти все четыре мира!</div>
+<div id="message">Нажми любую кнопку, чтобы начать приключение!</div>
+
 <div id="controls">
 <button id="left">◀</button>
-<button id="jump">ПРЫЖОК ⬆</button>
 <button id="right">▶</button>
+<button id="jump">ПРЫЖОК</button>
+<button id="shoot">🔫 ОГОНЬ</button>
 </div>
+
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
@@ -46,10 +51,53 @@ const worlds=[
 let world=0,stars=0,lives=3,finished=false;
 let camera=0;
 let keys={left:false,right:false};
-let player={x:70,y:300,vx:0,vy:0,r:19,onGround:false};
+let bullets=[];
+let audioStarted=false;
+let audioCtx=null;
+
+const player={
+ x:70,y:300,vx:0,vy:0,r:19,
+ onGround:false,face:1,cooldown:0
+};
+
 let platforms=[],enemies=[],items=[];
 const gravity=.55;
 const levelWidth=2400;
+
+function sound(freq=400,duration=.12,type="square"){
+ try{
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended")audioCtx.resume();
+  const osc=audioCtx.createOscillator();
+  const gain=audioCtx.createGain();
+  osc.type=type;
+  osc.frequency.value=freq;
+  gain.gain.setValueAtTime(.12,audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);
+  osc.connect(gain);gain.connect(audioCtx.destination);
+  osc.start();osc.stop(audioCtx.currentTime+duration);
+ }catch(e){}
+}
+
+function scream(){
+ try{
+  if("speechSynthesis" in window){
+   speechSynthesis.cancel();
+   const voice=new SpeechSynthesisUtterance("Ай, блядь!");
+   voice.lang="ru-RU";
+   voice.rate=1.15;
+   voice.pitch=1.1;
+   speechSynthesis.speak(voice);
+  }
+ }catch(e){}
+ sound(180,.25,"sawtooth");
+}
+
+function startAudio(){
+ if(audioStarted)return;
+ audioStarted=true;
+ sound(500,.12);
+}
 
 function makeLevel(){
  platforms=[
@@ -64,13 +112,15 @@ function makeLevel(){
   {x:1460,y:285,w:140,h:18},
   {x:1850,y:300,w:150,h:18}
  ];
+
  enemies=[
-  {x:380,y:350,alive:true},
-  {x:760,y:350,alive:true},
-  {x:1160,y:350,alive:true},
-  {x:1550,y:350,alive:true},
-  {x:2000,y:350,alive:true}
+  {x:380,y:350,alive:true,min:330,max:470,dir:1},
+  {x:760,y:350,alive:true,min:590,max:810,dir:-1},
+  {x:1160,y:350,alive:true,min:950,max:1260,dir:1},
+  {x:1550,y:350,alive:true,min:1400,max:1680,dir:-1},
+  {x:2000,y:350,alive:true,min:1850,max:2250,dir:1}
  ];
+
  items=[
   {x:350,y:270,taken:false},
   {x:700,y:255,taken:false},
@@ -79,27 +129,95 @@ function makeLevel(){
   {x:1900,y:260,taken:false},
   {x:2200,y:340,taken:false}
  ];
- player.x=70;player.y=300;player.vx=0;player.vy=0;
+
+ bullets=[];
+ player.x=70;
+ player.y=300;
+ player.vx=0;
+ player.vy=0;
+ player.onGround=false;
+ player.face=1;
  camera=0;
 }
-makeLevel();
 
 function drawBackground(){
  ctx.fillStyle=worlds[world].sky;
  ctx.fillRect(0,0,900,440);
- ctx.fillStyle="#ffffff";
+
+ ctx.fillStyle="#fff";
  for(let i=0;i<5;i++){
   let x=((i*230-camera*.25)%1100+1100)%1100;
-  ctx.beginPath();ctx.arc(x,75+i%2*35,24,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(x+25,75+i%2*35,30,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x,75+i%2*35,24,0,Math.PI*2);
+  ctx.arc(x+25,75+i%2*35,30,0,Math.PI*2);
+  ctx.fill();
  }
+
  for(let i=0;i<12;i++){
   let x=((i*190-camera*.45)%1100+1100)%1100;
   ctx.fillStyle="#397e48";
-  ctx.beginPath();ctx.arc(x,360,55,Math.PI,0);ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x,360,55,Math.PI,0);
+  ctx.fill();
   ctx.fillStyle="#23613b";
   ctx.fillRect(x-5,290,10,75);
  }
+}
+
+function drawPlayer(){
+ ctx.save();
+ ctx.translate(player.x,player.y);
+
+ // Ноги
+ ctx.fillStyle="#34251c";
+ ctx.fillRect(-12,12,10,12);
+ ctx.fillRect(3,12,10,12);
+
+ // Кожаная куртка
+ ctx.fillStyle="#5a301b";
+ ctx.beginPath();
+ ctx.roundRect(-17,-8,34,27,8);
+ ctx.fill();
+
+ ctx.strokeStyle="#c18a4c";
+ ctx.lineWidth=2;
+ ctx.beginPath();
+ ctx.moveTo(0,-5);ctx.lineTo(0,15);
+ ctx.stroke();
+
+ // Колобок
+ ctx.beginPath();
+ ctx.arc(0,-12,19,0,Math.PI*2);
+ ctx.fillStyle="#f5b83d";
+ ctx.fill();
+ ctx.lineWidth=3;
+ ctx.strokeStyle="#a96b17";
+ ctx.stroke();
+
+ // Глаза и улыбка
+ ctx.fillStyle="#38240b";
+ ctx.beginPath();
+ ctx.arc(-7,-16,2.8,0,7);
+ ctx.arc(7,-16,2.8,0,7);
+ ctx.fill();
+ ctx.strokeStyle="#8b3c16";
+ ctx.lineWidth=2;
+ ctx.beginPath();
+ ctx.arc(0,-10,7,.2,2.9);
+ ctx.stroke();
+
+ // Дробовик
+ ctx.save();
+ if(player.face<0)ctx.scale(-1,1);
+ ctx.fillStyle="#654321";
+ ctx.fillRect(10,-8,22,7);
+ ctx.fillStyle="#252525";
+ ctx.fillRect(24,-7,23,4);
+ ctx.fillStyle="#999";
+ ctx.fillRect(43,-8,5,6);
+ ctx.restore();
+
+ ctx.restore();
 }
 
 function draw(){
@@ -107,7 +225,6 @@ function draw(){
  ctx.save();
  ctx.translate(-camera,0);
 
- // Земля и платформы
  platforms.forEach(p=>{
   ctx.fillStyle=worlds[world].ground;
   ctx.fillRect(p.x,p.y,p.w,p.h);
@@ -115,7 +232,6 @@ function draw(){
   ctx.fillRect(p.x,p.y+12,p.w,p.h);
  });
 
- // Звёзды
  items.forEach(s=>{
   if(!s.taken){
    ctx.font="27px Arial";
@@ -123,7 +239,6 @@ function draw(){
   }
  });
 
- // Враги
  enemies.forEach(e=>{
   if(e.alive){
    ctx.font="38px Arial";
@@ -131,7 +246,13 @@ function draw(){
   }
  });
 
- // Финиш
+ bullets.forEach(b=>{
+  ctx.fillStyle="#ffeb68";
+  ctx.fillRect(b.x,b.y,19,5);
+  ctx.fillStyle="#ff713b";
+  ctx.fillRect(b.x+15,b.y,5,5);
+ });
+
  ctx.fillStyle="#fff";
  ctx.fillRect(2320,245,8,140);
  ctx.fillStyle="#ff4444";
@@ -139,43 +260,63 @@ function draw(){
  ctx.font="25px Arial";
  ctx.fillText("🏁",2310,230);
 
- // Колобок
- ctx.beginPath();
- ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
- ctx.fillStyle="#f5b83d";ctx.fill();
- ctx.lineWidth=3;ctx.strokeStyle="#a96b17";ctx.stroke();
- ctx.fillStyle="#38240b";
- ctx.beginPath();ctx.arc(player.x-7,player.y-4,2.8,0,7);ctx.fill();
- ctx.beginPath();ctx.arc(player.x+7,player.y-4,2.8,0,7);ctx.fill();
- ctx.strokeStyle="#8b3c16";ctx.lineWidth=2;
- ctx.beginPath();ctx.arc(player.x,player.y+3,7,.2,2.9);ctx.stroke();
+ drawPlayer();
  ctx.restore();
 
  info.textContent="Мир "+(world+1)+" — "+worlds[world].name+
- " · Жизни: "+ "❤️".repeat(lives)+" · Звёзды: "+stars;
+ " · Жизни: "+"❤️".repeat(lives)+" · Звёзды: "+stars;
 }
 
-function collide(a,b){
- return a.x+a.r>b.x && a.x-a.r<b.x+b.w &&
- a.y+a.r>b.y && a.y-a.r<b.y+b.h;
+function jump(){
+ startAudio();
+ if(player.onGround){
+  player.vy=-12;
+  player.onGround=false;
+  sound(550,.13,"sine");
+ }
+}
+
+function shoot(){
+ startAudio();
+ if(player.cooldown>0)return;
+ player.cooldown=18;
+ bullets.push({
+  x:player.x+player.face*35,
+  y:player.y-17,
+  vx:player.face*10
+ });
+ sound(100,.16,"sawtooth");
+ setTimeout(()=>sound(65,.1,"square"),65);
 }
 
 function update(){
- if(finished)return;
+ if(finished){
+  draw();
+  return;
+ }
 
  player.vx=0;
- if(keys.left)player.vx=-4;
- if(keys.right)player.vx=4;
+ if(keys.left){
+  player.vx=-4;
+  player.face=-1;
+ }
+ if(keys.right){
+  player.vx=4;
+  player.face=1;
+ }
 
  player.x+=player.vx;
  player.x=Math.max(player.r,Math.min(levelWidth-player.r,player.x));
+
  player.vy+=gravity;
  player.y+=player.vy;
  player.onGround=false;
 
  platforms.forEach(p=>{
-  if(player.x+player.r>p.x && player.x-player.r<p.x+p.w &&
-     player.y+player.r>=p.y && player.y+player.r<=p.y+22 &&
+  if(player.x+player.r>p.x &&
+     player.x-player.r<p.x+p.w &&
+     player.y+player.r>=p.y &&
+     player.y+player.r<=p.y+22 &&
      player.vy>=0){
    player.y=p.y-player.r;
    player.vy=0;
@@ -183,28 +324,61 @@ function update(){
   }
  });
 
+ // Движение врагов
+ enemies.forEach(e=>{
+  if(!e.alive)return;
+  e.x+=e.dir*1.25;
+  if(e.x<e.min||e.x>e.max)e.dir*=-1;
+
+  // Враг приближается к Колобку
+  if(Math.abs(player.x-e.x)<160){
+   e.x+=Math.sign(player.x-e.x)*.5;
+  }
+ });
+
+ // Пули
+ bullets.forEach(b=>{
+  b.x+=b.vx;
+  enemies.forEach(e=>{
+   if(e.alive && Math.abs(b.x-e.x)<28 && Math.abs(b.y-e.y)<35){
+    e.alive=false;
+    b.hit=true;
+    stars++;
+    scream();
+    message.textContent="💥 Враг побеждён!";
+   }
+  });
+ });
+ bullets=bullets.filter(b=>!b.hit&&b.x>camera-50&&b.x<camera+1000);
+
+ if(player.cooldown>0)player.cooldown--;
+
  items.forEach(s=>{
-  if(!s.taken && Math.abs(player.x-s.x)<28 && Math.abs(player.y-s.y)<30){
-   s.taken=true;stars++;
-   message.textContent="Отлично! Ты нашёл звёздочку ⭐";
+  if(!s.taken && Math.abs(player.x-s.x)<28 &&
+     Math.abs(player.y-s.y)<30){
+   s.taken=true;
+   stars++;
+   sound(800,.2,"sine");
+   message.textContent="Ты нашёл звёздочку ⭐";
   }
  });
 
  enemies.forEach(e=>{
   if(!e.alive)return;
-  let dx=Math.abs(player.x-e.x),dy=Math.abs(player.y-e.y);
-  if(dx<34 && dy<35){
-   if(player.vy>1 && player.y<e.y-5){
-    e.alive=false;player.vy=-9;
-    message.textContent="Враг побеждён!";
+  let dx=Math.abs(player.x-e.x);
+  let dy=Math.abs(player.y-e.y);
+  if(dx<31&&dy<32){
+   lives--;
+   e.x+=player.x<e.x?80:-80;
+   player.x=Math.max(70,player.x-100);
+   player.y=280;
+   player.vy=-6;
+   sound(120,.3,"sawtooth");
+   if(lives<=0){
+    lives=3;stars=0;world=0;makeLevel();
+    message.textContent="Колобок потерял все жизни. Начнём сначала!";
    }else{
-    lives--;
-    player.x=Math.max(70,player.x-100);
-    player.y=280;player.vy=-5;
-    if(lives<=0){
-     lives=3;stars=0;world=0;makeLevel();
-     message.textContent="Попробуй ещё раз!";
-    }else message.textContent="Осторожно! Колобок потерял жизнь.";
+    message.textContent="Осторожно! Колобок получил урон!";
    }
   }
  });
@@ -212,8 +386,11 @@ function update(){
  if(player.y>490){
   lives--;
   player.x=Math.max(70,player.x-120);
-  player.y=280;player.vy=0;
-  if(lives<=0){lives=3;stars=0;world=0;makeLevel();}
+  player.y=280;
+  player.vy=0;
+  if(lives<=0){
+   lives=3;stars=0;world=0;makeLevel();
+  }
  }
 
  if(player.x>2320){
@@ -221,9 +398,11 @@ function update(){
    world++;
    makeLevel();
    message.textContent="Новый мир: "+worlds[world].name+"!";
+   sound(700,.3,"sine");
   }else{
    finished=true;
    message.textContent="🎉 Победа! Колобок прошёл все четыре мира!";
+   sound(900,.5,"sine");
   }
  }
 
@@ -232,36 +411,43 @@ function update(){
  requestAnimationFrame(update);
 }
 
-function jump(){
- if(player.onGround){
-  player.vy=-12;
-  player.onGround=false;
- }
-}
-
+// Кнопки телефона
 function bindButton(id,key){
  const b=document.getElementById(id);
- b.addEventListener("pointerdown",e=>{e.preventDefault();keys[key]=true;});
+ b.addEventListener("pointerdown",e=>{
+  e.preventDefault();
+  startAudio();
+  keys[key]=true;
+  b.setPointerCapture(e.pointerId);
+ });
  b.addEventListener("pointerup",()=>keys[key]=false);
- b.addEventListener("pointerleave",()=>keys[key]=false);
  b.addEventListener("pointercancel",()=>keys[key]=false);
+ b.addEventListener("lostpointercapture",()=>keys[key]=false);
 }
 bindButton("left","left");
 bindButton("right","right");
+
 document.getElementById("jump").addEventListener("pointerdown",e=>{
  e.preventDefault();jump();
 });
+document.getElementById("shoot").addEventListener("pointerdown",e=>{
+ e.preventDefault();shoot();
+});
 
+// Клавиатура
 document.addEventListener("keydown",e=>{
+ startAudio();
  if(e.key==="ArrowLeft"||e.key==="a")keys.left=true;
  if(e.key==="ArrowRight"||e.key==="d")keys.right=true;
- if(e.key==="ArrowUp"||e.key===" "||e.key==="w")jump();
+ if((e.key==="ArrowUp"||e.key===" "||e.key==="w")&&!e.repeat)jump();
+ if((e.key==="z"||e.key==="x")&&!e.repeat)shoot();
 });
 document.addEventListener("keyup",e=>{
  if(e.key==="ArrowLeft"||e.key==="a")keys.left=false;
  if(e.key==="ArrowRight"||e.key==="d")keys.right=false;
 });
 
+makeLevel();
 draw();
 requestAnimationFrame(update);
 </script>
