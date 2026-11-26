@@ -111,7 +111,7 @@ const H = canvas.height;
 const LEVEL_WIDTH = 2400;
 const GROUND_Y = 470;
 const TOTAL_LEVELS = 12;
-const SAVE_KEY = "kolobok_adventure_polish_v5";
+const SAVE_KEY = "kolobok_adventure_polish_v6";
 
 const worlds = [
   {name:"Лесная тропинка", sky:"#8bd7f5", ground:"#55a84c", enemy:"rabbit", weather:"leaves"},
@@ -188,7 +188,7 @@ function drawParticles() {
 function saveProgress() {
   try {
     const data = {
-      version: 5, world, totalStars, lastSafeX, currentWeapon,
+      version: 6, world, totalStars, lastSafeX, currentWeapon,
       player: { x: player.x, y: player.y, health: player.health, facing: player.facing },
       bossBattle, gameOver, victory
     };
@@ -201,7 +201,7 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 5 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
+    if (!data || data.version !== 6 || !Number.isInteger(data.world) || data.world < 0 || data.world >= TOTAL_LEVELS) return false;
     world = data.world; totalStars = Math.max(0, Number(data.totalStars) || 0); lastSafeX = Number(data.lastSafeX) || 70;
     if (["minigun", "shotgun", "ak47"].includes(data.currentWeapon)) currentWeapon = data.currentWeapon;
     makeLevel();
@@ -320,7 +320,6 @@ function updateInfo() {
 
 function isOverGap(x) { return gaps.some(g => x + player.r * 0.5 > g.x && x - player.r * 0.5 < g.x + g.w); }
 
-/* ===== ОТРИСОВКИ ВРАГОВ ===== */
 function drawGopnik(g) {
   const x=g.x-camera; if(x<-50||x>W+50||!g.alive) return;
   ctx.save(); ctx.translate(x, g.y);
@@ -885,7 +884,7 @@ function hurtPlayer() {
   say("Ой-ой-ой!"); 
   if(player.health<=0){ 
     gameOver=true; 
-    stopShoot(); // <--- ВАЖНО: Останавливаем стрельбу при смерти
+    stopShoot();
     say("Колобок, попробуй ещё раз!"); 
   }
   saveProgress();
@@ -894,7 +893,7 @@ function hurtPlayer() {
 function respawnFromGap() {
   player.x=lastSafeX; player.y=GROUND_Y-19; player.vx=0; player.vy=0; player.invincible=90;
   triggerShake(15);
-  stopShoot(); // <--- ВАЖНО: Останавливаем стрельбу при падении
+  stopShoot();
   hurtPlayer(); if(!gameOver) say("Осторожно, обрыв!");
 }
 
@@ -1231,7 +1230,7 @@ function checkLevelEnd() {
   const hutX = LEVEL_WIDTH - 140;
   if (player.x > hutX + 40 && player.x < hutX + 85) {
     isTransitioning = true; 
-    stopShoot(); // <--- ВАЖНО: Останавливаем стрельбу при переходе
+    stopShoot();
     say("В избушку!"); sound(880, 0.3, "sine");
     setTimeout(() => {
       if (world < TOTAL_LEVELS - 1) {
