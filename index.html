@@ -135,7 +135,7 @@ canvas {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Управление */
+/* ===== НИЖНЯЯ ЧЁРНАЯ ПАНЕЛЬ С КНОПКАМИ ===== */
 .controls {
   position: absolute;
   left: 0;
@@ -143,26 +143,27 @@ canvas {
   bottom: 0;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  padding: 10px 14px 14px;
-  gap: 12px;
-  pointer-events: none;
+  align-items: center;
+  padding: 10px 14px;
+  background: #000;                  /* чёрная полоса */
+  border-top: 2px solid #222;        /* лёгкая граница сверху */
   z-index: 30;
+  pointer-events: auto;
+  min-height: 96px;                  /* высота полосы под кнопки */
 }
 .left-group,
 .right-group {
   display: flex;
-  gap: 10px;
-  pointer-events: auto;
+  gap: 12px;
 }
 button.ctrl {
   border: 0;
   border-radius: 50%;
-  background: rgba(244, 207, 67, 0.92);
+  background: rgba(244, 207, 67, 0.95);
   color: #263238;
   font-size: 22px;
   font-weight: bold;
-  box-shadow: 0 4px 0 rgba(178, 141, 32, 0.9);
+  box-shadow: 0 4px 0 rgba(178, 141, 32, 0.95);
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
   display: flex;
@@ -174,30 +175,30 @@ button.ctrl {
 }
 button.ctrl:active {
   transform: translateY(3px);
-  box-shadow: 0 1px 0 rgba(178, 141, 32, 0.9);
+  box-shadow: 0 1px 0 rgba(178, 141, 32, 0.95);
 }
 #jump {
-  background: rgba(74, 169, 239, 0.92);
+  background: rgba(74, 169, 239, 0.95);
   color: white;
-  box-shadow: 0 4px 0 rgba(38, 115, 174, 0.9);
+  box-shadow: 0 4px 0 rgba(38, 115, 174, 0.95);
   width: 76px;
   height: 76px;
   font-size: 15px;
 }
 #shoot {
-  background: rgba(232, 91, 80, 0.92);
+  background: rgba(232, 91, 80, 0.95);
   color: white;
-  box-shadow: 0 4px 0 rgba(168, 50, 43, 0.9);
+  box-shadow: 0 4px 0 rgba(168, 50, 43, 0.95);
   width: 76px;
   height: 76px;
-  font-size: 15px;
+  font-size: 22px;
 }
 
 /* На очень маленьких экранах чуть меньше */
 @media (max-height: 400px) {
-  button.ctrl { width: 54px; height: 54px; min-width: 54px; font-size: 18px; }
-  #jump, #shoot { width: 66px; height: 66px; font-size: 13px; }
-  .controls { padding: 6px 10px 10px; }
+  button.ctrl { width: 52px; height: 52px; min-width: 52px; font-size: 18px; }
+  #jump, #shoot { width: 62px; height: 62px; font-size: 13px; }
+  .controls { padding: 6px 10px; min-height: 78px; }
   #message { font-size: 13px; padding: 4px 10px; }
   #info { font-size: 11px; padding: 4px 8px; }
 }
@@ -220,6 +221,7 @@ button.ctrl:active {
 
   <div id="message">Вперёд, Колобок!</div>
 
+  <!-- ЧЁРНАЯ ПАНЕЛЬ С КНОПКАМИ -->
   <div class="controls">
     <div class="left-group">
       <button class="ctrl" id="left">◀</button>
