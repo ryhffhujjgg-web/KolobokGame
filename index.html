@@ -904,4 +904,306 @@ function updateWitches() {
         fromWitch: true
       });
       w.shootTimer = 130 + Math.random()*60;
-      sound(300, 0.08
+      sound(300, 0.08, "sawtooth");
+    }
+
+    // Столкновение с игроком
+    if (Math.abs(player.x - w.x) < 30 && Math.abs(player.y - w.y) < 30) {
+      hurtPlayer();
+    }
+  }
+}
+
+/* ===== БОСС ===== */
+function updateBoss() {
+  if(world!==3) return;
+
+  if(!bossBattle && player.x>1950 && boss.alive) {
+    bossBattle=true;
+    say("Лиса! Вот это сюрприз!");
+    saveProgress();
+  }
+
+  if(!bossBattle || !boss.alive) return;
+
+  const distance=player.x-boss.x;
+  if(Math.abs(distance)>70) boss.vx=Math.sign(distance)*1.5;
+  else boss.vx=0;
+
+  boss.x+=boss.vx;
+  boss.jumpTimer--;
+
+  if(boss.jumpTimer<=0 && boss.y>=350) {
+    boss.vy=-10;
+    boss.jumpTimer=100;
+  }
+
+  boss.y+=boss.vy;
+  boss.vy+=GRAVITY;
+
+  if(boss.y>350) {
+    boss.y=350;
+    boss.vy=0;
+  }
+
+  boss.shootTimer--;
+  if(boss.shootTimer<=0) {
+    const dx=player.x-boss.x;
+    const dy=(player.y-10)-(boss.y-10);
+    const length=Math.sqrt(dx*dx+dy*dy)||1;
+    enemyBullets.push({
+      x:boss.x, y:boss.y-10,
+      vx:dx/length*6, vy:dy/length*6,
+      angle:Math.atan2(dy,dx), life:130
+    });
+    boss.shootTimer=85;
+    sound(260,0.1,"sawtooth");
+  }
+
+  if(Math.abs(player.x-boss.x)<43 && Math.abs(player.y-boss.y)<40) {
+    hurtPlayer();
+  }
+}
+
+/* ===== ПУЛИ ===== */
+function updateBullets() {
+  for(const b of bullets) {
+    b.x+=b.vx;
+    b.life--;
+
+    for(const e of enemies) {
+      if(e.alive &&
+         Math.abs(b.x-e.x)<25 &&
+         Math.abs(b.y-e.y)<30) {
+        e.alive=false;
+        b.life=0;
+        say("Ёба-Боба!");
+        sound(330,0.12);
+        saveProgress();
+      }
+    }
+
+    for(const w of witches) {
+      if(w.alive &&
+         Math.abs(b.x-w.x)<30 &&
+         Math.abs(b.y-w.y)<34) {
+        w.alive=false;
+        b.life=0;
+        say("Куда ты, бабуля?");
+        sound(220,0.15,"triangle");
+        saveProgress();
+      }
+    }
+
+    if(world===3 && bossBattle && boss.alive &&
+       Math.abs(b.x-boss.x)<38 &&
+       Math.abs(b.y-boss.y)<45) {
+      boss.hp--;
+      b.life=0;
+      sound(240,0.08);
+      if(boss.hp<=0) {
+        boss.alive=false;
+        say("А меня за что?");
+        setTimeout(()=>{
+          if(!victory) message.textContent="⭐ Лиса побеждена!";
+        },1800);
+        totalStars+=10;
+      }
+      saveProgress();
+    }
+  }
+
+  bullets=bullets.filter(b=>b.life>0 && b.x>-100 && b.x<LEVEL_WIDTH+100);
+
+  for(const b of enemyBullets) {
+    b.x+=b.vx;
+    b.y+=b.vy;
+    b.life--;
+    if(Math.abs(b.x-player.x)<20 && Math.abs(b.y-player.y)<20) {
+      b.life=0;
+      hurtPlayer();
+    }
+  }
+
+  enemyBullets=enemyBullets.filter(b=>b.life>0);
+}
+
+/* ===== ЗВЁЗДЫ ===== */
+function updateStars() {
+  for(const s of stars) {
+    if(!s.taken &&
+       Math.abs(player.x-s.x)<27 &&
+       Math.abs(player.y-s.y)<35) {
+      s.taken=true;
+      totalStars++;
+      sound(760,0.12,"sine");
+      updateInfo();
+      saveProgress();
+    }
+  }
+}
+
+function checkLevelEnd() {
+  if(world<3 && player.x>LEVEL_WIDTH-90) {
+    world++;
+    makeLevel();
+    say("Алби Бэк!");
+    saveProgress();
+    return;
+  }
+
+  if(world===3 && player.x>LEVEL_WIDTH-90 && !boss.alive) {
+    victory=true;
+    say("Алби Бэк! Мы победили!");
+    saveProgress();
+  }
+
+  if(world===3 && bossBattle && boss.alive && player.x>2110) {
+    player.x=2110;
+  }
+}
+
+/* ===== ЦИКЛ ===== */
+function update() {
+  if(gameOver || victory) {
+    draw();
+    return;
+  }
+
+  frame++;
+  updatePlayer();
+  updateEnemies();
+  updateWitches();
+  updateBoss();
+  updateBullets();
+  updateStars();
+  checkLevelEnd();
+  updateInfo();
+  draw();
+
+  if(frame-lastSaveFrame>=60) {
+    saveProgress();
+    lastSaveFrame=frame;
+  }
+
+  requestAnimationFrame(update);
+}
+
+/* ===== КЛАВИАТУРА ===== */
+document.addEventListener("keydown",e=>{
+  if(["ArrowLeft","ArrowRight","ArrowUp","Space"].includes(e.code)) {
+    e.preventDefault();
+  }
+  if(e.code==="ArrowLeft" || e.code==="KeyA") keys.left=true;
+  if(e.code==="ArrowRight" || e.code==="KeyD") keys.right=true;
+  if((e.code==="ArrowUp" || e.code==="Space" || e.code==="KeyW") && !e.repeat) {
+    jump();
+  }
+  if((e.code==="KeyJ" || e.code==="KeyF") && !e.repeat) {
+    shoot();
+  }
+});
+
+document.addEventListener("keyup",e=>{
+  if(e.code==="ArrowLeft" || e.code==="KeyA") keys.left=false;
+  if(e.code==="ArrowRight" || e.code==="KeyD") keys.right=false;
+});
+
+/* ===== МОБИЛЬНЫЕ КНОПКИ ===== */
+function bindHold(id,key) {
+  const button=document.getElementById(id);
+  button.addEventListener("pointerdown",e=>{
+    e.preventDefault();
+    keys[key]=true;
+    try { button.setPointerCapture(e.pointerId); } catch(err) {}
+  });
+  const release=e=>{
+    e.preventDefault();
+    keys[key]=false;
+  };
+  button.addEventListener("pointerup",release);
+  button.addEventListener("pointercancel",release);
+  button.addEventListener("lostpointercapture",()=>keys[key]=false);
+  button.addEventListener("contextmenu",e=>e.preventDefault());
+  button.addEventListener("selectstart",e=>e.preventDefault());
+}
+
+bindHold("left","left");
+bindHold("right","right");
+
+function bindTap(id,action) {
+  const button=document.getElementById(id);
+  button.addEventListener("pointerdown",e=>{
+    e.preventDefault();
+    action();
+  });
+  button.addEventListener("contextmenu",e=>e.preventDefault());
+  button.addEventListener("selectstart",e=>e.preventDefault());
+}
+
+bindTap("jump",jump);
+bindTap("shoot",shoot);
+
+/* ===== НОВАЯ ИГРА ===== */
+document.getElementById("restart").addEventListener("click",()=>{
+  const confirmed = confirm("Начать игру заново? Старое сохранение будет удалено.");
+  if(!confirmed) return;
+
+  deleteSave();
+  world=0;
+  totalStars=0;
+  gameOver=false;
+  victory=false;
+  frame=0;
+  lastSaveFrame=0;
+  keys={};
+
+  makeLevel();
+  say("Новое приключение начинается!");
+  saveProgress();
+  draw();
+  requestAnimationFrame(update);
+});
+
+/* ===== ЗАЩИТА ===== */
+document.addEventListener("contextmenu",e=>{
+  if(e.target.tagName==="BUTTON" || e.target.tagName==="CANVAS") {
+    e.preventDefault();
+  }
+});
+
+window.addEventListener("blur",()=>{
+  keys.left=false;
+  keys.right=false;
+  saveProgress();
+});
+
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden) {
+    keys.left=false;
+    keys.right=false;
+    saveProgress();
+  }
+});
+
+window.addEventListener("pagehide",()=>{
+  saveProgress();
+});
+
+/* ===== ЗАПУСК ===== */
+makeLevel();
+
+const hasSave = loadProgress();
+
+if(hasSave) {
+  say("Сохранение загружено! Продолжаем приключение!");
+} else {
+  say("Вперёд, Колобок!");
+  saveProgress();
+}
+
+draw();
+requestAnimationFrame(update);
+</script>
+</body>
+</html>
