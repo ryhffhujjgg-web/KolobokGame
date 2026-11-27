@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Колобок: Battletoads Style</title>
+<title>Колобок: Comix Zone Style</title>
 <style>
 * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; margin: 0; padding: 0; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a14; color: white; font-family: Arial, sans-serif; }
@@ -60,7 +60,7 @@ button.ctrl:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 #000;
 
 <div id="menu-screen">
   <h1>КОЛОБОК</h1>
-  <p>BATTLETOADS STYLE</p>
+  <p>COMIX ZONE STYLE</p>
   
   <div class="weapon-select">
     <button class="weapon-btn active" id="wpn-shotgun" data-weapon="shotgun">
@@ -108,7 +108,7 @@ const H = canvas.height;
 const LEVEL_WIDTH = 2400;
 const GROUND_Y = 470;
 const TOTAL_LEVELS = 12;
-const SAVE_KEY = "kolobok_battletoads_v1";
+const SAVE_KEY = "kolobok_comixzone_v3";
 
 const SCALE = 0.5;
 const OW = Math.floor(W * SCALE);
@@ -148,6 +148,12 @@ let mermaids = [];
 let sharks = [];
 let trees = [];
 let gopniks = [];
+
+// Передний план (генерируется при создании уровня)
+let foreground = [];
+
+// КРЫСКА-ПОМОЩНИК
+let rat = { x: 0, y: 0, vx: 0, vy: 0, onGround: false, facing: 1, shootTimer: 0, alive: true, r: 10, animFrame: 0 };
 
 function getGravity() { return world === 10 ? 0.15 : 0.55; }
 
@@ -191,6 +197,30 @@ function drawParticles(c) {
     c.fill();
   }
   c.globalAlpha = 1;
+}
+
+function drawShadow(c, x, y, width, height, alpha=0.3) {
+  c.save();
+  c.fillStyle = `rgba(0,0,0,${alpha})`;
+  c.beginPath();
+  c.ellipse(x, y, width, height, 0, 0, 7);
+  c.fill();
+  c.restore();
+}
+
+// === ЭФФЕКТ ШТРИХОВКИ (КОМИКС) ===
+function drawHatching(c, x, y, w, h, color="#000", alpha=0.3, spacing=4) {
+  c.save();
+  c.globalAlpha = alpha;
+  c.strokeStyle = color;
+  c.lineWidth = 1;
+  for (let i = 0; i < w + h; i += spacing) {
+    c.beginPath();
+    c.moveTo(x + i, y);
+    c.lineTo(x + i - h, y + h);
+    c.stroke();
+  }
+  c.restore();
 }
 
 function saveProgress() {
@@ -275,6 +305,22 @@ function sound(freq=440, duration=0.1, type="square") {
 
 function makeLevel() {
   player = { x:70, y:GROUND_Y - 19, vx:0, vy:0, r:19, speed: (world === 10 ? 2.2 : 3.2), facing:1, onGround:false, health:3, invincible:0, jumpsLeft:2, maxJumps:2 };
+  
+  rat = { x: player.x - 60, y: GROUND_Y - 10, vx: 0, vy: 0, onGround: true, facing: 1, shootTimer: 60, alive: true, r: 10, animFrame: 0 };
+  
+  // Генерация переднего плана
+  foreground = [];
+  for (let i = 0; i < 30; i++) {
+    const type = Math.random() > 0.5 ? "grass" : "rock";
+    foreground.push({
+      x: Math.random() * LEVEL_WIDTH,
+      y: H - 20 - Math.random() * 30,
+      type: type,
+      scale: 0.5 + Math.random() * 0.8,
+      speedFactor: 1.5 + Math.random() * 0.5 // Движется быстрее фона
+    });
+  }
+  
   lastSafeX = 70; camera = 0; bullets = []; enemyBullets = []; enemies = []; witches = []; lizards = []; bears = []; stars = []; platforms = []; gaps = []; bossBattle = false; isTransitioning = false; pickups = []; particles = []; floatingTexts = []; shakeTime = 0;
   mermaids = []; sharks = []; trees = []; gopniks = [];
   playerDashing = 0; playerDashCooldown = 0;
@@ -336,7 +382,6 @@ function drawGroundSegment3D(c, startX, width, theme) {
   const topInset = 150;
   const bottomInset = -100;
 
-  // Основной пол
   c.fillStyle = theme.ground;
   c.beginPath();
   c.moveTo(sx + topInset, horizonY);
@@ -347,12 +392,22 @@ function drawGroundSegment3D(c, startX, width, theme) {
   c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 5; c.stroke();
 
-  // Травяная кромка
+  const shadowGrad = c.createLinearGradient(0, GROUND_Y, 0, H);
+  shadowGrad.addColorStop(0, "rgba(0,0,0,0)");
+  shadowGrad.addColorStop(1, "rgba(0,0,0,0.4)");
+  c.fillStyle = shadowGrad;
+  c.beginPath();
+  c.moveTo(sx + topInset, horizonY);
+  c.lineTo(sx + width - topInset, horizonY);
+  c.lineTo(sx + width + bottomInset, bottomY);
+  c.lineTo(sx - bottomInset, bottomY);
+  c.closePath();
+  c.fill();
+
   c.fillStyle = "#7bd66a";
   c.fillRect(sx, GROUND_Y, width, 15);
   c.strokeStyle = "#000"; c.lineWidth = 4; c.strokeRect(sx, GROUND_Y, width, 15);
 
-  // Пиксельная трава
   c.fillStyle = "#a8e88e";
   for (let i = 0; i < width; i += 20) {
     const tx = sx + i;
@@ -369,7 +424,8 @@ function drawPlatform3D(c, p) {
   
   const depth = 40;
   
-  // 1. Задняя грань
+  drawShadow(c, x + p.w/2, p.y + p.h + depth + 20, p.w/2 + depth, 15, 0.4);
+  
   c.fillStyle = "#4a3020";
   c.beginPath();
   c.moveTo(x, p.y);
@@ -380,7 +436,6 @@ function drawPlatform3D(c, p) {
   c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 4; c.stroke();
   
-  // 2. Верхняя грань
   c.fillStyle = "#7bd66a";
   c.beginPath();
   c.moveTo(x, p.y);
@@ -391,7 +446,9 @@ function drawPlatform3D(c, p) {
   c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 4; c.stroke();
   
-  // 3. Передняя грань
+  // Штриховка на платформе (комикс-стиль)
+  drawHatching(c, x, p.y + p.h + depth*0.5, p.w, 15, "#000", 0.15, 6);
+  
   c.fillStyle = "#80552f";
   c.beginPath();
   c.moveTo(x - depth*0.5, p.y + p.h + depth*0.5);
@@ -474,13 +531,53 @@ function drawBush3D(c, x, y, s=1) {
   c.restore();
 }
 
-// ==================== ПЕРСОНАЖИ (BATTLETOADS STYLE) ====================
+// === ПЕРЕДНИЙ ПЛАН (ГЛУБИНА) ===
+function drawForeground(c) {
+  for (const fg of foreground) {
+    // Передний план движется быстрее (эффект параллакса)
+    const x = fg.x - camera * fg.speedFactor;
+    if (x < -100 || x > W + 100) continue;
+    
+    c.save();
+    c.translate(x, fg.y);
+    c.scale(fg.scale, fg.scale);
+    
+    if (fg.type === "grass") {
+      c.fillStyle = "#2e7d32";
+      c.beginPath();
+      c.moveTo(-15, 20);
+      c.lineTo(-10, 0);
+      c.lineTo(-5, 15);
+      c.lineTo(0, -5);
+      c.lineTo(5, 15);
+      c.lineTo(10, 0);
+      c.lineTo(15, 20);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
+    } else {
+      c.fillStyle = "#666";
+      c.beginPath();
+      c.ellipse(0, 0, 20, 15, 0, 0, 7);
+      c.fill();
+      c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
+      // Штриховка на камне
+      drawHatching(c, -15, -10, 30, 20, "#000", 0.3, 4);
+    }
+    
+    c.restore();
+  }
+}
+
+// ==================== ПЕРСОНАЖИ (СО ШТРИХОВКОЙ) ====================
 
 function drawPlayer(c) {
   const x = player.x - camera, y = player.y;
+  
+  drawShadow(c, x, GROUND_Y, 25, 8, 0.3);
+  
   if (player.invincible > 0 && Math.floor(frame/5) % 2 === 0) return;
   
-  // HP Bar
   const barW = 40, barH = 6, barX = x - barW/2, barY = y - 50;
   c.fillStyle = "rgba(0,0,0,0.8)";
   c.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
@@ -489,7 +586,6 @@ function drawPlayer(c) {
     c.fillRect(barX + i * (barW / 3), barY, (barW / 3) - 2, barH);
   }
   
-  // Ноги
   c.fillStyle = "#3a2015";
   c.beginPath();
   c.ellipse(x - 10, y + 20, 8, 10, 0.2, 0, 7);
@@ -497,7 +593,6 @@ function drawPlayer(c) {
   c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   
-  // Тело
   c.fillStyle = "#d96a1e";
   c.beginPath();
   if (c.roundRect) { c.roundRect(x - 18, y - 5, 36, 25, 8); } 
@@ -505,39 +600,38 @@ function drawPlayer(c) {
   c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   
-  // Голова
+  // Штриховка на теле (комикс-стиль)
+  drawHatching(c, x - 18, y - 5, 36, 25, "#000", 0.2, 5);
+  
   c.fillStyle = "#f4cf43";
   c.beginPath(); c.arc(x, y - 12, 24, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3.5; c.stroke();
   
-  // Глаза (большие)
+  // Штриховка на голове (полутона)
+  drawHatching(c, x - 15, y - 20, 30, 15, "#a86a1e", 0.4, 4);
+  
   c.fillStyle = "#fff";
   c.beginPath(); c.ellipse(x - 8, y - 18, 7, 9, 0, 0, 7); c.fill();
   c.beginPath(); c.ellipse(x + 8, y - 18, 7, 9, 0, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
   
-  // Зрачки
   c.fillStyle = "#000";
   c.beginPath(); c.arc(x - 8 + player.facing * 2, y - 18, 3, 0, 7); c.fill();
   c.beginPath(); c.arc(x + 8 + player.facing * 2, y - 18, 3, 0, 7); c.fill();
   
-  // Рот
   c.strokeStyle = "#000"; c.lineWidth = 2.5;
   c.beginPath(); c.arc(x, y - 4, 8, 0.2, Math.PI - 0.2); c.stroke();
   
-  // Зубы
   c.fillStyle = "#fff";
   c.beginPath(); c.moveTo(x - 4, y - 4); c.lineTo(x - 2, y + 2); c.lineTo(x, y - 4); c.fill();
   c.beginPath(); c.moveTo(x + 4, y - 4); c.lineTo(x + 2, y + 2); c.lineTo(x, y - 4); c.fill();
   
-  // Руки
   c.fillStyle = "#f4cf43";
   c.beginPath(); c.ellipse(x - 22, y + 2, 6, 10, 0.5, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 2.5; c.stroke();
   c.beginPath(); c.ellipse(x + 22, y + 2, 6, 10, -0.5, 0, 7); c.fill();
   c.stroke();
   
-  // Оружие с эффектом раздувания
   const recoil = (frame % 10 < 3 && isHoldingShoot) ? 1.3 : 1.0;
   c.save(); 
   c.translate(x + player.facing * 20, y - 2); 
@@ -569,185 +663,242 @@ function drawPlayer(c) {
   }
 }
 
+// === КРЫСКА С АНИМАЦИЕЙ ===
+function drawRat(c) {
+  if (!rat.alive) return;
+  const x = rat.x - camera, y = rat.y;
+  
+  drawShadow(c, x, GROUND_Y, 15, 5, 0.25);
+  
+  // Анимация бега (лапки)
+  const legAnim = Math.abs(Math.sin(rat.animFrame * 0.3)) * 3;
+  const tailAnim = Math.sin(rat.animFrame * 0.2) * 5;
+  const headBob = Math.sin(rat.animFrame * 0.15) * 1.5;
+  
+  c.save();
+  c.translate(x, y);
+  c.scale(rat.facing, 1);
+  
+  // Тело (белое с черными пятнами)
+  c.fillStyle = "#fff";
+  c.beginPath();
+  c.ellipse(0, 0, 14, 10, 0, 0, 7);
+  c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
+  
+  // Штриховка на теле (тень)
+  drawHatching(c, -10, -5, 20, 10, "#000", 0.2, 3);
+  
+  // Черные пятна
+  c.fillStyle = "#000";
+  c.beginPath(); c.arc(-4, -2, 3, 0, 7); c.fill();
+  c.beginPath(); c.arc(5, 1, 2.5, 0, 7); c.fill();
+  
+  // Лапки (анимация)
+  c.fillStyle = "#fff";
+  c.beginPath(); c.ellipse(-8, 8 + legAnim, 3, 5, 0, 0, 7); c.fill(); c.strokeStyle = "#000"; c.lineWidth = 1; c.stroke();
+  c.beginPath(); c.ellipse(8, 8 - legAnim, 3, 5, 0, 0, 7); c.fill(); c.stroke();
+  
+  // Хвост (взмах)
+  c.strokeStyle = "#fff"; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(-14, 0); c.quadraticCurveTo(-25, -10 + tailAnim, -30, tailAnim); c.stroke();
+  c.strokeStyle = "#000"; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(-14, 0); c.quadraticCurveTo(-25, -10 + tailAnim, -30, tailAnim); c.stroke();
+  
+  // Голова (поворот)
+  c.fillStyle = "#fff";
+  c.beginPath(); c.arc(12, -4 + headBob, 8, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
+  
+  // Уши
+  c.fillStyle = "#fff";
+  c.beginPath(); c.arc(10, -12 + headBob, 4, 0, 7); c.fill(); c.stroke();
+  c.beginPath(); c.arc(16, -12 + headBob, 4, 0, 7); c.fill(); c.stroke();
+  
+  // Глаз (смотрит вперед)
+  c.fillStyle = "#000";
+  c.beginPath(); c.arc(15, -5 + headBob, 2, 0, 7); c.fill();
+  
+  // Носик
+  c.fillStyle = "#ff9999";
+  c.beginPath(); c.arc(19, -4 + headBob, 1.5, 0, 7); c.fill();
+  
+  c.restore();
+}
+
 function drawGopnik(c, g) {
   const x=g.x-camera; if(x<-50||x>W+50||!g.alive) return;
+  
+  drawShadow(c, x, GROUND_Y, 15, 6, 0.3);
+  
   c.save(); c.translate(x, g.y);
   
-  // Тело (спортивка)
   c.fillStyle = "#222"; c.fillRect(-12, -15, 24, 25);
   c.strokeStyle = "#000"; c.lineWidth = 3; c.strokeRect(-12, -15, 24, 25);
   
-  // Голова (карикатурная)
+  drawHatching(c, -12, -15, 24, 25, "#000", 0.2, 4);
+  
   c.fillStyle = "#d96a1e"; 
   c.beginPath(); c.arc(0, -22, 16, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   
-  // Уши
   c.beginPath(); c.moveTo(-10, -30); c.lineTo(-16, -42); c.lineTo(-4, -30); c.fill();
   c.beginPath(); c.moveTo(10, -30); c.lineTo(16, -42); c.lineTo(4, -30); c.fill();
   c.stroke();
   
-  // Кепка
   c.fillStyle = "#111"; c.beginPath(); c.arc(0, -28, 16, Math.PI, 0); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
   
-  // Глаза (большие, наглые)
   c.fillStyle = "white"; c.beginPath(); c.ellipse(-5, -24, 4, 5, 0, 0, 7); c.fill();
   c.beginPath(); c.ellipse(5, -24, 4, 5, 0, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-5, -24, 2, 0, 7); c.arc(5, -24, 2, 0, 7); c.fill();
   
-  // Оскал с семечкой
-  c.fillStyle = "#fff"; c.fillRect(-6, -16, 12, 4); // Зубы
+  c.fillStyle = "#fff"; c.fillRect(-6, -16, 12, 4);
   c.strokeStyle = "#000"; c.lineWidth = 1; c.strokeRect(-6, -16, 12, 4);
-  c.fillStyle = "#222"; c.beginPath(); c.arc(0, -14, 2, 0, 7); c.fill(); // Семечка
+  c.fillStyle = "#222"; c.beginPath(); c.arc(0, -14, 2, 0, 7); c.fill();
   
   c.restore();
 }
 
 function drawRabbit(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 18, 6, 0.25);
+  
   const legSwing = isMoving ? Math.sin(frame * 0.3) * 6 : 0;
   c.save(); c.translate(x, y); c.scale(facing, 1);
   
-  // Тело
   c.fillStyle = "#b0b0b0"; c.beginPath(); c.ellipse(0, -5, 16, 22, 0, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   
-  // Голова
+  drawHatching(c, -10, -15, 20, 20, "#000", 0.15, 4);
+  
   c.fillStyle = "#e0e0e0"; c.beginPath(); c.arc(2, -26, 14, 0, 7); c.fill();
   c.stroke();
   
-  // Уши (длинные)
   c.fillStyle = "#b0b0b0"; c.beginPath(); c.ellipse(-4, -44, 5, 14, 0.2, 0, 7); c.fill(); c.beginPath(); c.ellipse(8, -44, 5, 14, -0.2, 0, 7); c.fill();
   c.stroke();
   
-  // Глаза (выпученные)
   c.fillStyle = "white"; c.beginPath(); c.arc(0, -30, 5, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(1, -30, 2.5, 0, 7); c.fill();
   
-  // Клыки
   c.fillStyle = "#fff"; c.beginPath(); c.moveTo(-2, -20); c.lineTo(0, -14); c.lineTo(2, -20); c.fill();
   
   c.restore();
 }
 
 function drawWolf(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 22, 7, 0.3);
+  
   const legSwing = isMoving ? Math.sin(frame * 0.3) * 6 : 0;
   c.save(); c.translate(x, y); c.scale(facing, 1);
   
-  // Тело
   c.fillStyle = "#555"; c.beginPath(); c.ellipse(0, -5, 18, 24, 0, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   
-  // Голова
+  drawHatching(c, -12, -15, 24, 22, "#000", 0.2, 4);
+  
   c.beginPath(); c.ellipse(2, -30, 16, 14, 0, 0, 7); c.fill(); c.stroke();
   
-  // Пасть
   c.fillStyle = "#777"; c.beginPath(); c.ellipse(12, -28, 9, 7, -0.2, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
   
-  // Уши
   c.fillStyle = "#555"; c.beginPath(); c.moveTo(-10, -42); c.lineTo(-14, -54); c.lineTo(-2, -42); c.fill(); c.beginPath(); c.moveTo(14, -42); c.lineTo(18, -54); c.lineTo(6, -42); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
   
-  // Глаза
   c.fillStyle = "white"; c.beginPath(); c.arc(-2, -34, 4.5, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-1, -34, 2.5, 0, 7); c.fill();
   
-  // Клыки
   c.fillStyle = "#fff"; c.beginPath(); c.moveTo(8, -28); c.lineTo(10, -22); c.lineTo(12, -28); c.fill();
   
   c.restore();
 }
 
 function drawBearBody(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 26, 8, 0.35);
+  
   const legSwing = isMoving ? Math.sin(frame * 0.3) * 5 : 0;
   c.save(); c.translate(x, y); c.scale(facing, 1);
   
-  // Тело
   c.fillStyle = "#6b4c2a"; c.beginPath(); c.ellipse(0, -5, 22, 26, 0, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3.5; c.stroke();
   
-  // Голова
+  drawHatching(c, -15, -15, 30, 25, "#000", 0.2, 5);
+  
   c.fillStyle = "#8a6035"; c.beginPath(); c.arc(2, -30, 18, 0, 7); c.fill(); c.stroke();
   
-  // Уши
   c.beginPath(); c.arc(-12, -42, 7, 0, 7); c.arc(16, -42, 7, 0, 7); c.fill(); c.stroke();
   
-  // Глаза
   c.fillStyle = "white"; c.beginPath(); c.arc(-2, -34, 5.5, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-1, -34, 3, 0, 7); c.fill();
   
-  // Клыки
   c.fillStyle = "#fff"; c.beginPath(); c.moveTo(8, -26); c.lineTo(10, -18); c.lineTo(12, -26); c.fill();
   
   c.restore();
 }
 
 function drawFoxBody(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 20, 7, 0.3);
+  
   const legSwing = isMoving ? Math.sin(frame * 0.3) * 5 : 0;
   c.save(); c.translate(x, y); c.scale(facing, 1);
   
-  // Тело
   c.fillStyle = "#d96a1e"; c.beginPath(); c.ellipse(0, -5, 18, 22, 0, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   
-  // Голова
+  drawHatching(c, -12, -15, 24, 22, "#000", 0.2, 4);
+  
   c.beginPath(); c.arc(2, -27, 16, 0, 7); c.fill(); c.stroke();
   
-  // Уши
   c.beginPath(); c.moveTo(-10, -40); c.lineTo(-14, -55); c.lineTo(-2, -40); c.fill(); c.beginPath(); c.moveTo(14, -40); c.lineTo(18, -55); c.lineTo(6, -40); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
   
-  // Морда
   c.fillStyle = "#e8a53c"; c.beginPath(); c.ellipse(16, -27, 11, 7, -0.1, 0, 7); c.fill();
   c.stroke();
   
-  // Глаза
   c.fillStyle = "white"; c.beginPath(); c.arc(-2, -32, 5, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-1, -32, 2.5, 0, 7); c.fill();
   
-  // Клыки
   c.fillStyle = "#fff"; c.beginPath(); c.moveTo(22, -26); c.lineTo(24, -20); c.lineTo(26, -26); c.fill();
   
   c.restore();
 }
 
 function drawFrog(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 20, 7, 0.3);
+  
   const hop = isMoving ? Math.abs(Math.sin(frame * 0.2)) * 10 : 0;
   c.save(); c.translate(x, y - hop); c.scale(facing, 1);
   
-  // Тело
   c.fillStyle = "#4caf50"; c.beginPath(); c.ellipse(0, 0, 22, 18, 0, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3.5; c.stroke();
   
-  // Глаза (выпученные)
+  drawHatching(c, -15, -10, 30, 20, "#000", 0.2, 5);
+  
   c.fillStyle = "#388e3c"; c.beginPath(); c.arc(-10, -14, 8, 0, 7); c.arc(10, -14, 8, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 2.5; c.stroke();
   c.fillStyle = "white"; c.beginPath(); c.arc(-10, -16, 5, 0, 7); c.arc(10, -16, 5, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-10, -16, 2.5, 0, 7); c.arc(10, -16, 2.5, 0, 7); c.fill();
   
-  // Рот
   c.strokeStyle = "#000"; c.lineWidth = 3; c.beginPath(); c.arc(0, 6, 12, 0.2, Math.PI - 0.2); c.stroke();
   
   c.restore();
 }
 
 function drawTroll(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 30, 9, 0.35);
+  
   const bob = isMoving ? Math.sin(frame * 0.15) * 4 : 0;
   c.save(); c.translate(x, y - bob); c.scale(facing, 1);
   
-  // Тело
   c.fillStyle = "#7b6b54"; c.beginPath(); c.ellipse(0, 0, 28, 32, 0, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 4; c.stroke();
   
-  // Голова
+  drawHatching(c, -18, -10, 36, 30, "#000", 0.2, 5);
+  
   c.fillStyle = "#5c4f3d"; c.beginPath(); c.arc(0, -28, 20, 0, 7); c.fill(); c.stroke();
   
-  // Глаза
   c.fillStyle = "#ffcc00"; c.beginPath(); c.arc(-8, -32, 5, 0, 7); c.arc(8, -32, 5, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-8, -32, 2.5, 0, 7); c.arc(8, -32, 2.5, 0, 7); c.fill();
   
-  // Пасть с клыками
   c.fillStyle = "#3e2a1a"; c.fillRect(-12, -16, 24, 10);
   c.fillStyle = "#fff"; c.fillRect(-8, -16, 5, 8); c.fillRect(3, -16, 5, 8);
   
@@ -755,155 +906,150 @@ function drawTroll(c, x, y, isMoving, facing) {
 }
 
 function drawSkeleton(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 20, 6, 0.3);
+  
   const bob = isMoving ? Math.sin(frame * 0.2) * 3 : 0;
   c.save(); c.translate(x, y - bob); c.scale(facing, 1);
   
-  // Череп
   c.fillStyle = "#e0e0e0"; c.beginPath(); c.arc(0, -28, 18, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   
-  // Глаза (пустые, с огоньками)
+  drawHatching(c, -15, -40, 30, 20, "#000", 0.15, 4);
+  
   c.fillStyle = "#111"; c.beginPath(); c.arc(-6, -32, 5, 0, 7); c.arc(6, -32, 5, 0, 7); c.fill();
   c.fillStyle = "#ff3300"; c.beginPath(); c.arc(-6, -32, 2.5, 0, 7); c.arc(6, -32, 2.5, 0, 7); c.fill();
   
-  // Челюсть
   c.fillStyle = "#bbb"; c.fillRect(-10, -18, 20, 5);
-  
-  // Тело (кости)
-  c.fillStyle = "#bbb"; c.fillRect(-3, -18, 6, 24);
+  c.fillRect(-3, -18, 6, 24);
   for(let i=0; i<3; i++) { c.fillRect(-14 + i*10, -8, 4, 8); }
   
   c.restore();
 }
 
 function drawDragon(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 35, 10, 0.35);
+  
   const bob = isMoving ? Math.sin(frame * 0.1) * 5 : 0;
   c.save(); c.translate(x, y - bob); c.scale(facing, 1);
   
-  // Тело
   c.fillStyle = "#d32f2f"; c.beginPath(); c.ellipse(0, 0, 30, 22, 0, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 4; c.stroke();
   
-  // Голова
+  drawHatching(c, -20, -15, 40, 30, "#000", 0.2, 5);
+  
   c.beginPath(); c.arc(18, -18, 20, 0, 7); c.fill(); c.stroke();
   
-  // Глаз
   c.fillStyle = "#ffeb3b"; c.beginPath(); c.arc(24, -24, 6, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(24, -24, 3, 0, 7); c.fill();
   
-  // Рога
   c.fillStyle = "#ff5722"; c.beginPath(); c.moveTo(12, -32); c.lineTo(16, -48); c.lineTo(22, -32); c.fill();
   
-  // Пасть с клыками
   c.fillStyle = "#fff"; c.beginPath(); c.moveTo(28, -12); c.lineTo(32, -4); c.lineTo(36, -12); c.fill();
   
   c.restore();
 }
 
 function drawGoblin(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 22, 7, 0.3);
+  
   const bob = isMoving ? Math.sin(frame * 0.2) * 3 : 0;
   c.save(); c.translate(x, y - bob); c.scale(facing, 1);
   
-  // Тело
   c.fillStyle = "#5a7a45"; c.beginPath(); c.ellipse(0, 0, 20, 24, 0, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3.5; c.stroke();
   
-  // Голова
+  drawHatching(c, -14, -10, 28, 24, "#000", 0.2, 4);
+  
   c.fillStyle = "#3d5c2e"; c.beginPath(); c.arc(0, -24, 18, 0, 7); c.fill(); c.stroke();
   
-  // Уши (огромные)
   c.fillStyle = "#4a6b38"; c.beginPath(); c.moveTo(-12, -30); c.lineTo(-30, -40); c.lineTo(-14, -18); c.fill(); c.stroke();
   c.beginPath(); c.moveTo(12, -30); c.lineTo(30, -40); c.lineTo(14, -18); c.fill(); c.stroke();
   
-  // Глаза
   c.fillStyle = "#ffcc00"; c.beginPath(); c.arc(-7, -26, 5, 0, 7); c.arc(7, -26, 5, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-7, -26, 2.5, 0, 7); c.arc(7, -26, 2.5, 0, 7); c.fill();
   
-  // Клыки
   c.fillStyle = "#fff"; c.fillRect(-7, -14, 5, 5); c.fillRect(2, -14, 5, 5);
   
   c.restore();
 }
 
 function drawFireMonster(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 25, 8, 0.4);
+  
   const flicker = Math.sin(frame * 0.3) * 4;
   const flicker2 = Math.cos(frame * 0.4) * 5;
   c.save(); c.translate(x, y);
   
-  // Пламя
   c.fillStyle = "#ff5722"; c.beginPath(); c.moveTo(-22, 22); c.quadraticCurveTo(-28 + flicker, -12, -10, -28 + flicker2); c.quadraticCurveTo(0, -10, 0, 22); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   
   c.fillStyle = "#ff9800"; c.beginPath(); c.moveTo(-6, 22); c.quadraticCurveTo(-12 + flicker2, -18, 6, -34 + flicker); c.quadraticCurveTo(18, -5, 18, 22); c.fill();
   
-  // Ядро
   c.fillStyle = "#ffeb3b"; c.beginPath(); c.ellipse(0, 5, 14, 18, 0, 0, 7); c.fill(); c.stroke();
   
-  // Глаза
   c.fillStyle = "#111"; c.beginPath(); c.arc(-6, -4, 4, 0, 7); c.arc(6, -4, 4, 0, 7); c.fill();
   
   c.restore();
 }
 
 function drawMermaid(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 18, 6, 0.25);
+  
   c.save(); c.translate(x, y); c.scale(facing, 1);
   
-  // Хвост
   c.fillStyle = "#33cc99"; c.beginPath(); c.moveTo(0, 15); c.quadraticCurveTo(-25, 40, 0, 55); c.quadraticCurveTo(25, 40, 0, 15); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3.5; c.stroke();
   
-  // Тело
   c.fillStyle = "#ff99cc"; c.beginPath(); c.ellipse(0, 0, 16, 22, 0, 0, 7); c.fill(); c.stroke();
   
-  // Голова
+  drawHatching(c, -10, -10, 20, 20, "#000", 0.15, 4);
+  
   c.fillStyle = "#ffcc99"; c.beginPath(); c.arc(0, -18, 14, 0, 7); c.fill(); c.stroke();
   
-  // Волосы
   c.fillStyle = "#ff0066"; c.beginPath(); c.arc(0, -26, 14, Math.PI, 0); c.fill(); c.stroke();
   
-  // Глаза
   c.fillStyle = "#111"; c.beginPath(); c.arc(-5, -20, 2.5, 0, 7); c.arc(5, -20, 2.5, 0, 7); c.fill();
   
   c.restore();
 }
 
 function drawShark(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 30, 10, 0.3);
+  
   const bob = Math.sin(frame * 0.1) * 8;
   c.save(); c.translate(x, y + bob); c.scale(facing, 1);
   
-  // Тело
   c.fillStyle = "#8899aa"; c.beginPath(); c.ellipse(0, 0, 34, 18, 0, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3.5; c.stroke();
   
-  // Плавник
+  drawHatching(c, -25, -10, 50, 20, "#000", 0.2, 5);
+  
   c.beginPath(); c.moveTo(-5, 0); c.lineTo(-12, -18); c.lineTo(6, 0); c.fill(); c.stroke();
   
-  // Глаз
   c.fillStyle = "white"; c.beginPath(); c.arc(22, -2, 4, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(23, -2, 2, 0, 7); c.fill();
   
-  // Пасть с зубами
   c.fillStyle = "#fff"; c.beginPath(); c.moveTo(26, 4); c.lineTo(28, 8); c.lineTo(30, 4); c.fill();
   
   c.restore();
 }
 
 function drawTreeMonster(c, x, y, isMoving, facing) {
+  drawShadow(c, x, GROUND_Y, 30, 10, 0.4);
+  
   c.save(); c.translate(x, y);
   
-  // Ствол
   c.fillStyle = "#3e2723"; c.fillRect(-18, -45, 36, 90);
   c.strokeStyle = "#000"; c.lineWidth = 4; c.strokeRect(-18, -45, 36, 90);
   
-  // Крона
+  drawHatching(c, -18, -45, 36, 90, "#000", 0.2, 6);
+  
   c.fillStyle = "#1b5e20"; c.beginPath(); c.arc(0, -55, 40, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 4; c.stroke();
   
-  // Глаза (злые)
   c.fillStyle = "#ff3300"; c.beginPath(); c.arc(-12, -35, 6, 0, 7); c.arc(12, -35, 6, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-12, -35, 3, 0, 7); c.arc(12, -35, 3, 0, 7); c.fill();
   
-  // Рот
   c.fillStyle = "#2e7d32"; c.beginPath(); c.ellipse(0, -18, 14, 10, 0, 0, 7); c.fill(); c.stroke();
   
   c.restore();
@@ -911,18 +1057,20 @@ function drawTreeMonster(c, x, y, isMoving, facing) {
 
 function drawLizard(c, l) {
   const x=l.x-camera; if(x<-90||x>W+90||!l.alive) return;
+  
+  drawShadow(c, x, GROUND_Y, 20, 6, 0.3);
+  
   const f=l.facing;
   c.save(); c.translate(x, l.y); c.scale(f,1);
   
-  // Тело
   c.fillStyle="#2ea82e"; c.beginPath(); c.ellipse(0,0,20,16,0,0,7); c.fill();
   c.strokeStyle="#000"; c.lineWidth = 3; c.stroke();
   
-  // Глаз
+  drawHatching(c, -14, -8, 28, 16, "#000", 0.2, 4);
+  
   c.fillStyle="white"; c.beginPath(); c.arc(21,-11,5,0,7); c.fill();
   c.fillStyle="#111"; c.beginPath(); c.arc(22,-11,2.5,0,7); c.fill();
   
-  // Гребень
   c.fillStyle="#1b5e20"; c.beginPath(); c.moveTo(-10,-10); c.lineTo(-15,-20); c.lineTo(-5,-10); c.fill();
   
   c.restore();
@@ -930,21 +1078,22 @@ function drawLizard(c, l) {
 
 function drawBear(c, b) {
   const x=b.x-camera; if(x<-100||x>W+100||!b.alive) return;
+  
+  drawShadow(c, x, GROUND_Y, 28, 9, 0.35);
+  
   const flash=b.hurtFlash>0&&Math.floor(frame/4)%2===0;
   c.save(); c.translate(x,b.y); c.scale(b.facing,1);
   
-  // Тело
   c.fillStyle=flash?"#ffd27a":"#a86b1e"; c.beginPath(); c.ellipse(0,0,24,26,0,0,7); c.fill();
   c.strokeStyle="#000"; c.lineWidth = 4; c.stroke();
   
-  // Голова
+  drawHatching(c, -16, -10, 32, 25, "#000", 0.2, 5);
+  
   c.fillStyle=flash?"#ffd27a":"#b87522"; c.beginPath(); c.arc(0,-28,20,0,7); c.fill(); c.stroke();
   
-  // Глаза
   c.fillStyle="white"; c.beginPath(); c.arc(-6,-34,6,0,7); c.fill();
   c.fillStyle="#111"; c.beginPath(); c.arc(-5,-34,3,0,7); c.fill();
   
-  // Клыки
   c.fillStyle="#fff"; c.beginPath(); c.moveTo(8,-22); c.lineTo(10,-14); c.lineTo(12,-22); c.fill();
   
   c.restore();
@@ -959,22 +1108,19 @@ function drawBear(c, b) {
 function drawWitch(c, w) {
   const x=w.x-camera; if(x<-100||x>W+100||!w.alive) return;
   
-  // Ступа
+  drawShadow(c, x, GROUND_Y, 25, 8, 0.3);
+  
   c.fillStyle="#5a3a22"; c.beginPath(); c.ellipse(x, w.y+25, 24, 30, 0, 0, 7); c.fill();
   c.strokeStyle="#000"; c.lineWidth = 4; c.stroke();
   
-  // Ободок
   c.fillStyle="#3b2414"; c.fillRect(x-26, w.y+5, 52, 8);
   c.strokeRect(x-26, w.y+5, 52, 8);
   
-  // Помело
   c.strokeStyle="#c9a26b"; c.lineWidth=6; c.beginPath(); c.moveTo(x+16, w.y+18); c.lineTo(x+42, w.y-10); c.stroke();
   c.strokeStyle="#000"; c.lineWidth=2; c.stroke();
   
-  // Бабка (эмодзи)
   c.font="44px Arial"; c.textAlign="center"; c.fillText("🧙‍♀️", x, w.y);
   
-  // Огонек
   c.fillStyle="#ff0000"; c.beginPath(); c.arc(x, w.y-36, 4, 0, 7); c.fill();
 }
 
@@ -982,32 +1128,29 @@ function drawBoss(c) {
   if(!boss || !boss.isBossLevel || !bossBattle || !boss.alive) return;
   const x=boss.x-camera;
   
-  // Огромная лиса
+  drawShadow(c, x, GROUND_Y, 40, 12, 0.4);
+  
   c.save(); c.translate(x, boss.y);
   
-  // Тело
   c.fillStyle = "#d96a1e"; c.beginPath(); c.ellipse(0, 10, 40, 35, 0, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 5; c.stroke();
   
-  // Голова
+  drawHatching(c, -30, -10, 60, 45, "#000", 0.2, 6);
+  
   c.beginPath(); c.arc(0, -30, 35, 0, 7); c.fill(); c.stroke();
   
-  // Уши
   c.beginPath(); c.moveTo(-20, -50); c.lineTo(-30, -80); c.lineTo(-5, -50); c.fill(); c.stroke();
   c.beginPath(); c.moveTo(20, -50); c.lineTo(30, -80); c.lineTo(5, -50); c.fill(); c.stroke();
   
-  // Глаза (злые)
   c.fillStyle = "#ff3300"; c.beginPath(); c.arc(-12, -38, 7, 0, 7); c.arc(12, -38, 7, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-12, -38, 3.5, 0, 7); c.arc(12, -38, 3.5, 0, 7); c.fill();
   
-  // Огромный оскал
   c.fillStyle = "#fff"; c.fillRect(-20, -20, 40, 8);
   c.strokeStyle = "#000"; c.lineWidth = 2; c.strokeRect(-20, -20, 40, 8);
   for(let i=0; i<5; i++) { c.beginPath(); c.moveTo(-18 + i*9, -20); c.lineTo(-15 + i*9, -12); c.lineTo(-12 + i*9, -20); c.fill(); }
   
   c.restore();
   
-  // HP Bar
   c.fillStyle="#381d1d"; c.fillRect(x-45, boss.y-95, 90, 12);
   c.strokeStyle="#000"; c.lineWidth = 2; c.strokeRect(x-45, boss.y-95, 90, 12);
   c.fillStyle="#e33"; c.fillRect(x-45, boss.y-95, 90*(boss.hp/boss.maxHp), 12);
@@ -1079,7 +1222,6 @@ function draw() {
   
   for(const p of platforms) drawPlatform3D(octx, p);
   
-  // Избушка
   const hutX = LEVEL_WIDTH - 140;
   const hutScreenX = hutX - camera;
   if (hutScreenX > -200 && hutScreenX < W + 200) {
@@ -1129,8 +1271,12 @@ function draw() {
   drawBoss(octx);
   drawBullets(octx);
   drawParticles(octx);
+  drawRat(octx);
   drawPlayer(octx);
   drawFloatingTexts(octx);
+  
+  // ПЕРЕДНИЙ ПЛАН (поверх всего, для глубины)
+  drawForeground(octx);
   
   if (shakeTime > 0) {
     octx.restore();
@@ -1247,6 +1393,107 @@ function respawnFromGap() {
 }
 
 // ==================== ОБНОВЛЕНИЕ ====================
+
+function updateRat() {
+  if (!rat.alive) return;
+  
+  rat.animFrame++;
+  
+  // Крыска следует за игроком на земле
+  const distance = player.x - rat.x;
+  const absDist = Math.abs(distance);
+  
+  // Если игрок далеко — бежим за ним
+  if (absDist > 60) {
+    rat.vx = Math.sign(distance) * 3.5;
+    rat.facing = Math.sign(distance) || 1;
+  } else if (absDist < 40) {
+    // Слишком близко — отходим
+    rat.vx = -Math.sign(distance) * 1.5;
+  } else {
+    rat.vx *= 0.8;
+  }
+  
+  // Гравитация
+  rat.vy += getGravity();
+  rat.x += rat.vx;
+  rat.y += rat.vy;
+  
+  // Проверка на землю
+  rat.onGround = false;
+  if (rat.y + rat.r >= GROUND_Y) {
+    rat.y = GROUND_Y - rat.r;
+    rat.vy = 0;
+    rat.onGround = true;
+  }
+  
+  // Проверка на платформы
+  for (const p of platforms) {
+    if (rat.vy >= 0 && rat.x + rat.r > p.x && rat.x - rat.r < p.x + p.w && rat.y + rat.r >= p.y && rat.y + rat.r <= p.y + 15) {
+      rat.y = p.y - rat.r;
+      rat.vy = 0;
+      rat.onGround = true;
+    }
+  }
+  
+  // Прыжок, если перед крыской пропасть или препятствие
+  if (rat.onGround && absDist > 60) {
+    // Проверяем, есть ли пропасть впереди
+    const checkX = rat.x + rat.facing * 40;
+    const overGap = gaps.some(g => checkX > g.x && checkX < g.x + g.w);
+    if (overGap) {
+      rat.vy = -10;
+      rat.onGround = false;
+    }
+    
+    // Проверяем, есть ли платформа впереди (и мы под ней)
+    for (const p of platforms) {
+      if (checkX > p.x && checkX < p.x + p.w && rat.y > p.y && rat.y < p.y + p.h + 20) {
+        rat.vy = -9;
+        rat.onGround = false;
+      }
+    }
+  }
+  
+  // Ограничение по краям уровня
+  rat.x = Math.max(20, Math.min(LEVEL_WIDTH - 20, rat.x));
+  
+  // Если крыска упала в пропасть — телепортируем её к игроку
+  if (rat.y > H + 50) {
+    rat.x = player.x - 60;
+    rat.y = GROUND_Y - 10;
+    rat.vy = 0;
+  }
+  
+  // Автоматическая стрельба
+  rat.shootTimer--;
+  if (rat.shootTimer <= 0) {
+    let closestEnemy = null;
+    let minDist = 400;
+    
+    for (const e of enemies) {
+      if (e.alive) {
+        const dist = Math.abs(player.x - e.x);
+        if (dist < minDist) { minDist = dist; closestEnemy = e; }
+      }
+    }
+    for (const g of gopniks) {
+      if (g.alive) {
+        const dist = Math.abs(player.x - g.x);
+        if (dist < minDist) { minDist = dist; closestEnemy = g; }
+      }
+    }
+    
+    if (closestEnemy) {
+      const dx = closestEnemy.x - rat.x;
+      const dy = closestEnemy.y - rat.y;
+      const len = Math.sqrt(dx*dx + dy*dy) || 1;
+      bullets.push({ x: rat.x, y: rat.y - 5, vx: dx/len*10, vy: dy/len*10, life: 100 });
+      sound(800, 0.05, "sine");
+      rat.shootTimer = 60;
+    }
+  }
+}
 
 function updatePlayer() {
   if (isTransitioning) return;
@@ -1496,6 +1743,7 @@ function updateBoss() {
 function updateBullets() {
   for(const b of bullets){
     b.x+=b.vx; b.life--;
+    
     for(const g of gopniks) if(g.alive&&Math.abs(b.x-g.x)<30&&Math.abs(b.y-g.y)<30){ 
       g.alive=false; b.life=0; 
       spawnParticles(g.x, g.y, "#ff5555", 10);
@@ -1538,6 +1786,7 @@ function updateBullets() {
     }
   }
   bullets=bullets.filter(b=>b.life>0&&b.x>-100&&b.x<LEVEL_WIDTH+100);
+  
   for(const b of enemyBullets){
     b.x+=b.vx; b.y+=b.vy; b.life--;
     if(Math.abs(b.x-player.x)<25&&Math.abs(b.y-player.y)<25){ b.life=0; hurtPlayer(); }
@@ -1601,6 +1850,7 @@ function update() {
   updateMermaidsSharks();
   updateTrees();
   updateGopniks();
+  updateRat();
   updateParticles();
   checkLevelEnd(); updateInfo(); draw();
   if(frame-lastSaveFrame>=60){ saveProgress(); lastSaveFrame=frame; }
