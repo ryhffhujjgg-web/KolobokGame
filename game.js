@@ -167,3 +167,200 @@ function drawOverlay(c){if(hitFlash>0){c.fillStyle=`rgba(255,40,40,${hitFlash/40
 
 const ENEMY_DRAW={rabbit:drawRabbit,wolf:drawWolf,bear:drawBearEnemy,fox:drawFox,frog:drawFrog,troll:drawTroll,skeleton:drawSkeleton,dragon:drawDragon,goblin:drawGoblin,fire:drawFire,tree:drawTreeMonster};
 function draw(){ctx.clearRect(0,0,W,H);ctx.save();if(shakeTime>0){ctx.translate(rnd(-shakeAmp,shakeAmp),rnd(-shakeAmp,shakeAmp));shakeTime--;shakeAmp*=.88;}drawBackground(ctx);for(const p of platforms)drawPlatform3D(ctx,p);drawHut(ctx);drawStars(ctx);drawPickups(ctx);for(const g of gopniks)drawGopnik(ctx,g);const ed=ENEMY_DRAW[worlds[world].enemy]||drawRabbit;for(const e of enemies){if(!e.alive)continue;const x=e.x-camera;if(x<-90||x>W+90)continue;ed(ctx,e);}for(const w of witches)drawWitch(ctx,w);for(const l of lizards)drawLizard(ctx,l);for(const b of bears)drawBear(ctx,b);for(const m of mermaids){if(m.alive&&Math.abs(m.x-camera-W/2)<W)drawMermaid(ctx,m);}for(const s of sharks){if(s.alive&&Math.abs(s.x-camera-W/2)<W)drawShark(ctx,s);}for(const t of trees){if(t.alive&&Math.abs(t.x-camera-W/2)<W)drawTreeMonster(ctx,t);}drawBoss(ctx);drawBullets(ctx);drawParticles(ctx);drawRat(ctx);drawPlayer(ctx);drawFloatingTexts(ctx);drawWeather(ctx);drawForeground(ctx);ctx.restore();drawComicFrame(ctx);drawLevelBanner(ctx);drawOverlay(ctx);}
+function getBossType(){if(world===4)return 'wolf_alpha';if(world===9)return 'bear_shaman';if(world===14)return 'dragon';if(world===19)return 'fox';return null;}
+
+function makeLevel(){player=initAnim({x:70,y:GROUND_Y-19,vx:0,vy:0,r:19,speed:world===10?2.2:3.2,facing:1,onGround:false,health:3,invincible:0,jumpsLeft:2,maxJumps:2,lastShot:0});rat=initAnim({x:10,y:GROUND_Y-10,vx:0,vy:0,onGround:true,facing:1,shootTimer:70,alive:true,r:10});bullets=[];enemyBullets=[];enemies=[];witches=[];lizards=[];bears=[];stars=[];platforms=[];gaps=[];mermaids=[];sharks=[];trees=[];gopniks=[];pickups=[];particles=[];rings=[];floatingTexts=[];bossBattle=false;isTransitioning=false;shakeTime=0;shakeAmp=0;hitFlash=0;playerDashing=0;playerDashCooldown=0;lastSafeX=70;camera=0;levelBannerTimer=180;gaps=[{x:760,w:90},{x:1450,w:110},{x:2050,w:90}];makeForeground();makeWeather();if(world===10){mermaids.push(initAnim({x:650,baseY:220,y:220,vx:1,facing:1,phase:rnd(0,TAU),shootTimer:110,alive:true}));mermaids.push(initAnim({x:1750,baseY:200,y:200,vx:-.9,facing:-1,phase:rnd(0,TAU),shootTimer:160,alive:true}));sharks.push(initAnim({x:1100,y:GROUND_Y-30,vx:1.5,alive:true}));sharks.push(initAnim({x:1850,y:GROUND_Y-30,vx:-1.5,alive:true}));}else if(world===11){[500,1200,1900].forEach((x,i)=>trees.push(initAnim({x,y:GROUND_Y-40,hp:3,maxHp:3,alive:true,shootTimer:100+i*20})));}else{for(let i=0;i<5;i++){const x=390+i*370;if(gaps.some(g=>x>g.x-20&&x<g.x+g.w+20))continue;enemies.push(initAnim({x,y:GROUND_Y-20,vx:.6+(world%4)*.1,vy:0,min:x-95,max:x+95,alive:true,onGround:true,jumpTimer:60+i*27,hp:1}));}if(world%4>0){witches.push(initAnim({x:650,baseY:220,y:220,vx:1+(world%4)*.1,phase:rnd(0,TAU),shootTimer:110,alive:true}));witches.push(initAnim({x:1750,baseY:200,y:200,vx:-(.9+(world%4)*.1),phase:rnd(0,TAU),shootTimer:160,alive:true}));lizards.push(initAnim({x:1100,y:GROUND_Y-15,vx:1.2,vy:0,alive:true,onGround:true,facing:1,dashTimer:140,speed:1.2+(world%4)*.12}));lizards.push(initAnim({x:1850,y:GROUND_Y-15,vx:-1.2,vy:0,alive:true,onGround:true,facing:-1,dashTimer:200,speed:1.2+(world%4)*.12}));}if(world%4>=2)bears.push(initAnim({x:1350,y:GROUND_Y-30,vx:.6,vy:0,hp:3,maxHp:3,alive:true,onGround:true,facing:1,throwTimer:140,hurtFlash:0}));}for(let i=0;i<3;i++)gopniks.push(initAnim({x:600+i*500,y:GROUND_Y-20,vx:.8,vy:0,min:550+i*500,max:650+i*500,alive:true,onGround:true,facing:1,shootTimer:120+i*40}));platforms=[{x:260,y:GROUND_Y-75,w:120,h:16},{x:570,y:GROUND_Y-110,w:135,h:16},{x:900,y:GROUND_Y-80,w:140,h:16},{x:1250,y:GROUND_Y-115,w:150,h:16},{x:1590,y:GROUND_Y-80,w:130,h:16},{x:1900,y:GROUND_Y-110,w:150,h:16}];for(let i=0;i<13;i++){const sx=240+i*165;if(gaps.some(g=>sx>g.x-10&&sx<g.x+g.w+10))continue;stars.push({x:sx,y:i%2===0?GROUND_Y-140:GROUND_Y-50,taken:false});}boss=initAnim({x:2180,y:GROUND_Y-45,vx:1.2,vy:0,hp:10,maxHp:10,alive:true,shootTimer:100,jumpTimer:90,facing:-1,hurtFlash:0,isBossLevel:isBossLevel()});updateInfo();}
+function updateInfo(){info.textContent=`Мир ${world+1}/${TOTAL_LEVELS}: ${worlds[world].name} | ⭐ ${totalStars} | ❤️ ${player?player.health:3}`;}
+function isOverGap(x){return gaps.some(g=>x+player.r*.5>g.x&&x-player.r*.5<g.x+g.w);}
+
+function saveProgress(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({version:10,world,totalStars,lastSafeX,currentWeapon,musicOn:A.musicOn,sfxOn:A.sfxOn,player:{x:player.x,y:player.y,health:player.health,facing:player.facing},bossBattle,gameOver,victory}));}catch(e){}}
+function loadProgress(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return false;const d=JSON.parse(raw);if(!d||d.version!==10||!Number.isInteger(d.world)||d.world<0||d.world>=TOTAL_LEVELS)return false;world=d.world;totalStars=Math.max(0,Number(d.totalStars)||0);lastSafeX=Number(d.lastSafeX)||70;if(['minigun','shotgun','ak47'].includes(d.currentWeapon))currentWeapon=d.currentWeapon;A.musicOn=d.musicOn!==false;A.sfxOn=d.sfxOn!==false;makeLevel();if(d.player){player.x=clamp(Number(d.player.x)||70,19,LEVEL_WIDTH-20);player.y=clamp(Number(d.player.y)||GROUND_Y-19,30,GROUND_Y-5);player.health=clamp(Number(d.player.health)||3,1,3);player.facing=d.player.facing===-1?-1:1;player.vx=0;player.vy=0;player.invincible=0;}bossBattle=d.bossBattle===true;gameOver=d.gameOver===true;victory=d.victory===true;camera=clamp(player.x-W*.38,0,LEVEL_WIDTH-W);updateInfo();syncUI();return true;}catch(e){return false;}}
+function deleteSave(){try{localStorage.removeItem(SAVE_KEY);}catch(e){}}
+function syncUI(){document.querySelectorAll('.weapon-btn').forEach(b=>b.classList.toggle('active',b.dataset.weapon===currentWeapon));document.getElementById('shoot').textContent=currentWeapon==='minigun'?'💥':'🔫';document.getElementById('btn-music').classList.toggle('off',!A.musicOn);document.getElementById('btn-sfx').classList.toggle('off',!A.sfxOn);document.getElementById('btn-sfx').textContent=A.sfxOn?'🔊':'🔇';}
+
+function jump(){if(gameOver||victory||isTransitioning)return;if(world===10){player.vy=-3.5;player.onGround=false;SFX.jump();spawnParticles(player.x,player.y+player.r,'rgba(255,255,255,.6)',6,3,2,.02);return;}if(player.onGround||player.jumpsLeft>0){player.vy=player.onGround?-11:-9;player.onGround=false;player.jumpsLeft--;player.sq=.78;player.st=1.28;SFX.jump();spawnDust(player.x,player.y+player.r,7);}}
+function dash(){if(gameOver||victory||isTransitioning)return;if(playerDashCooldown<=0){playerDashing=15;playerDashCooldown=45;player.vx=player.facing*(world===10?8:12);player.sq=1.25;player.st=.8;SFX.dash();spawnParticles(player.x,player.y,'#c158dc',10,5,3);}}
+function startShoot(){if(gameOver||victory||isTransitioning)return;isHoldingShoot=true;if(currentWeapon==='shotgun')shootShotgun();else if(!minigunInterval){shootAuto();minigunInterval=setInterval(shootAuto,currentWeapon==='minigun'?80:100);}}
+function stopShoot(){isHoldingShoot=false;if(minigunInterval){clearInterval(minigunInterval);minigunInterval=null;}}
+function shootShotgun(){const now=Date.now();if(now-(player.lastShot||0)<260)return;player.lastShot=now;for(let i=-1;i<=1;i++)bullets.push({x:player.x+player.facing*25,y:player.y-7,vx:player.facing*8,vy:i*1.1,life:70});soundShoot();triggerShake(4,5);player.sq=1.12;player.st=.9;spawnParticles(player.x+player.facing*30,player.y-7,'#fff0a0',7,5,2);}
+function shootAuto(){if(gameOver||victory){stopShoot();return;}const now=Date.now();if(now-(player.lastShot||0)<50)return;player.lastShot=now;if(currentWeapon==='minigun'){bullets.push({x:player.x+player.facing*30,y:player.y-7+rnd(-3,3),vx:player.facing*11,vy:rnd(-.4,.4),life:100});triggerShake(1.5,3);spawnParticles(player.x+player.facing*32,player.y-7,'#ffcc00',2,3,1);}else{bullets.push({x:player.x+player.facing*35,y:player.y-7,vx:player.facing*13,vy:0,life:100});triggerShake(2.5,4);spawnParticles(player.x+player.facing*36,player.y-7,'#ffaa00',3,4,2);}player.sq=1.07;player.st=.95;soundShoot();}
+function hurtPlayer(){if(player.invincible>0||gameOver||victory||isTransitioning)return;player.health--;player.invincible=90;player.vy=-6;player.vx=-player.facing*3;player.sq=1.3;player.st=.72;triggerShake(12,15);hitFlash=16;SFX.hurt();spawnParticles(player.x,player.y,'#ff4444',16,6,3);updateInfo();say('Ой-ой-ой!',VOICE.hero);if(player.health<=0){gameOver=true;stopShoot();musicStop();say('Колобок, попробуй ещё раз!',VOICE.narr);}saveProgress();}
+function respawnFromGap(){player.x=lastSafeX;player.y=GROUND_Y-19;player.vx=0;player.vy=0;player.invincible=90;triggerShake(14,18);stopShoot();hurtPlayer();if(!gameOver)say('Осторожно, обрыв!',VOICE.hero);}
+function killReward(x,y,stars_=1,line='Ай!'){spawnExplosion(x,y);totalStars+=stars_;SFX.kill();if(line)say(line,VOICE.hero);updateInfo();saveProgress();}
+
+function updatePlayer(){if(isTransitioning)return;const moving=(keys.left||keys.right)&&player.onGround;tickAnim(player,moving,.35);if(playerDashCooldown>0){playerDashCooldown--;document.getElementById('dash').classList.add('cool');}else document.getElementById('dash').classList.remove('cool');if(playerDashing>0){playerDashing--;player.x+=player.vx;if(frame%3===0)spawnParticles(player.x,player.y+8,'rgba(180,80,220,.55)',2,2,4,.02);}else{let mv=false;if(keys.left){player.vx=-player.speed;player.facing=-1;mv=true;}if(keys.right){player.vx=player.speed;player.facing=1;mv=true;}if(!mv)player.vx*=.78;player.x+=player.vx;if(mv&&frame%8===0)spawnDust(player.x-player.facing*10,player.y+player.r,2);}player.vy+=getGravity();if(world===10){if(player.vy>4)player.vy=4;if(keys.up||isHoldingShoot)player.vy-=.4;}player.y+=player.vy;const overGap=isOverGap(player.x);if(world===10){if(player.y>H-player.r){if(player.vy>2){player.sq=1.2;player.st=.8;spawnParticles(player.x,H-player.r,'#fff',6,3,2,.02);}player.y=H-player.r;player.vy=0;}if(player.y<player.r){player.y=player.r;player.vy=0;}player.onGround=false;player.jumpsLeft=player.maxJumps;}else{if(player.y>H+40){respawnFromGap();return;}if(!overGap&&player.y+player.r>=GROUND_Y){if(player.vy>3.5){player.sq=1.24;player.st=.78;SFX.land();spawnDust(player.x,GROUND_Y,7);}player.y=GROUND_Y-player.r;player.vy=0;player.onGround=true;player.jumpsLeft=player.maxJumps;lastSafeX=player.x;}else if(player.y+player.r<GROUND_Y)player.onGround=false;for(const p of platforms){if(player.vy>=0&&player.x+player.r>p.x&&player.x-player.r<p.x+p.w&&player.y+player.r>=p.y&&player.y+player.r<=p.y+15){if(player.vy>3.5){player.sq=1.22;player.st=.8;SFX.land();spawnDust(player.x,p.y,6);}player.y=p.y-player.r;player.vy=0;player.onGround=true;player.jumpsLeft=player.maxJumps;lastSafeX=player.x;}}}player.x=clamp(player.x,player.r,LEVEL_WIDTH-20);if(player.invincible>0)player.invincible--;camera=clamp(player.x-W*.38,0,LEVEL_WIDTH-W);}
+function updateRat(){if(!rat||!rat.alive)return;const dist=player.x-rat.x,ad=Math.abs(dist);tickAnim(rat,Math.abs(rat.vx)>.4,.4);if(ad>60){rat.vx=Math.sign(dist)*3.5;rat.facing=Math.sign(dist)||1;}else if(ad<40){rat.vx=-Math.sign(dist)*1.5;rat.facing=Math.sign(dist)||1;}else rat.vx*=.8;rat.vy+=getGravity();rat.x+=rat.vx;rat.y+=rat.vy;rat.onGround=false;if(rat.y+rat.r>=GROUND_Y){rat.y=GROUND_Y-rat.r;rat.vy=0;rat.onGround=true;}for(const p of platforms)if(rat.vy>=0&&rat.x+rat.r>p.x&&rat.x-rat.r<p.x+p.w&&rat.y+rat.r>=p.y&&rat.y+rat.r<=p.y+15){rat.y=p.y-rat.r;rat.vy=0;rat.onGround=true;}if(rat.onGround&&ad>60){const cx=rat.x+rat.facing*40;if(gaps.some(g=>cx>g.x&&cx<g.x+g.w)){rat.vy=-10;rat.onGround=false;rat.st=1.2;rat.sq=.85;}for(const p of platforms)if(cx>p.x&&cx<p.x+p.w&&rat.y>p.y&&rat.y<p.y+p.h+20){rat.vy=-9;rat.onGround=false;}}rat.x=clamp(rat.x,20,LEVEL_WIDTH-20);if(rat.y>H+50){rat.x=player.x-60;rat.y=GROUND_Y-10;rat.vy=0;}rat.shootTimer--;if(rat.shootTimer<=0){let target=null,md=400;for(const e of enemies)if(e.alive){const d=Math.abs(player.x-e.x);if(d<md){md=d;target=e;}}for(const g of gopniks)if(g.alive){const d=Math.abs(player.x-g.x);if(d<md){md=d;target=g;}}for(const b of bears)if(b.alive){const d=Math.abs(player.x-b.x);if(d<md){md=d;target=b;}}if(target){const dx=target.x-rat.x,dy=target.y-rat.y,len=Math.hypot(dx,dy)||1;bullets.push({x:rat.x,y:rat.y-5,vx:dx/len*10,vy:dy/len*10,life:90});sound(880,.05,'sine',.05);rat.shootTimer=60;rat.sq=1.15;rat.st=.9;}else rat.shootTimer=30;}}
+function updateEnemies(){for(const e of enemies){if(!e.alive)continue;tickAnim(e,Math.abs(e.vx)>.2,.32);e.jumpTimer--;const dist=player.x-e.x;if(e.jumpTimer<=0&&e.onGround){e.vy=-(7+(world%4)*.5);e.onGround=false;e.jumpTimer=95+Math.random()*85;e.sq=.8;e.st=1.25;}if(Math.abs(dist)<230){e.vx+=Math.sign(dist)*.025;e.vx=clamp(e.vx,-2-(world%4)*.2,2+(world%4)*.2);}else{if(e.x<e.min)e.vx=Math.abs(e.vx);if(e.x>e.max)e.vx=-Math.abs(e.vx);}e.x+=e.vx;e.y+=e.vy;e.vy+=getGravity();if(e.y>=GROUND_Y-20){if(e.vy>4){e.sq=1.2;e.st=.8;spawnDust(e.x,GROUND_Y,3);}e.y=GROUND_Y-20;e.vy=0;e.onGround=true;}if(Math.abs(player.x-e.x)<35&&Math.abs(player.y-e.y)<35){if(player.vy>0&&player.y<e.y-10){e.alive=false;player.vy=-10;player.sq=1.2;player.st=.8;killReward(e.x,e.y,1,'Ай!');}else hurtPlayer();}}}
+function updateGopniks(){for(const g of gopniks){if(!g.alive)continue;const dist=player.x-g.x;tickAnim(g,Math.abs(g.vx)>.2,.25);g.facing=Math.sign(dist)||g.facing||1;if(Math.abs(dist)<300){g.vx=Math.abs(dist)>100?Math.sign(dist)*.8:0;g.shootTimer--;if(g.shootTimer<=0){const dx=player.x-g.x,dy=player.y-(g.y-20),len=Math.hypot(dx,dy)||1;enemyBullets.push({x:g.x,y:g.y-20,vx:dx/len*4,vy:dy/len*4,angle:Math.atan2(dy,dx),life:120,isSeed:true});g.shootTimer=100+Math.random()*50;sound(620,.05,'square',.05);g.sq=1.1;g.st=.94;}}else{if(g.x<g.min)g.vx=Math.abs(g.vx)||.8;if(g.x>g.max)g.vx=-Math.abs(g.vx)||-.8;}g.x+=g.vx;if(Math.abs(player.x-g.x)<35&&Math.abs(player.y-g.y)<35){if(player.vy>0&&player.y<g.y-10){g.alive=false;player.vy=-10;killReward(g.x,g.y,1,'А семки есть?');}else hurtPlayer();}}}
+function updateLizards(){for(const l of lizards){if(!l.alive)continue;tickAnim(l,Math.abs(l.vx)>.4,.45);l.dashTimer--;const dist=player.x-l.x;if(l.dashTimer<=0&&l.onGround&&Math.abs(dist)<260){l.vx=Math.sign(dist)*(3.2+(world%4)*.2);l.facing=Math.sign(dist)||1;l.dashTimer=160+Math.random()*80;l.sq=1.2;l.st=.85;sound(430,.06,'square',.06);}else if(l.dashTimer>0)l.vx*=.93;else{l.vx=l.facing*l.speed;if(l.x<80)l.facing=1;if(l.x>LEVEL_WIDTH-80)l.facing=-1;}l.x+=l.vx;l.y+=l.vy;l.vy+=getGravity();if(l.y>=GROUND_Y-15){l.y=GROUND_Y-15;l.vy=0;l.onGround=true;}else l.onGround=false;if(Math.abs(player.x-l.x)<35&&Math.abs(player.y-l.y)<35){if(player.vy>0&&player.y<l.y-10){l.alive=false;player.vy=-10;killReward(l.x,l.y,1,'Ай!');}else hurtPlayer();}}}
+function updateBears(){for(const b of bears){if(!b.alive)continue;if(b.hurtFlash>0)b.hurtFlash--;const dist=player.x-b.x;b.facing=Math.sign(dist)||1;b.vx=Math.abs(dist)>60?Math.sign(dist)*.6:0;tickAnim(b,Math.abs(b.vx)>.1,.18);b.x+=b.vx;b.y+=b.vy;b.vy+=getGravity();if(b.y>=GROUND_Y-30){b.y=GROUND_Y-30;b.vy=0;b.onGround=true;}b.throwTimer--;if(b.throwTimer<=0&&Math.abs(dist)<380){const dx=player.x-b.x,dy=player.y-(b.y-30),len=Math.hypot(dx,dy)||1;enemyBullets.push({x:b.x,y:b.y-30,vx:dx/len*3.2,vy:dy/len*3.2-1.2,angle:Math.atan2(dy,dx),life:180,grav:.08});b.throwTimer=150+Math.random()*80;b.sq=1.15;b.st=.9;sound(200,.1,'square',.08);}if(Math.abs(player.x-b.x)<45&&Math.abs(player.y-b.y)<45){if(player.vy>0&&player.y<b.y-15){b.hp--;b.hurtFlash=20;player.vy=-10;SFX.hit();spawnParticles(b.x,b.y,'#ff5555',10,5,3);if(b.hp<=0){b.alive=false;pickups.push({x:b.x,y:b.y-30,type:'shield'});killReward(b.x,b.y,5,'Ай!');}saveProgress();}else hurtPlayer();}}}
+function updateWitches(){for(const w of witches){if(!w.alive)continue;tickAnim(w,true,.2);w.phase+=.03;w.x+=w.vx;if(w.x<80){w.x=80;w.vx=Math.abs(w.vx);}if(w.x>LEVEL_WIDTH-80){w.x=LEVEL_WIDTH-80;w.vx=-Math.abs(w.vx);}w.y=w.baseY+Math.sin(w.phase)*25;w.shootTimer--;if(w.shootTimer<=0){const dx=player.x-w.x,dy=player.y-w.y,len=Math.hypot(dx,dy)||1;enemyBullets.push({x:w.x,y:w.y,vx:dx/len*3.4,vy:dy/len*3.4,angle:Math.atan2(dy,dx),life:150});w.shootTimer=130+Math.random()*60;sound(300,.08,'sawtooth',.07);spawnParticles(w.x,w.y,'#c158dc',5,3,2,.02);}if(Math.abs(player.x-w.x)<40&&Math.abs(player.y-w.y)<40)hurtPlayer();}}
+function updateMermaidsSharks(){for(const m of mermaids){if(!m.alive)continue;tickAnim(m,true,.2);m.phase+=.05;m.x+=m.vx;m.facing=Math.sign(m.vx)||1;m.y=m.baseY+Math.sin(m.phase)*20;if(m.x<80||m.x>LEVEL_WIDTH-80)m.vx*=-1;m.shootTimer--;if(m.shootTimer<=0){const dx=player.x-m.x,dy=player.y-m.y,len=Math.hypot(dx,dy)||1;enemyBullets.push({x:m.x,y:m.y,vx:dx/len*4,vy:dy/len*4,angle:Math.atan2(dy,dx),life:150});m.shootTimer=100+Math.random()*50;sound(820,.1,'sine',.06);}if(Math.abs(player.x-m.x)<30&&Math.abs(player.y-m.y)<30)hurtPlayer();}for(const s of sharks){if(!s.alive)continue;tickAnim(s,true,.2);s.x+=s.vx;s.y=GROUND_Y-30+Math.sin(frame*.1)*20;if(s.x<80||s.x>LEVEL_WIDTH-80)s.vx*=-1;if(Math.abs(player.x-s.x)<40&&Math.abs(player.y-s.y)<30)hurtPlayer();}}
+function updateTrees(){for(const t of trees){if(!t.alive)continue;tickAnim(t,false,.1);t.shootTimer--;if(t.shootTimer<=0){const dx=player.x-t.x,dy=player.y-(t.y-50),len=Math.hypot(dx,dy)||1;enemyBullets.push({x:t.x,y:t.y-50,vx:dx/len*3.5,vy:dy/len*3.5-3,angle:Math.atan2(dy,dx),life:150,isGreen:true,grav:.06});t.shootTimer=120+Math.random()*60;sound(150,.1,'sawtooth',.08);t.sq=1.12;t.st=.9;}if(Math.abs(player.x-t.x)<40&&Math.abs(player.y-t.y)<40)hurtPlayer();}}
+function updateBoss(){if(!boss||!boss.isBossLevel)return;if(!bossBattle&&player.x>1950&&boss.alive){bossBattle=true;say('Лиса! Вот это сюрприз!',VOICE.fox);musicStart();triggerShake(8,14);saveProgress();}if(!bossBattle||!boss.alive)return;tickAnim(boss,Math.abs(boss.vx)>.1,.2);if(boss.hurtFlash>0)boss.hurtFlash--;const dist=player.x-boss.x;boss.facing=Math.sign(dist)||1;boss.vx=Math.abs(dist)>70?Math.sign(dist)*1.1:0;boss.x+=boss.vx;boss.jumpTimer--;if(boss.jumpTimer<=0&&boss.y>=GROUND_Y-45){boss.vy=-8.5;boss.jumpTimer=100;boss.sq=.85;boss.st=1.2;}boss.y+=boss.vy;boss.vy+=getGravity();if(boss.y>GROUND_Y-45){if(boss.vy>4){boss.sq=1.15;boss.st=.85;spawnDust(boss.x,GROUND_Y,8);triggerShake(4,6);}boss.y=GROUND_Y-45;boss.vy=0;}boss.shootTimer--;if(boss.shootTimer<=0){const dx=player.x-boss.x,dy=(player.y-10)-(boss.y-10),len=Math.hypot(dx,dy)||1;enemyBullets.push({x:boss.x,y:boss.y-10,vx:dx/len*4.8,vy:dy/len*4.8,angle:Math.atan2(dy,dx),life:130});boss.shootTimer=85;sound(260,.1,'sawtooth',.09);}if(Math.abs(player.x-boss.x)<50&&Math.abs(player.y-boss.y)<50){if(player.vy>0&&player.y<boss.y-15){boss.hp--;boss.hurtFlash=14;player.vy=-10;SFX.hit();spawnParticles(boss.x,boss.y,'#ff5555',10,5,3);if(boss.hp<=0)defeatBoss();saveProgress();}else hurtPlayer();}}}
+function defeatBoss(){boss.alive=false;spawnExplosion(boss.x,boss.y);totalStars+=10;say('Охохонюшки, Хо-Хо!',VOICE.fox);musicStart();updateInfo();saveProgress();}
+function updateBullets(){for(const b of bullets){b.x+=b.vx;b.y+=(b.vy||0);b.life--;for(const g of gopniks)if(g.alive&&Math.abs(b.x-g.x)<30&&Math.abs(b.y-g.y)<32){g.alive=false;b.life=0;killReward(g.x,g.y,1,'А семки есть?');}for(const e of enemies)if(e.alive&&Math.abs(b.x-e.x)<30&&Math.abs(b.y-e.y)<35){e.alive=false;b.life=0;if(Math.random()<.25)pickups.push({x:e.x,y:e.y-20,type:['apple','lightning','shield'][Math.floor(Math.random()*3)]});killReward(e.x,e.y,1,'Ай!');}for(const w of witches)if(w.alive&&Math.abs(b.x-w.x)<35&&Math.abs(b.y-w.y)<40){w.alive=false;b.life=0;if(Math.random()<.35)pickups.push({x:w.x,y:w.y,type:'apple'});killReward(w.x,w.y,2,'Ай!');}for(const l of lizards)if(l.alive&&Math.abs(b.x-l.x)<30&&Math.abs(b.y-l.y)<26){l.alive=false;b.life=0;killReward(l.x,l.y,1,'Ай!');}for(const br of bears)if(br.alive&&Math.abs(b.x-br.x)<32&&Math.abs(b.y-br.y)<34){br.hp--;br.hurtFlash=20;b.life=0;SFX.hit();spawnParticles(br.x,br.y,'#ff5555',5,4,2);if(br.hp<=0){br.alive=false;pickups.push({x:br.x,y:br.y-30,type:'shield'});killReward(br.x,br.y,5,'Ай!');}saveProgress();}for(const m of mermaids)if(m.alive&&Math.abs(b.x-m.x)<30&&Math.abs(b.y-m.y)<32){m.alive=false;b.life=0;killReward(m.x,m.y,2,'Ай!');}for(const s of sharks)if(s.alive&&Math.abs(b.x-s.x)<40&&Math.abs(b.y-s.y)<30){s.alive=false;b.life=0;killReward(s.x,s.y,2,'Ай!');}for(const t of trees)if(t.alive&&Math.abs(b.x-t.x)<40&&Math.abs(b.y-t.y)<50){t.hp--;b.life=0;spawnParticles(t.x,t.y,'#5cff5c',10,5,3);SFX.hit();t.sq=1.1;t.st=.92;if(t.hp<=0){t.alive=false;killReward(t.x,t.y,3,'Ай!');}saveProgress();}if(boss&&boss.isBossLevel&&bossBattle&&boss.alive&&Math.abs(b.x-boss.x)<45&&Math.abs(b.y-boss.y)<52){boss.hp--;boss.hurtFlash=12;b.life=0;SFX.hit();spawnParticles(boss.x,boss.y,'#ff5555',8,5,3);if(boss.hp<=0)defeatBoss();saveProgress();}}bullets=bullets.filter(b=>b.life>0&&b.x>-100&&b.x<LEVEL_WIDTH+100&&b.y<H+60&&b.y>-60);for(const b of enemyBullets){b.x+=b.vx;b.y+=b.vy;if(b.grav)b.vy+=b.grav;b.life--;b.angle=Math.atan2(b.vy,b.vx);if(Math.abs(b.x-player.x)<25&&Math.abs(b.y-player.y)<25){b.life=0;hurtPlayer();}}enemyBullets=enemyBullets.filter(b=>b.life>0&&b.y<H+80);}
+function updatePickups(){for(let i=pickups.length-1;i>=0;i--){const p=pickups[i];if(Math.abs(player.x-p.x)<32&&Math.abs(player.y-p.y)<34){if(p.type==='apple'){player.health=Math.min(3,player.health+1);addFloatingText(player.x-camera,player.y-44,'+1 ❤️','#ff6b6b');}else if(p.type==='lightning'){player.lastShot=Date.now()-300;playerDashCooldown=0;addFloatingText(player.x-camera,player.y-44,'БЫСТРО!','#4ac8ff');}else{player.invincible=200;addFloatingText(player.x-camera,player.y-44,'ЩИТ!','#7fe07f');}SFX.pickup();spawnParticles(p.x,p.y,'#fff6a0',10,4,2,.05);pickups.splice(i,1);updateInfo();saveProgress();}}}
+function updateStars(){for(const s of stars)if(!s.taken&&Math.abs(player.x-s.x)<32&&Math.abs(player.y-s.y)<42){s.taken=true;totalStars++;addFloatingText(player.x-camera,player.y-44,'+1 ⭐','#ffd700');spawnParticles(s.x,s.y,'#ffe45a',8,4,2,.05);SFX.star();updateInfo();saveProgress();}}
+function checkLevelEnd(){if(isTransitioning||gameOver||victory)return;const hutX=LEVEL_WIDTH-140;if(player.x>hutX+40&&player.x<hutX+90){if(boss&&boss.isBossLevel&&boss.alive){player.x=hutX+38;say('Сначала одолeй Лису!',VOICE.fox);return;}isTransitioning=true;stopShoot();say('В избушку!',VOICE.hero);sound(880,.3,'sine',.1);spawnParticles(player.x,player.y,'#fff',20,6,3,.02);setTimeout(()=>{if(world<TOTAL_LEVELS-1){world++;makeLevel();say('Мир '+(world+1)+': '+worlds[world].name,VOICE.narr);musicStart();saveProgress();isTransitioning=false;}else{startCutscene();}},1000);}if(boss&&boss.isBossLevel&&bossBattle&&boss.alive&&player.x>2110)player.x=2110;}
+
+// ==================== КАТСЦЕНА ФИНАЛА ====================
+function startCutscene(){
+ victory=true;
+ musicStop();
+ cutscene={timer:0,phase:0,characters:[
+  {x:LEVEL_WIDTH-80,y:GROUND_Y-40,type:'grandma',vx:0,frame:0},
+  {x:LEVEL_WIDTH-80,y:GROUND_Y-40,type:'grandpa',vx:0,frame:0},
+  {x:player.x,y:player.y,type:'player',vx:0,frame:0}
+ ]};
+ gamePhase='cutscene';
+ setTimeout(()=>{cutscene.phase=1;say('Наконец-то я тебя дождалась!',VOICE.grandma);},2000);
+ setTimeout(()=>{cutscene.phase=2;say('Ура!',VOICE.hero);},5000);
+ setTimeout(()=>{cutscene.phase=3;},7000);
+}
+
+function drawCutscene(c){
+ if(gamePhase!=='cutscene')return;
+ cutscene.timer++;
+ 
+ // Затемнение фона
+ c.fillStyle='rgba(0,0,0,0.3)';
+ c.fillRect(0,0,W,H);
+ 
+ // Избушка
+ const hx=LEVEL_WIDTH-140-camera;
+ drawShadow(c,hx+60,GROUND_Y+6,80,14,.35);
+ const g=c.createLinearGradient(hx,0,hx+120,0);
+ g.addColorStop(0,'#6b4522');g.addColorStop(.5,'#9c6a34');g.addColorStop(1,'#5c3a1c');
+ c.fillStyle=g;c.fillRect(hx,GROUND_Y-112,120,112);ink(c,5);
+ tri(c,hx-14,GROUND_Y-110,hx+60,GROUND_Y-186,hx+134,GROUND_Y-110,'#a8322b',5);
+ c.fillStyle='#3b2414';c.fillRect(hx+45,GROUND_Y-80,36,80);ink(c,4);
+ 
+ // Бабка и Дед выходят из избушки
+ if(cutscene.phase>=1){
+  const progress=Math.min(1,(cutscene.timer-120)/60);
+  const bx=hx+60-progress*40;
+  
+  // Бабка
+  c.save();c.translate(bx-15,GROUND_Y-40);
+  c.fillStyle='#8b4513';c.fillRect(-12,-30,24,30);
+  c.fillStyle='#ffe0b8';c.beginPath();c.arc(0,-40,12,0,TAU);c.fill();ink(c,3);
+  c.fillStyle='#fff';c.beginPath();c.arc(0,-48,14,Math.PI,0);c.fill();ink(c,2);
+  c.fillStyle='#4a90e2';c.beginPath();c.arc(-4,-42,2,0,TAU);c.arc(4,-42,2,0,TAU);c.fill();
+  c.strokeStyle='#000';c.lineWidth=2;c.beginPath();c.arc(0,-36,4,.2,Math.PI-.2);c.stroke();
+  c.restore();
+  
+  // Дед
+  c.save();c.translate(bx+15,GROUND_Y-40);
+  c.fillStyle='#654321';c.fillRect(-12,-30,24,30);
+  c.fillStyle='#ffe0b8';c.beginPath();c.arc(0,-40,12,0,TAU);c.fill();ink(c,3);
+  c.fillStyle='#fff';c.fillRect(-10,-48,20,8);
+  c.fillStyle='#4a90e2';c.beginPath();c.arc(-4,-42,2,0,TAU);c.arc(4,-42,2,0,TAU);c.fill();
+  c.strokeStyle='#000';c.lineWidth=2;c.beginPath();c.arc(0,-36,4,.2,Math.PI-.2);c.stroke();
+  c.restore();
+ }
+ 
+ // Колобок
+ if(cutscene.phase>=2){
+  const px=player.x-camera;
+  c.save();c.translate(px,player.y);
+  const bounce=cutscene.phase===2?Math.abs(Math.sin(cutscene.timer*.3))*10:0;
+  c.translate(0,-bounce);
+  blob(c,0,0,22,22,'#ffe783','#efc23c',3.5);
+  const br=Math.sin(cutscene.timer*.1)*1.5;
+  eye(c,-8,-18+br,6.5,0,0,false);
+  eye(c,8,-18+br,6.5,0,0,false);
+  c.strokeStyle='#0d0d12';c.lineWidth=2.6;
+  c.beginPath();c.arc(0,-5+br,8,.25,Math.PI-.25);c.stroke();
+  c.fillStyle='#fff';c.beginPath();c.moveTo(-4,-4+br);c.lineTo(-2,2+br);c.lineTo(0,-4+br);c.fill();
+  c.beginPath();c.moveTo(4,-4+br);c.lineTo(2,2+br);c.lineTo(0,-4+br);c.fill();
+  c.restore();
+  
+  // Эффект "Ура!"
+  if(cutscene.phase===2){
+   c.save();
+   c.globalAlpha=.5+Math.sin(cutscene.timer*.2)*.3;
+   c.fillStyle='#f4cf43';
+   c.font="bold 48px 'Courier New'";
+   c.textAlign='center';
+   c.strokeStyle='#000';c.lineWidth=6;
+   c.strokeText('УРА!',px,player.y-80);
+   c.fillText('УРА!',px,player.y-80);
+   c.restore();
+  }
+ }
+ 
+ // Финальный текст
+ if(cutscene.phase>=3){
+  c.fillStyle='rgba(0,0,0,0.7)';
+  c.fillRect(0,0,W,H);
+  c.textAlign='center';
+  c.font="bold 56px 'Courier New'";
+  c.lineWidth=7;c.strokeStyle='#000';
+  c.strokeText('ПОБЕДА!',W/2,200);
+  c.fillStyle='#7fe07f';
+  c.fillText('ПОБЕДА!',W/2,200);
+  
+  c.font="26px 'Courier New'";
+  c.lineWidth=4;c.strokeStyle='#000';
+  c.strokeText('Колобок спас лес! ⭐ '+totalStars,W/2,260);
+  c.fillStyle='#fff';
+  c.fillText('Колобок спас лес! ⭐ '+totalStars,W/2,260);
+  
+  c.font="18px 'Courier New'";
+  c.fillText('Нажмите ↻ ЗАНОВО для новой игры',W/2,320);
+ }
+}
+
+function update(){
+ if(gameOver){draw();gameLoopRunning=false;return;}
+ if(gamePhase==='cutscene'){
+  cutscene.timer++;
+  draw();
+  drawCutscene(ctx);
+  if(cutscene.phase>=3){
+   requestAnimationFrame(update);
+   return;
+  }
+  requestAnimationFrame(update);
+  return;
+ }
+ if(victory){draw();gameLoopRunning=false;return;}
+ frame++;
+ updatePlayer();updateEnemies();updateWitches();updateLizards();updateBears();updateGopniks();
+ updateMermaidsSharks();updateTrees();updateBoss();updateBullets();updateRat();
+ updateStars();updatePickups();updateEffects();updateWeather();updateMusicLayers();
+ checkLevelEnd();updateInfo();draw();
+ if(frame-lastSaveFrame>=90){saveProgress();lastSaveFrame=frame;}
+ requestAnimationFrame(update);
+}
+function startGameLoop(){if(gameLoopRunning)return;gameLoopRunning=true;requestAnimationFrame(update);}
+
+document.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code))e.preventDefault();A.resume();if(e.code==='ArrowLeft'||e.code==='KeyA')keys.left=true;if(e.code==='ArrowRight'||e.code==='KeyD')keys.right=true;if((e.code==='ArrowUp'||e.code==='Space'||e.code==='KeyW')&&!e.repeat)jump();if(e.code==='ArrowUp'||e.code==='KeyW')keys.up=true;if((e.code==='KeyJ'||e.code==='KeyF')&&!e.repeat)startShoot();if((e.code==='ShiftLeft'||e.code==='KeyK')&&!e.repeat)dash();if(e.code==='KeyM'&&!e.repeat)musicToggle();});
+document.addEventListener('keyup',e=>{if(e.code==='ArrowLeft'||e.code==='KeyA')keys.left=false;if(e.code==='ArrowRight'||e.code==='KeyD')keys.right=false;if(e.code==='ArrowUp'||e.code==='KeyW')keys.up=false;if(e.code==='KeyJ'||e.code==='KeyF')stopShoot();});
+function bindHold(id,key){const b=document.getElementById(id);b.addEventListener('pointerdown',e=>{e.preventDefault();A.resume();keys[key]=true;try{b.setPointerCapture(e.pointerId);}catch(x){}});const rel=e=>{e.preventDefault();keys[key]=false;};b.addEventListener('pointerup',rel);b.addEventListener('pointercancel',rel);b.addEventListener('lostpointercapture',()=>keys[key]=false);b.addEventListener('contextmenu',e=>e.preventDefault());}
+bindHold('left','left');bindHold('right','right');
+function bindPress(id,down,up){const b=document.getElementById(id);b.addEventListener('pointerdown',e=>{e.preventDefault();A.resume();down();try{b.setPointerCapture(e.pointerId);}catch(x){}});const stop=e=>{e.preventDefault();if(up)up();};b.addEventListener('pointerup',stop);b.addEventListener('pointercancel',stop);b.addEventListener('lostpointercapture',stop);b.addEventListener('contextmenu',e=>e.preventDefault());}
+bindPress('shoot',startShoot,stopShoot);
+bindPress('jump',()=>{jump();keys.up=true;},()=>keys.up=false);
+bindPress('dash',dash);
+
+document.querySelectorAll('.weapon-btn').forEach(btn=>{btn.addEventListener('click',()=>{stopShoot();currentWeapon=btn.dataset.weapon;syncUI();A.resume();sound(700,.06,'triangle',.06);saveProgress();});});
+document.getElementById('btn-music').addEventListener('click',musicToggle);
+document.getElementById('btn-sfx').addEventListener('click',sfxToggle);
+
+const hasSave=loadProgress();
+if(!hasSave){document.getElementById('btn-continue').style.display='none';makeLevel();}
+syncUI();draw();
+
+function enterGame(){A.resume();menuScreen.classList.add('hidden');musicStart();startAmbient();draw();startGameLoop();}
+document.getElementById('btn-continue').addEventListener('click',()=>{loadProgress();syncUI();enterGame();say('Продолжаем приключение!',VOICE.hero);});
+document.getElementById('btn-new').addEventListener('click',()=>{if(!confirm('Начать новую игру? Старое сохранение будет удалено.'))return;deleteSave();world=0;totalStars=0;gameOver=false;victory=false;frame=0;lastSaveFrame=0;keys={};makeLevel();enterGame();say('Новое приключение начинается!',VOICE.narr);saveProgress();});
+document.getElementById('restart').addEventListener('click',()=>{if(!confirm('Начать игру заново? Старое сохранение будет удалено.'))return;deleteSave();world=0;totalStars=0;gameOver=false;victory=false;frame=0;lastSaveFrame=0;keys={};stopShoot();makeLevel();A.resume();musicStart();startAmbient();say('Новое приключение начинается!',VOICE.narr);saveProgress();startGameLoop();});
+
+document.addEventListener('contextmenu',e=>{if(e.target.tagName==='BUTTON'||e.target.tagName==='CANVAS')e.preventDefault();});
+function pauseAudioKeys(){keys.left=keys.right=keys.up=false;stopShoot();saveProgress();}
+window.addEventListener('blur',pauseAudioKeys);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){pauseAudioKeys();if(A.ctx&&A.ctx.state==='running')A.ctx.suspend();}else if(A.ctx){A.resume();}});
+window.addEventListener('pagehide',saveProgress);
+window.addEventListener('pointerdown',()=>A.resume(),{once:true});
