@@ -3,32 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Колобок: 3D Adventure (PS1 Style)</title>
+<title>Колобок: 16-Bit Adventure (Comix Style)</title>
 <style>
 * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; margin: 0; padding: 0; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a14; color: white; font-family: Arial, sans-serif; }
 body { display: flex; flex-direction: column; align-items: center; justify-content: center; touch-action: none; }
 
-/* Экран загрузки / Меню (Стиль PS1) */
-#menu-screen { position: fixed; inset: 0; background: #0a0a14; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; transition: opacity 0.5s; }
+/* Экран загрузки / Меню (Стиль 16-bit) */
+#menu-screen { position: fixed; inset: 0; background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; transition: opacity 0.5s; }
 #menu-screen.hidden { opacity: 0; pointer-events: none; }
-#menu-screen h1 { font-size: 52px; color: #f4cf43; text-shadow: 2px 2px 0 #000, 4px 4px 0 #b28d20; margin-bottom: 5px; text-align: center; font-family: 'Courier New', monospace; letter-spacing: 4px; }
-#menu-screen p { font-size: 18px; color: #8fb8d0; margin-bottom: 30px; text-align: center; font-family: 'Courier New', monospace; }
+#menu-screen h1 { font-size: 52px; color: #f4cf43; text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; margin-bottom: 5px; text-align: center; font-family: 'Courier New', monospace; letter-spacing: 4px; }
+#menu-screen p { font-size: 18px; color: #fff; text-shadow: 2px 2px 0 #000; margin-bottom: 30px; text-align: center; font-family: 'Courier New', monospace; }
 
 /* Выбор оружия */
 .weapon-select { display: flex; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; justify-content: center; }
-.weapon-btn { padding: 12px 20px; font-size: 15px; font-weight: bold; border: 2px solid #444; border-radius: 5px; background: #1a1a2e; color: #8fb8d0; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 5px; font-family: 'Courier New', monospace; }
-.weapon-btn.active { border-color: #f4cf43; color: #f4cf43; background: #2a2a4e; box-shadow: 0 0 15px rgba(244, 207, 67, 0.3); }
-.weapon-btn:active { transform: scale(0.95); }
+.weapon-btn { padding: 12px 20px; font-size: 15px; font-weight: bold; border: 3px solid #000; border-radius: 0; background: #333; color: #fff; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 5px; font-family: 'Courier New', monospace; box-shadow: 4px 4px 0 #000; }
+.weapon-btn.active { border-color: #f4cf43; color: #f4cf43; background: #555; transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; }
+.weapon-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
 .weapon-icon { font-size: 24px; }
 .weapon-name { font-size: 12px; }
 
-.menu-btn { padding: 15px 40px; font-size: 18px; font-weight: bold; border: none; border-radius: 5px; margin: 8px; cursor: pointer; box-shadow: 0 5px 0 #000; transition: transform 0.1s; font-family: 'Courier New', monospace; letter-spacing: 2px; }
-.menu-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #000; }
-#btn-continue { background: #4aa9ef; color: white; box-shadow: 0 5px 0 #1a5a8a; }
-#btn-new { background: #e85b50; color: white; box-shadow: 0 5px 0 #7a2b25; }
+.menu-btn { padding: 15px 40px; font-size: 18px; font-weight: bold; border: 3px solid #000; border-radius: 0; margin: 8px; cursor: pointer; box-shadow: 6px 6px 0 #000; transition: transform 0.1s; font-family: 'Courier New', monospace; letter-spacing: 2px; }
+.menu-btn:active { transform: translate(3px, 3px); box-shadow: 3px 3px 0 #000; }
+#btn-continue { background: #4aa9ef; color: white; }
+#btn-new { background: #e85b50; color: white; }
 
-#rotate-hint { display: none; position: fixed; inset: 0; background: #0a0a14; color: white; z-index: 100; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 24px; font-size: 20px; line-height: 1.4; font-family: 'Courier New', monospace; }
+#rotate-hint { display: none; position: fixed; inset: 0; background: #1a1a2e; color: white; z-index: 100; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 24px; font-size: 20px; line-height: 1.4; font-family: 'Courier New', monospace; }
 #rotate-hint .icon { font-size: 64px; margin-bottom: 16px; animation: rotate 2s infinite ease-in-out; }
 @keyframes rotate { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(90deg); } }
 @media (orientation: portrait) and (max-width: 900px) { #rotate-hint { display: flex; } }
@@ -37,17 +37,17 @@ body { display: flex; flex-direction: column; align-items: center; justify-conte
 canvas { display: block; width: 100%; height: 100%; object-fit: contain; background: #8bd7f5; touch-action: none; image-rendering: pixelated; image-rendering: crisp-edges; }
 
 #topbar { position: absolute; top: 0; left: 0; right: 0; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; z-index: 20; pointer-events: none; }
-#info { font-size: 13px; color: #dcecff; background: rgba(10,10,20,0.85); padding: 6px 10px; border-radius: 0; border: 1px solid #333; pointer-events: auto; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Courier New', monospace; }
-#message { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 15px; font-weight: bold; color: #ffe77b; background: rgba(10,10,20,0.85); padding: 6px 14px; border-radius: 0; border: 1px solid #333; pointer-events: none; z-index: 21; max-width: 60vw; text-align: center; font-family: 'Courier New', monospace; }
-#restart { pointer-events: auto; border: 1px solid #333; border-radius: 0; font-size: 13px; padding: 8px 12px; background: #333; color: #f4cf43; font-weight: bold; box-shadow: 0 4px 0 #111; -webkit-tap-highlight-color: transparent; font-family: 'Courier New', monospace; }
+#info { font-size: 14px; color: #fff; background: #000; padding: 6px 10px; border: 2px solid #fff; border-radius: 0; pointer-events: auto; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Courier New', monospace; font-weight: bold; }
+#message { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: bold; color: #000; background: #f4cf43; padding: 6px 14px; border: 2px solid #000; border-radius: 0; pointer-events: none; z-index: 21; max-width: 60vw; text-align: center; font-family: 'Courier New', monospace; box-shadow: 3px 3px 0 #000; }
+#restart { pointer-events: auto; border: 2px solid #000; border-radius: 0; font-size: 14px; padding: 8px 12px; background: #e85b50; color: #fff; font-weight: bold; box-shadow: 4px 4px 0 #000; -webkit-tap-highlight-color: transparent; font-family: 'Courier New', monospace; }
 
-.controls { width: 100%; height: 110px; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; background: #0a0a14; border-top: 2px solid #333; z-index: 30; flex-shrink: 0; }
+.controls { width: 100%; height: 110px; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; background: #1a1a2e; border-top: 3px solid #000; z-index: 30; flex-shrink: 0; }
 .left-group, .right-group { display: flex; gap: 15px; }
-button.ctrl { border: 2px solid #444; border-radius: 8px; background: #1a1a2e; color: #8fb8d0; font-size: 22px; font-weight: bold; box-shadow: 0 4px 0 #000; touch-action: none; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; min-width: 64px; font-family: 'Courier New', monospace; }
-button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 #000; background: #2a2a4e; }
-#jump { background: #1a4a6a; color: #8fd0ff; box-shadow: 0 4px 0 #0a2a3a; border-color: #4aa9ef; width: 76px; height: 76px; font-size: 15px; }
-#shoot { background: #6a1a1a; color: #ff8f8f; box-shadow: 0 4px 0 #3a0a0a; border-color: #e85b50; width: 76px; height: 76px; font-size: 22px; }
-#dash { background: #4a1a6a; color: #d08fff; box-shadow: 0 4px 0 #2a0a3a; border-color: #9c27b0; width: 64px; height: 64px; font-size: 22px; }
+button.ctrl { border: 3px solid #000; border-radius: 0; background: #444; color: #fff; font-size: 22px; font-weight: bold; box-shadow: 5px 5px 0 #000; touch-action: none; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; min-width: 64px; font-family: 'Courier New', monospace; }
+button.ctrl:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 #000; background: #666; }
+#jump { background: #4aa9ef; color: #fff; width: 76px; height: 76px; font-size: 15px; }
+#shoot { background: #e85b50; color: #fff; width: 76px; height: 76px; font-size: 22px; }
+#dash { background: #9c27b0; color: #fff; width: 64px; height: 64px; font-size: 22px; }
 
 @media (max-height: 400px) { 
   button.ctrl { width: 52px; height: 52px; min-width: 52px; font-size: 18px; } 
@@ -60,10 +60,9 @@ button.ctrl:active { transform: translateY(3px); box-shadow: 0 1px 0 #000; backg
 </head>
 <body>
 
-<!-- МЕНЮ -->
 <div id="menu-screen">
   <h1>КОЛОБОК</h1>
-  <p>3D ADVENTURE</p>
+  <p>16-BIT ADVENTURE</p>
   
   <div class="weapon-select">
     <button class="weapon-btn active" id="wpn-shotgun" data-weapon="shotgun">
@@ -111,10 +110,10 @@ const H = canvas.height;
 const LEVEL_WIDTH = 2400;
 const GROUND_Y = 470;
 const TOTAL_LEVELS = 12;
-const SAVE_KEY = "kolobok_adventure_3d_v1";
+const SAVE_KEY = "kolobok_adventure_16bit_v1";
 
-// Для пикселизации (PS1-стиль)
-const SCALE = 0.6; // Уменьшаем разрешение
+// Для пикселизации (16-bit стиль)
+const SCALE = 0.5; // Уменьшаем разрешение для чётких пикселей
 const OW = Math.floor(W * SCALE);
 const OH = Math.floor(H * SCALE);
 const offCanvas = document.createElement('canvas');
@@ -335,11 +334,11 @@ function drawGroundSegment3D(c, startX, width, theme) {
   const sx = startX - camera;
   if (sx + width < -50 || sx > W + 50) return;
 
-  // Имитация 3D-пола: трапеция, расширяющаяся к низу (как будто смотрим сверху)
+  // Имитация 3D-пола: трапеция, расширяющаяся к низу
   const horizonY = GROUND_Y;
   const bottomY = H;
-  const topInset = 80;  // Насколько сужается пол вверху
-  const bottomInset = -40; // Насколько расширяется внизу (выходит за экран)
+  const topInset = 150;  // Насколько сужается пол вверху (эффект горизонта)
+  const bottomInset = -100; // Насколько расширяется внизу (выходит за экран)
 
   // Основной пол
   c.fillStyle = theme.ground;
@@ -351,66 +350,79 @@ function drawGroundSegment3D(c, startX, width, theme) {
   c.closePath();
   c.fill();
 
-  // Травяная кромка
+  // Травяная кромка (сверху, плоская)
   c.fillStyle = "#7bd66a";
-  c.fillRect(sx, GROUND_Y, width, 10);
+  c.fillRect(sx, GROUND_Y, width, 15);
   c.fillStyle = "#2e5c2a";
-  c.fillRect(sx, GROUND_Y + 10, width, 8);
+  c.fillRect(sx, GROUND_Y + 15, width, 15);
 
-  // Тёмная перспективная полоса внизу (глубина)
-  const lg = c.createLinearGradient(0, GROUND_Y + 18, 0, H);
-  lg.addColorStop(0, "rgba(0,0,0,0)");
-  lg.addColorStop(1, "rgba(0,0,0,0.8)");
-  c.fillStyle = lg;
-  c.beginPath();
-  c.moveTo(sx + topInset, horizonY + 18);
-  c.lineTo(sx + width - topInset, horizonY + 18);
-  c.lineTo(sx + width + bottomInset, bottomY);
-  c.lineTo(sx - bottomInset, bottomY);
-  c.closePath();
-  c.fill();
-
-  // Блик травы сверху
+  // Блик травы сверху (пиксельная трава)
   c.fillStyle = "#a8e88e";
   for (let i = 0; i < width; i += 20) {
     const tx = sx + i;
     if (tx < -20 || tx > W + 20) continue;
-    c.fillRect(tx, GROUND_Y - 5, 2, 5);
-    c.fillRect(tx + 6, GROUND_Y - 8, 2, 8);
-    c.fillRect(tx + 12, GROUND_Y - 4, 2, 4);
+    c.fillRect(tx, GROUND_Y - 6, 4, 6);
+    c.fillRect(tx + 8, GROUND_Y - 10, 4, 10);
+    c.fillRect(tx + 16, GROUND_Y - 4, 4, 4);
   }
+  
+  // Чёрная обводка (как в комиксах)
+  c.strokeStyle = "#000";
+  c.lineWidth = 4;
+  c.beginPath();
+  c.moveTo(sx, GROUND_Y);
+  c.lineTo(sx + width, GROUND_Y);
+  c.stroke();
 }
 
 function drawPlatform3D(c, p) {
   const x = p.x - camera;
   if (x < -200 || x > W + 200) return;
   
-  // Трапеция для псевдо-3D
-  const depth = 30;
-  c.fillStyle = "#80552f";
+  const depth = 40; // Глубина платформы
+  
+  // 1. Задняя грань (тёмная)
+  c.fillStyle = "#4a3020";
   c.beginPath();
   c.moveTo(x, p.y);
   c.lineTo(x + p.w, p.y);
-  c.lineTo(x + p.w + depth, p.y + p.h + depth);
-  c.lineTo(x - depth, p.y + p.h + depth);
+  c.lineTo(x + p.w - depth*0.5, p.y + depth);
+  c.lineTo(x - depth*0.5, p.y + depth);
   c.closePath();
   c.fill();
   
-  // Трава сверху
+  // 2. Верхняя грань (светлая, с травой)
   c.fillStyle = "#55a84c";
-  c.fillRect(x, p.y, p.w, 6);
-  c.fillStyle = "#7bd66a";
-  c.fillRect(x, p.y, p.w, 3);
-  
-  // Тень под платформой
-  c.fillStyle = "rgba(0,0,0,0.4)";
   c.beginPath();
-  c.moveTo(x - depth, p.y + p.h + depth);
-  c.lineTo(x + p.w + depth, p.y + p.h + depth);
-  c.lineTo(x + p.w + depth, p.y + p.h + depth + 10);
-  c.lineTo(x - depth, p.y + p.h + depth + 10);
+  c.moveTo(x, p.y);
+  c.lineTo(x + p.w, p.y);
+  c.lineTo(x + p.w + depth*0.5, p.y + p.h + depth*0.5);
+  c.lineTo(x - depth*0.5, p.y + p.h + depth*0.5);
   c.closePath();
   c.fill();
+  
+  // 3. Передняя грань (тёмно-коричневая)
+  c.fillStyle = "#80552f";
+  c.beginPath();
+  c.moveTo(x - depth*0.5, p.y + p.h + depth*0.5);
+  c.lineTo(x + p.w + depth*0.5, p.y + p.h + depth*0.5);
+  c.lineTo(x + p.w, p.y + p.h + depth);
+  c.lineTo(x, p.y + p.h + depth);
+  c.closePath();
+  c.fill();
+
+  // Чёрная обводка
+  c.strokeStyle = "#000";
+  c.lineWidth = 3;
+  c.beginPath();
+  c.moveTo(x, p.y);
+  c.lineTo(x + p.w, p.y);
+  c.lineTo(x + p.w + depth*0.5, p.y + p.h + depth*0.5);
+  c.lineTo(x + p.w, p.y + p.h + depth);
+  c.lineTo(x, p.y + p.h + depth);
+  c.lineTo(x - depth*0.5, p.y + p.h + depth*0.5);
+  c.closePath();
+  c.stroke();
 }
 
 function drawBackground(c) {
@@ -428,31 +440,33 @@ function drawBackground(c) {
   c.fillStyle = skyGrad; c.fillRect(0, 0, W, H);
   
   if (world === 10) {
-    c.fillStyle = "rgba(255,255,255,0.2)";
+    c.fillStyle = "rgba(255,255,255,0.4)";
     for(let i=0; i<20; i++) {
       const bx = (i*100 - camera*0.5 + frame*0.5) % W;
       const by = (i*150 - frame*1.5) % H;
       c.beginPath(); c.arc(bx, by, 5 + (i%3)*5, 0, 7); c.fill();
     }
   } else {
+    // Солнце
     const sunGrad = c.createRadialGradient(W-150, 100, 10, W-150, 100, 80);
     sunGrad.addColorStop(0, "#fff8c0"); sunGrad.addColorStop(1, "rgba(255, 251, 208, 0)");
     c.fillStyle = sunGrad; c.beginPath(); c.arc(W-150, 100, 80, 0, 7); c.fill();
     c.fillStyle = "#fff8c0"; c.beginPath(); c.arc(W-150, 100, 50, 0, 7); c.fill();
   }
   
-  const fogGrad = c.createLinearGradient(0, 300, 0, 420);
-  fogGrad.addColorStop(0, "rgba(255,255,255,0)"); fogGrad.addColorStop(0.5, "rgba(255,255,255,0.3)"); fogGrad.addColorStop(1, "rgba(255,255,255,0)");
-  c.fillStyle = fogGrad; c.fillRect(0, 300, W, 120);
-  
+  // Дальние горы/деревья (параллакс)
   if (world === 11) {
     for(let i=0;i<10;i++) drawTree3D(c, ((i*200-camera*0.5)%2000+2000)%2000-100, 450, 1.2);
   } else if (world !== 10) {
+    // Холмы на фоне
     c.fillStyle = world%4===3?"#a8bd62":"#70ad68";
     c.beginPath(); c.moveTo(0, 430);
     for(let x=0;x<=W+20;x+=20) { const wx=x+camera*0.42; c.lineTo(x, 400+Math.sin(wx*0.008)*25+Math.sin(wx*0.018)*10); }
     c.lineTo(W, H); c.lineTo(0, H); c.fill();
+    
+    // Деревья на среднем плане
     for(let i=0;i<15;i++) drawTree3D(c, ((i*140-camera*0.48)%1800+1800)%1800-100, 450, 0.6);
+    // Кусты на переднем плане
     for(let i=0;i<20;i++) drawBush3D(c, ((i*100-camera*0.72)%1600+1600)%1600-70, 465, 0.8);
   }
   
@@ -469,7 +483,7 @@ function drawBackground(c) {
 
 function drawTree3D(c, x, y, s=1) {
   c.save(); c.translate(x,y); c.scale(s,s);
-  c.fillStyle="rgba(0,0,0,0.2)"; c.beginPath(); c.ellipse(0, 5, 18, 5, 0, 0, 7); c.fill();
+  c.fillStyle="rgba(0,0,0,0.3)"; c.beginPath(); c.ellipse(0, 5, 18, 5, 0, 0, 7); c.fill();
   c.fillStyle="#4a2e15"; c.fillRect(-7,-55,14,58);
   c.fillStyle="#6b4522"; c.fillRect(-5,-55,4,58);
   const grad = c.createRadialGradient(-8, -75, 5, 0, -65, 35); grad.addColorStop(0, "#43a047"); grad.addColorStop(0.7, "#2e7d32"); grad.addColorStop(1, "#1b5e20");
@@ -484,30 +498,38 @@ function drawBush3D(c, x, y, s=1) {
   c.restore();
 }
 
-// ==================== ПЕРСОНАЖИ (БЕЗ ИЗМЕНЕНИЙ, НО РИСУЮТСЯ В offscreen) ====================
+// ==================== ПЕРСОНАЖИ (С ОБВОДКОЙ) ====================
 
 function drawPlayer(c) {
   const x = player.x - camera, y = player.y;
   if (player.invincible > 0 && Math.floor(frame/5) % 2 === 0) return;
   
   const barW = 40, barH = 6, barX = x - barW/2, barY = y - 45;
-  c.fillStyle = "rgba(0,0,0,0.5)";
+  c.fillStyle = "rgba(0,0,0,0.7)";
   c.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
   for (let i = 0; i < player.health; i++) {
     c.fillStyle = "#e33";
     c.fillRect(barX + i * (barW / 3), barY, (barW / 3) - 2, barH);
   }
   
+  // Ноги
   c.fillStyle = "#4b3025"; c.fillRect(x-14, y+14, 12, 14); c.fillRect(x+4, y+14, 12, 14);
+  // Тело
   c.fillStyle = "#70452c"; c.beginPath();
   if (c.roundRect) { c.roundRect(x-19, y-6, 38, 28, 10); } 
   else { c.rect(x-19, y-6, 38, 28); }
   c.fill();
-  c.fillStyle = "#e7a72f"; c.beginPath(); c.arc(x, y-10, 22, 0, 7); c.fill();
-  c.strokeStyle = "#a86a1e"; c.lineWidth = 2.5; c.stroke();
-  c.fillStyle = "#382719"; c.beginPath(); c.arc(x-7, y-14, 2.5, 0, 7); c.arc(x+7, y-14, 2.5, 0, 7); c.fill();
-  c.strokeStyle = "#6b301b"; c.lineWidth = 2.5; c.beginPath(); c.arc(x, y-5, 7, 0.15, Math.PI-0.15); c.stroke();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   
+  // Голова
+  c.fillStyle = "#e7a72f"; c.beginPath(); c.arc(x, y-10, 22, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
+  
+  // Глаза и рот
+  c.fillStyle = "#382719"; c.beginPath(); c.arc(x-7, y-14, 3, 0, 7); c.arc(x+7, y-14, 3, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.beginPath(); c.arc(x, y-5, 7, 0.15, Math.PI-0.15); c.stroke();
+  
+  // Оружие
   c.save(); c.translate(x, y-2); c.scale(player.facing, 1);
   if (currentWeapon === "shotgun") {
     c.fillStyle="#49382b"; c.fillRect(10,-6,30,6); 
@@ -535,10 +557,13 @@ function drawGopnik(c, g) {
   const x=g.x-camera; if(x<-50||x>W+50||!g.alive) return;
   c.save(); c.translate(x, g.y);
   c.fillStyle = "#222"; c.fillRect(-10, -15, 20, 25);
+  c.strokeStyle = "#000"; c.lineWidth = 2; c.strokeRect(-10, -15, 20, 25);
   c.fillStyle = "#d96a1e"; c.beginPath(); c.arc(0, -20, 12, 0, 7); c.fill();
-  c.beginPath(); c.moveTo(-8, -28); c.lineTo(-12, -38); c.lineTo(-2, -28); c.fill();
-  c.beginPath(); c.moveTo(8, -28); c.lineTo(12, -38); c.lineTo(2, -28); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
+  c.beginPath(); c.moveTo(-8, -28); c.lineTo(-12, -38); c.lineTo(-2, -28); c.fill(); c.stroke();
+  c.beginPath(); c.moveTo(8, -28); c.lineTo(12, -38); c.lineTo(2, -28); c.fill(); c.stroke();
   c.fillStyle = "#111"; c.beginPath(); c.arc(0, -25, 13, Math.PI, 0); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
   c.fillStyle = "#555"; c.beginPath(); c.arc(12, -5, 3, 0, 7); c.fill();
   c.restore();
 }
@@ -547,6 +572,7 @@ function drawFrog(c, x, y, isMoving, facing) {
   const hop = isMoving ? Math.abs(Math.sin(frame * 0.2)) * 10 : 0;
   c.save(); c.translate(x, y - hop); c.scale(facing, 1);
   c.fillStyle = "#4caf50"; c.beginPath(); c.ellipse(0, 0, 20, 15, 0, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   c.fillStyle = "#388e3c"; c.beginPath(); c.arc(-8, -10, 6, 0, 7); c.arc(8, -10, 6, 0, 7); c.fill();
   c.fillStyle = "white"; c.beginPath(); c.arc(-8, -12, 3, 0, 7); c.arc(8, -12, 3, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-8, -12, 1.5, 0, 7); c.arc(8, -12, 1.5, 0, 7); c.fill();
@@ -558,7 +584,9 @@ function drawTroll(c, x, y, isMoving, facing) {
   const bob = isMoving ? Math.sin(frame * 0.15) * 4 : 0;
   c.save(); c.translate(x, y - bob); c.scale(facing, 1);
   c.fillStyle = "#7b6b54"; c.beginPath(); c.ellipse(0, 0, 25, 30, 0, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   c.fillStyle = "#5c4f3d"; c.beginPath(); c.arc(0, -25, 18, 0, 7); c.fill();
+  c.stroke();
   c.fillStyle = "#ffcc00"; c.beginPath(); c.arc(-6, -28, 4, 0, 7); c.arc(6, -28, 4, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-6, -28, 2, 0, 7); c.arc(6, -28, 2, 0, 7); c.fill();
   c.fillStyle = "#3e2a1a"; c.fillRect(-10, -15, 20, 8);
@@ -572,6 +600,7 @@ function drawSkeleton(c, x, y, isMoving, facing) {
   const bob = isMoving ? Math.sin(frame * 0.2) * 3 : 0;
   c.save(); c.translate(x, y - bob); c.scale(facing, 1);
   c.fillStyle = "#e0e0e0"; c.beginPath(); c.arc(0, -25, 16, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-6, -28, 5, 0, 7); c.arc(6, -28, 5, 0, 7); c.fill();
   c.fillStyle = "#e0e0e0"; c.fillRect(-8, -18, 16, 5);
   c.fillStyle = "#bbb"; c.fillRect(-2, -15, 4, 20);
@@ -584,8 +613,10 @@ function drawDragon(c, x, y, isMoving, facing) {
   const bob = isMoving ? Math.sin(frame * 0.1) * 5 : 0;
   c.save(); c.translate(x, y - bob); c.scale(facing, 1);
   c.fillStyle = "#d32f2f"; c.beginPath(); c.ellipse(0, 0, 28, 20, 0, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   c.fillStyle = "#b71c1c"; c.beginPath(); c.moveTo(-20, -5); c.lineTo(-40, -15); c.lineTo(-20, 5); c.fill();
   c.beginPath(); c.arc(15, -15, 18, 0, 7); c.fill();
+  c.stroke();
   c.fillStyle = "#ffeb3b"; c.beginPath(); c.arc(20, -20, 4, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(20, -20, 2, 0, 7); c.fill();
   c.fillStyle = "#ff5722"; c.beginPath(); c.moveTo(10, -30); c.lineTo(15, -45); c.lineTo(20, -30); c.fill();
@@ -597,7 +628,9 @@ function drawGoblin(c, x, y, isMoving, facing) {
   const bob = isMoving ? Math.sin(frame * 0.2) * 3 : 0;
   c.save(); c.translate(x, y - bob); c.scale(facing, 1);
   c.fillStyle = "#5a7a45"; c.beginPath(); c.ellipse(0, 0, 18, 22, 0, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   c.fillStyle = "#3d5c2e"; c.beginPath(); c.arc(0, -20, 16, 0, 7); c.fill();
+  c.stroke();
   c.fillStyle = "#4a6b38"; c.beginPath(); c.moveTo(-10, -25); c.lineTo(-25, -35); c.lineTo(-12, -15); c.fill();
   c.beginPath(); c.moveTo(10, -25); c.lineTo(25, -35); c.lineTo(12, -15); c.fill();
   c.fillStyle = "#ffcc00"; c.beginPath(); c.arc(-6, -22, 4, 0, 7); c.arc(6, -22, 4, 0, 7); c.fill();
@@ -612,6 +645,7 @@ function drawFireMonster(c, x, y, isMoving, facing) {
   const flicker2 = Math.cos(frame * 0.4) * 4;
   c.save(); c.translate(x, y);
   c.fillStyle = "#ff5722"; c.beginPath(); c.moveTo(-20, 20); c.quadraticCurveTo(-25 + flicker, -10, -10, -25 + flicker2); c.quadraticCurveTo(0, -10, 0, 20); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   c.fillStyle = "#ff9800"; c.beginPath(); c.moveTo(-5, 20); c.quadraticCurveTo(-10 + flicker2, -15, 5, -30 + flicker); c.quadraticCurveTo(15, -5, 15, 20); c.fill();
   c.fillStyle = "#ffeb3b"; c.beginPath(); c.ellipse(0, 5, 12, 15, 0, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-5, -2, 3, 0, 7); c.arc(5, -2, 3, 0, 7); c.fill();
@@ -623,8 +657,11 @@ function drawFireMonster(c, x, y, isMoving, facing) {
 function drawMermaid(c, x, y, isMoving, facing) {
   c.save(); c.translate(x, y); c.scale(facing, 1);
   c.fillStyle = "#ff99cc"; c.beginPath(); c.ellipse(0, 0, 15, 20, 0, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   c.fillStyle = "#33cc99"; c.beginPath(); c.moveTo(0, 15); c.quadraticCurveTo(-20, 35, 0, 50); c.quadraticCurveTo(20, 35, 0, 15); c.fill();
+  c.stroke();
   c.fillStyle = "#ffcc99"; c.beginPath(); c.arc(0, -15, 12, 0, 7); c.fill();
+  c.stroke();
   c.fillStyle = "#ff0066"; c.beginPath(); c.arc(0, -22, 12, Math.PI, 0); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-4, -17, 2, 0, 7); c.arc(4, -17, 2, 0, 7); c.fill();
   c.restore();
@@ -634,7 +671,8 @@ function drawShark(c, x, y, isMoving, facing) {
   const bob = Math.sin(frame * 0.1) * 8;
   c.save(); c.translate(x, y + bob); c.scale(facing, 1);
   c.fillStyle = "#8899aa"; c.beginPath(); c.ellipse(0, 0, 30, 15, 0, 0, 7); c.fill();
-  c.beginPath(); c.moveTo(-5, 0); c.lineTo(-10, -15); c.lineTo(5, 0); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
+  c.beginPath(); c.moveTo(-5, 0); c.lineTo(-10, -15); c.lineTo(5, 0); c.fill(); c.stroke();
   c.fillStyle = "white"; c.beginPath(); c.arc(20, -2, 3, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(21, -2, 1.5, 0, 7); c.fill();
   c.restore();
@@ -643,7 +681,9 @@ function drawShark(c, x, y, isMoving, facing) {
 function drawTreeMonster(c, x, y, isMoving, facing) {
   c.save(); c.translate(x, y);
   c.fillStyle = "#3e2723"; c.fillRect(-15, -40, 30, 80);
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.strokeRect(-15, -40, 30, 80);
   c.fillStyle = "#1b5e20"; c.beginPath(); c.arc(0, -50, 35, 0, 7); c.fill();
+  c.stroke();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-10, -30, 5, 0, 7); c.arc(10, -30, 5, 0, 7); c.fill();
   c.fillStyle = "#2e7d32"; c.beginPath(); c.arc(0, -15, 10, 0, 7); c.fill();
   c.restore();
@@ -654,9 +694,12 @@ function drawRabbit(c, x, y, isMoving, facing) {
   c.save(); c.translate(x, y); c.scale(facing, 1);
   c.fillStyle = "#999"; c.beginPath(); c.ellipse(-5 + legSwing, 14, 6, 8, 0, 0, 7); c.fill(); c.beginPath(); c.ellipse(5 - legSwing, 14, 6, 8, 0, 0, 7); c.fill();
   c.fillStyle = "#b0b0b0"; c.beginPath(); c.ellipse(0, -5, 16, 22, 0, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   c.fillStyle = "#e0e0e0"; c.beginPath(); c.ellipse(2, -3, 10, 14, 0, 0, 7); c.fill();
   c.fillStyle = "#b0b0b0"; c.beginPath(); c.arc(2, -26, 14, 0, 7); c.fill();
+  c.stroke();
   c.fillStyle = "#b0b0b0"; c.beginPath(); c.ellipse(-4, -44, 5, 14, 0.2, 0, 7); c.fill(); c.beginPath(); c.ellipse(8, -44, 5, 14, -0.2, 0, 7); c.fill();
+  c.stroke();
   c.fillStyle = "#ffb0b0"; c.beginPath(); c.ellipse(-4, -44, 2.5, 10, 0.2, 0, 7); c.fill(); c.beginPath(); c.ellipse(8, -44, 2.5, 10, -0.2, 0, 7); c.fill();
   c.fillStyle = "white"; c.beginPath(); c.arc(0, -28, 3.5, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(1, -28, 1.8, 0, 7); c.fill();
@@ -669,9 +712,12 @@ function drawWolf(c, x, y, isMoving, facing) {
   c.save(); c.translate(x, y); c.scale(facing, 1);
   c.fillStyle = "#444"; c.beginPath(); c.ellipse(-6 + legSwing, 14, 7, 10, 0, 0, 7); c.fill(); c.beginPath(); c.ellipse(6 - legSwing, 14, 7, 10, 0, 0, 7); c.fill();
   c.fillStyle = "#555"; c.beginPath(); c.ellipse(0, -5, 18, 24, 0, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   c.beginPath(); c.ellipse(2, -30, 16, 14, 0, 0, 7); c.fill();
+  c.stroke();
   c.fillStyle = "#777"; c.beginPath(); c.ellipse(12, -28, 9, 7, -0.2, 0, 7); c.fill();
   c.fillStyle = "#555"; c.beginPath(); c.moveTo(-10, -42); c.lineTo(-14, -54); c.lineTo(-2, -42); c.fill(); c.beginPath(); c.moveTo(14, -42); c.lineTo(18, -54); c.lineTo(6, -42); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
   c.fillStyle = "white"; c.beginPath(); c.arc(-2, -32, 3.5, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-1, -32, 1.8, 0, 7); c.fill();
   c.fillStyle = "#222"; c.beginPath(); c.arc(19, -28, 3, 0, 7); c.fill();
@@ -683,7 +729,9 @@ function drawBearBody(c, x, y, isMoving, facing) {
   c.save(); c.translate(x, y); c.scale(facing, 1);
   c.fillStyle = "#5a3a1a"; c.beginPath(); c.ellipse(-8 + legSwing, 16, 9, 10, 0, 0, 7); c.fill(); c.beginPath(); c.ellipse(8 - legSwing, 16, 9, 10, 0, 0, 7); c.fill();
   c.fillStyle = "#6b4c2a"; c.beginPath(); c.ellipse(0, -5, 22, 26, 0, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   c.fillStyle = "#8a6035"; c.beginPath(); c.arc(2, -30, 18, 0, 7); c.fill();
+  c.stroke();
   c.beginPath(); c.arc(-12, -42, 7, 0, 7); c.arc(16, -42, 7, 0, 7); c.fill();
   c.fillStyle = "#a87b45"; c.beginPath(); c.ellipse(10, -27, 10, 8, 0, 0, 7); c.fill();
   c.fillStyle = "#3a1f0a"; c.beginPath(); c.arc(18, -28, 3.5, 0, 7); c.fill();
@@ -697,8 +745,10 @@ function drawFoxBody(c, x, y, isMoving, facing) {
   c.save(); c.translate(x, y); c.scale(facing, 1);
   c.fillStyle = "#a84a10"; c.beginPath(); c.ellipse(-6 + legSwing, 16, 6, 9, 0, 0, 7); c.fill(); c.beginPath(); c.ellipse(6 - legSwing, 16, 6, 9, 0, 0, 7); c.fill();
   c.fillStyle = "#d96a1e"; c.beginPath(); c.ellipse(0, -5, 18, 22, 0, 0, 7); c.fill();
-  c.beginPath(); c.arc(2, -27, 16, 0, 7); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
+  c.beginPath(); c.arc(2, -27, 16, 0, 7); c.fill(); c.stroke();
   c.beginPath(); c.moveTo(-10, -40); c.lineTo(-14, -55); c.lineTo(-2, -40); c.fill(); c.beginPath(); c.moveTo(14, -40); c.lineTo(18, -55); c.lineTo(6, -40); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
   c.fillStyle = "#e8a53c"; c.beginPath(); c.ellipse(16, -27, 11, 7, -0.1, 0, 7); c.fill();
   c.fillStyle = "white"; c.beginPath(); c.arc(-2, -30, 3.5, 0, 7); c.fill();
   c.fillStyle = "#111"; c.beginPath(); c.arc(-1, -30, 1.8, 0, 7); c.fill();
@@ -711,6 +761,7 @@ function drawLizard(c, l) {
   const f=l.facing;
   c.save(); c.translate(x, l.y); c.scale(f,1);
   c.fillStyle="#2ea82e"; c.beginPath(); c.ellipse(0,0,18,14,0,0,7); c.fill();
+  c.strokeStyle="#000"; c.lineWidth = 3; c.stroke();
   c.fillStyle="white"; c.beginPath(); c.arc(19,-9,4,0,7); c.fill();
   c.fillStyle="#111"; c.beginPath(); c.arc(20,-9,2,0,7); c.fill();
   c.restore();
@@ -721,13 +772,15 @@ function drawBear(c, b) {
   const flash=b.hurtFlash>0&&Math.floor(frame/4)%2===0;
   c.save(); c.translate(x,b.y); c.scale(b.facing,1);
   c.fillStyle=flash?"#ffd27a":"#a86b1e"; c.beginPath(); c.ellipse(0,0,22,24,0,0,7); c.fill();
+  c.strokeStyle="#000"; c.lineWidth = 3; c.stroke();
   c.fillStyle=flash?"#fff0c0":"#e8a53c"; c.beginPath(); c.ellipse(2,4,14,17,0,0,7); c.fill();
   c.fillStyle=flash?"#ffd27a":"#b87522"; c.beginPath(); c.ellipse(0,-25,17,16,0,0,7); c.fill();
+  c.stroke();
   c.fillStyle="#3a1f0a"; c.beginPath(); c.arc(17,-24,3.5,0,7); c.fill();
   c.fillStyle="white"; c.beginPath(); c.arc(5,-30,4,0,7); c.fill();
   c.fillStyle="#111"; c.beginPath(); c.arc(6,-30,2,0,7); c.fill();
   c.restore();
-  if (b.hp < b.maxHp) { const hx=x-22, hy=b.y-65; c.fillStyle="rgba(0,0,0,0.6)"; c.fillRect(hx-2,hy-2,48,10); for(let i=0;i<b.maxHp;i++){ c.fillStyle=i<b.hp?"#e33":"#444"; c.fillRect(hx+i*15,hy,13,5); } }
+  if (b.hp < b.maxHp) { const hx=x-22, hy=b.y-65; c.fillStyle="rgba(0,0,0,0.8)"; c.fillRect(hx-2,hy-2,48,10); for(let i=0;i<b.maxHp;i++){ c.fillStyle=i<b.hp?"#e33":"#444"; c.fillRect(hx+i*15,hy,13,5); } }
 }
 
 function drawWitch(c, w) {
@@ -749,7 +802,7 @@ function drawBoss(c) {
 }
 
 function drawBullets(c) {
-  c.fillStyle="#292929"; for(const b of bullets){ c.beginPath(); c.arc(b.x-camera,b.y,6,0,7); c.fill(); }
+  c.fillStyle="#292929"; for(const b of bullets){ c.beginPath(); c.arc(b.x-camera,b.y,6,0,7); c.fill(); c.strokeStyle="#fff"; c.lineWidth = 1; c.stroke(); }
   for(const b of enemyBullets){ c.save(); c.translate(b.x-camera,b.y); c.rotate(b.angle||0); 
     if (b.isGreen) c.fillStyle = "#44ff44"; 
     else if (b.isSeed) { c.fillStyle = "#222"; c.fillRect(-4,-2,8,4); }
@@ -780,7 +833,7 @@ function drawFloatingTexts(c) {
     t.life--;
     c.globalAlpha = t.life / t.maxLife;
     c.fillStyle = t.color || "#fff";
-    c.font = "bold 20px Arial";
+    c.font = "bold 20px 'Courier New'";
     c.textAlign = "center";
     c.fillText(t.text, t.x, t.y);
     c.globalAlpha = 1;
@@ -788,7 +841,7 @@ function drawFloatingTexts(c) {
   }
 }
 
-// Главная функция отрисовки (рисует в offscreen, потом увеличивает)
+// Главная функция отрисовки
 function draw() {
   // 1. Очищаем offscreen
   octx.clearRect(0, 0, OW, OH);
@@ -802,30 +855,28 @@ function draw() {
     octx.translate(Math.random() * shakeTime - shakeTime/2, Math.random() * shakeTime - shakeTime/2);
   }
   
-  // Рисуем фон и мир
   drawBackground(octx);
   
-  // Платформы с 3D-эффектом
   for(const p of platforms) drawPlatform3D(octx, p);
   
-  // Избушка в конце
   const hutX = LEVEL_WIDTH - 140;
   const hutScreenX = hutX - camera;
   if (hutScreenX > -200 && hutScreenX < W + 200) {
     octx.fillStyle = "#8b5a2b"; octx.fillRect(hutScreenX, GROUND_Y - 110, 120, 110);
+    octx.strokeStyle = "#000"; octx.lineWidth = 4; octx.strokeRect(hutScreenX, GROUND_Y - 110, 120, 110);
     octx.fillStyle = "#a8322b"; octx.beginPath(); octx.moveTo(hutScreenX - 10, GROUND_Y - 110); octx.lineTo(hutScreenX + 60, GROUND_Y - 180); octx.lineTo(hutScreenX + 130, GROUND_Y - 110); octx.closePath(); octx.fill();
+    octx.strokeStyle = "#000"; octx.lineWidth = 4; octx.stroke();
     octx.fillStyle = "#3b2414"; octx.fillRect(hutScreenX + 45, GROUND_Y - 80, 35, 80);
+    octx.strokeRect(hutScreenX + 45, GROUND_Y - 80, 35, 80);
     octx.fillStyle = "#f4cf43"; octx.fillRect(hutScreenX + 15, GROUND_Y - 85, 25, 25);
-    octx.fillStyle = "#263238"; octx.fillRect(hutScreenX + 26, GROUND_Y - 85, 3, 25); octx.fillRect(hutScreenX + 15, GROUND_Y - 74, 25, 3);
+    octx.strokeRect(hutScreenX + 15, GROUND_Y - 85, 25, 25);
   }
   
   drawStars(octx);
   drawPickups(octx);
   
-  // Гопники
   for(const g of gopniks) drawGopnik(octx, g);
   
-  // Обычные враги
   for(const e of enemies) {
     const x = e.x - camera; if (x < -80 || x > W + 80 || !e.alive) continue;
     const type = worlds[world].enemy;
@@ -843,7 +894,6 @@ function draw() {
     else if (type === "fire") drawFireMonster(octx, x, e.y, isMoving, facing);
   }
   
-  // Спец-враги
   for(const w of witches) drawWitch(octx, w);
   for(const l of lizards) drawLizard(octx, l);
   for(const b of bears) drawBear(octx, b);
@@ -872,18 +922,7 @@ function draw() {
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(offCanvas, 0, 0, OW, OH, 0, 0, W, H);
   
-  // 3. PS1-эффект: виньетка
-  const gradient = ctx.createRadialGradient(W/2, H/2, H*0.3, W/2, H/2, H*0.8);
-  gradient.addColorStop(0, "rgba(0,0,0,0)");
-  gradient.addColorStop(1, "rgba(0,0,0,0.6)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, W, H);
-  
-  // 4. PS1-эффект: лёгкий синий туман
-  ctx.fillStyle = "rgba(100, 150, 200, 0.05)";
-  ctx.fillRect(0, 0, W, H);
-  
-  // 5. Game Over / Victory экран
+  // 3. Game Over / Victory экран (поверх всего)
   if(gameOver||victory) {
     ctx.fillStyle="rgba(0,0,0,0.7)"; ctx.fillRect(0,0,W,H);
     ctx.fillStyle="#fff"; ctx.textAlign="center"; ctx.font="bold 50px 'Courier New'";
