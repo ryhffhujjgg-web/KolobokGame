@@ -108,7 +108,7 @@ const H = canvas.height;
 const LEVEL_WIDTH = 2400;
 const GROUND_Y = 470;
 const TOTAL_LEVELS = 12;
-const SAVE_KEY = "kolobok_comixzone_v3";
+const SAVE_KEY = "kolobok_comixzone_v4";
 
 const SCALE = 0.5;
 const OW = Math.floor(W * SCALE);
@@ -149,11 +149,10 @@ let sharks = [];
 let trees = [];
 let gopniks = [];
 
-// Передний план (генерируется при создании уровня)
 let foreground = [];
 
-// КРЫСКА-ПОМОЩНИК
 let rat = { x: 0, y: 0, vx: 0, vy: 0, onGround: false, facing: 1, shootTimer: 0, alive: true, r: 10, animFrame: 0 };
+let levelBannerTimer = 0;
 
 function getGravity() { return world === 10 ? 0.15 : 0.55; }
 
@@ -177,6 +176,12 @@ function spawnParticles(x, y, color, count) {
   }
 }
 
+function spawnExplosion(x, y) {
+    spawnParticles(x, y, "#f4cf43", 20);
+    spawnParticles(x, y, "#e85b50", 15);
+    floatingTexts.push({ x: x - camera, y: y, text: "BAM!", color: "#fff", life: 40, maxLife: 40, size: 30 });
+}
+
 function updateParticles() {
   for (let i = particles.length - 1; i >= 0; i--) {
     let p = particles[i];
@@ -192,9 +197,12 @@ function drawParticles(c) {
   for (let p of particles) {
     c.globalAlpha = p.life / p.maxLife;
     c.fillStyle = p.color;
+    c.strokeStyle = "#000";
+    c.lineWidth = 2;
     c.beginPath();
     c.arc(p.x - camera, p.y, p.size, 0, 7);
     c.fill();
+    c.stroke();
   }
   c.globalAlpha = 1;
 }
@@ -208,7 +216,6 @@ function drawShadow(c, x, y, width, height, alpha=0.3) {
   c.restore();
 }
 
-// === ЭФФЕКТ ШТРИХОВКИ (КОМИКС) ===
 function drawHatching(c, x, y, w, h, color="#000", alpha=0.3, spacing=4) {
   c.save();
   c.globalAlpha = alpha;
@@ -308,7 +315,6 @@ function makeLevel() {
   
   rat = { x: player.x - 60, y: GROUND_Y - 10, vx: 0, vy: 0, onGround: true, facing: 1, shootTimer: 60, alive: true, r: 10, animFrame: 0 };
   
-  // Генерация переднего плана
   foreground = [];
   for (let i = 0; i < 30; i++) {
     const type = Math.random() > 0.5 ? "grass" : "rock";
@@ -317,11 +323,11 @@ function makeLevel() {
       y: H - 20 - Math.random() * 30,
       type: type,
       scale: 0.5 + Math.random() * 0.8,
-      speedFactor: 1.5 + Math.random() * 0.5 // Движется быстрее фона
+      speedFactor: 1.5 + Math.random() * 0.5
     });
   }
   
-  lastSafeX = 70; camera = 0; bullets = []; enemyBullets = []; enemies = []; witches = []; lizards = []; bears = []; stars = []; platforms = []; gaps = []; bossBattle = false; isTransitioning = false; pickups = []; particles = []; floatingTexts = []; shakeTime = 0;
+  lastSafeX = 70; camera = 0; bullets = []; enemyBullets = []; enemies = []; witches = []; lizards = []; bears = []; stars = []; platforms = []; gaps = []; bossBattle = false; isTransitioning = false; pickups = []; particles = []; floatingTexts = []; shakeTime = 0; levelBannerTimer = 180;
   mermaids = []; sharks = []; trees = []; gopniks = [];
   playerDashing = 0; playerDashCooldown = 0;
   gaps = [{x:760,w:90},{x:1450,w:110},{x:2050,w:90}];
@@ -372,6 +378,28 @@ function updateInfo() {
 function isOverGap(x) { return gaps.some(g => x + player.r * 0.5 > g.x && x - player.r * 0.5 < g.x + g.w); }
 
 // ==================== ОТРИСОВКА ОКРУЖЕНИЯ ====================
+
+function drawComicFrame(c) {
+    // Внешняя белая рамка
+    c.strokeStyle = "#fff";
+    c.lineWidth = 12;
+    c.strokeRect(6, 6, W - 12, H - 12);
+    // Внутренний черный контур
+    c.strokeStyle = "#000";
+    c.lineWidth = 4;
+    c.strokeRect(12, 12, W - 24, H - 24);
+    
+    // Линии, разделяющие экран на панели (для эффекта комикса)
+    c.beginPath();
+    c.moveTo(W / 3, 12);
+    c.lineTo(W / 3, H - 12);
+    c.stroke();
+    
+    c.beginPath();
+    c.moveTo(W * 2 / 3, 12);
+    c.lineTo(W * 2 / 3, H - 12);
+    c.stroke();
+}
 
 function drawGroundSegment3D(c, startX, width, theme) {
   const sx = startX - camera;
@@ -446,7 +474,6 @@ function drawPlatform3D(c, p) {
   c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 4; c.stroke();
   
-  // Штриховка на платформе (комикс-стиль)
   drawHatching(c, x, p.y + p.h + depth*0.5, p.w, 15, "#000", 0.15, 6);
   
   c.fillStyle = "#80552f";
@@ -486,6 +513,25 @@ function drawBackground(c) {
     sunGrad.addColorStop(0, "#fff8c0"); sunGrad.addColorStop(1, "rgba(255, 251, 208, 0)");
     c.fillStyle = sunGrad; c.beginPath(); c.arc(W-150, 100, 80, 0, 7); c.fill();
     c.fillStyle = "#fff8c0"; c.beginPath(); c.arc(W-150, 100, 50, 0, 7); c.fill();
+    
+    // Рисуем скалы в стиле комикса
+    c.fillStyle = "#8b4513"; // Оранжево-коричневый
+    c.strokeStyle = "#000";
+    c.lineWidth = 3;
+    for(let i=0; i<8; i++) {
+      const rx = i*300 - (camera*0.15 % 300);
+      c.beginPath();
+      c.moveTo(rx, GROUND_Y);
+      c.lineTo(rx + 50, GROUND_Y - 150);
+      c.lineTo(rx + 100, GROUND_Y - 100);
+      c.lineTo(rx + 150, GROUND_Y - 200);
+      c.lineTo(rx + 200, GROUND_Y - 80);
+      c.lineTo(rx + 250, GROUND_Y - 120);
+      c.lineTo(rx + 300, GROUND_Y);
+      c.closePath();
+      c.fill();
+      c.stroke();
+    }
   }
   
   if (world === 11) {
@@ -506,6 +552,15 @@ function drawBackground(c) {
     const gx = gap.x - camera; if (gx + gap.w < -50 || gx > W + 50) continue;
     const vg = c.createLinearGradient(0, GROUND_Y, 0, H); vg.addColorStop(0,"#0a0f0a"); vg.addColorStop(1,"#000");
     c.fillStyle=vg; c.fillRect(gx, GROUND_Y, gap.w, H-GROUND_Y);
+    // Рисуем шипы на дне
+    c.fillStyle = "#8b0000";
+    for(let ix = gx; ix < gx + gap.w; ix += 20) {
+        c.beginPath();
+        c.moveTo(ix, GROUND_Y);
+        c.lineTo(ix + 10, GROUND_Y + 20);
+        c.lineTo(ix + 20, GROUND_Y);
+        c.fill();
+    }
   }
   let cursor = 0;
   for (const gap of sorted) { if (gap.x > cursor) drawGroundSegment3D(c, cursor, gap.x-cursor, theme); cursor = gap.x + gap.w; }
@@ -531,10 +586,8 @@ function drawBush3D(c, x, y, s=1) {
   c.restore();
 }
 
-// === ПЕРЕДНИЙ ПЛАН (ГЛУБИНА) ===
 function drawForeground(c) {
   for (const fg of foreground) {
-    // Передний план движется быстрее (эффект параллакса)
     const x = fg.x - camera * fg.speedFactor;
     if (x < -100 || x > W + 100) continue;
     
@@ -561,7 +614,6 @@ function drawForeground(c) {
       c.ellipse(0, 0, 20, 15, 0, 0, 7);
       c.fill();
       c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
-      // Штриховка на камне
       drawHatching(c, -15, -10, 30, 20, "#000", 0.3, 4);
     }
     
@@ -578,12 +630,13 @@ function drawPlayer(c) {
   
   if (player.invincible > 0 && Math.floor(frame/5) % 2 === 0) return;
   
-  const barW = 40, barH = 6, barX = x - barW/2, barY = y - 50;
-  c.fillStyle = "rgba(0,0,0,0.8)";
+  const barW = 40, barH = 10, barX = x - barW/2, barY = y - 55;
+  c.fillStyle = "#000";
   c.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
   for (let i = 0; i < player.health; i++) {
-    c.fillStyle = "#ff3b3b";
+    c.fillStyle = "#e33";
     c.fillRect(barX + i * (barW / 3), barY, (barW / 3) - 2, barH);
+    c.strokeStyle = "#fff"; c.lineWidth = 1; c.strokeRect(barX + i * (barW / 3), barY, (barW / 3) - 2, barH);
   }
   
   c.fillStyle = "#3a2015";
@@ -600,14 +653,12 @@ function drawPlayer(c) {
   c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3; c.stroke();
   
-  // Штриховка на теле (комикс-стиль)
   drawHatching(c, x - 18, y - 5, 36, 25, "#000", 0.2, 5);
   
   c.fillStyle = "#f4cf43";
   c.beginPath(); c.arc(x, y - 12, 24, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 3.5; c.stroke();
   
-  // Штриховка на голове (полутона)
   drawHatching(c, x - 15, y - 20, 30, 15, "#a86a1e", 0.4, 4);
   
   c.fillStyle = "#fff";
@@ -663,14 +714,12 @@ function drawPlayer(c) {
   }
 }
 
-// === КРЫСКА С АНИМАЦИЕЙ ===
 function drawRat(c) {
   if (!rat.alive) return;
   const x = rat.x - camera, y = rat.y;
   
   drawShadow(c, x, GROUND_Y, 15, 5, 0.25);
   
-  // Анимация бега (лапки)
   const legAnim = Math.abs(Math.sin(rat.animFrame * 0.3)) * 3;
   const tailAnim = Math.sin(rat.animFrame * 0.2) * 5;
   const headBob = Math.sin(rat.animFrame * 0.15) * 1.5;
@@ -679,47 +728,38 @@ function drawRat(c) {
   c.translate(x, y);
   c.scale(rat.facing, 1);
   
-  // Тело (белое с черными пятнами)
   c.fillStyle = "#fff";
   c.beginPath();
   c.ellipse(0, 0, 14, 10, 0, 0, 7);
   c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
   
-  // Штриховка на теле (тень)
   drawHatching(c, -10, -5, 20, 10, "#000", 0.2, 3);
   
-  // Черные пятна
   c.fillStyle = "#000";
   c.beginPath(); c.arc(-4, -2, 3, 0, 7); c.fill();
   c.beginPath(); c.arc(5, 1, 2.5, 0, 7); c.fill();
   
-  // Лапки (анимация)
   c.fillStyle = "#fff";
   c.beginPath(); c.ellipse(-8, 8 + legAnim, 3, 5, 0, 0, 7); c.fill(); c.strokeStyle = "#000"; c.lineWidth = 1; c.stroke();
   c.beginPath(); c.ellipse(8, 8 - legAnim, 3, 5, 0, 0, 7); c.fill(); c.stroke();
   
-  // Хвост (взмах)
   c.strokeStyle = "#fff"; c.lineWidth = 3;
   c.beginPath(); c.moveTo(-14, 0); c.quadraticCurveTo(-25, -10 + tailAnim, -30, tailAnim); c.stroke();
   c.strokeStyle = "#000"; c.lineWidth = 1;
   c.beginPath(); c.moveTo(-14, 0); c.quadraticCurveTo(-25, -10 + tailAnim, -30, tailAnim); c.stroke();
   
-  // Голова (поворот)
   c.fillStyle = "#fff";
   c.beginPath(); c.arc(12, -4 + headBob, 8, 0, 7); c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 2; c.stroke();
   
-  // Уши
   c.fillStyle = "#fff";
   c.beginPath(); c.arc(10, -12 + headBob, 4, 0, 7); c.fill(); c.stroke();
   c.beginPath(); c.arc(16, -12 + headBob, 4, 0, 7); c.fill(); c.stroke();
   
-  // Глаз (смотрит вперед)
   c.fillStyle = "#000";
   c.beginPath(); c.arc(15, -5 + headBob, 2, 0, 7); c.fill();
   
-  // Носик
   c.fillStyle = "#ff9999";
   c.beginPath(); c.arc(19, -4 + headBob, 1.5, 0, 7); c.fill();
   
@@ -1200,12 +1240,42 @@ function drawFloatingTexts(c) {
     t.life--;
     c.globalAlpha = t.life / t.maxLife;
     c.fillStyle = t.color || "#fff";
-    c.font = "bold 22px 'Courier New'";
+    c.strokeStyle = "#000";
+    c.lineWidth = 4;
+    c.font = "bold " + (t.size || 22) + "px 'Courier New'";
     c.textAlign = "center";
+    c.strokeText(t.text, t.x, t.y);
     c.fillText(t.text, t.x, t.y);
     c.globalAlpha = 1;
     if (t.life <= 0) floatingTexts.splice(i, 1);
   }
+}
+
+function drawLevelBanner(c) {
+    if (levelBannerTimer <= 0) return;
+    levelBannerTimer--;
+    
+    c.save();
+    c.translate(W / 2, 100);
+    
+    // Желтая плашка
+    c.fillStyle = "#f4cf43";
+    c.strokeStyle = "#000";
+    c.lineWidth = 4;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(-200, -30, 400, 60, 10);
+    else c.rect(-200, -30, 400, 60);
+    c.fill();
+    c.stroke();
+    
+    // Текст
+    c.fillStyle = "#000";
+    c.font = "bold 24px 'Courier New'";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(worlds[world].name.toUpperCase(), 0, 0);
+    
+    c.restore();
 }
 
 function draw() {
@@ -1275,7 +1345,6 @@ function draw() {
   drawPlayer(octx);
   drawFloatingTexts(octx);
   
-  // ПЕРЕДНИЙ ПЛАН (поверх всего, для глубины)
   drawForeground(octx);
   
   if (shakeTime > 0) {
@@ -1287,6 +1356,9 @@ function draw() {
   
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(offCanvas, 0, 0, OW, OH, 0, 0, W, H);
+  
+  drawComicFrame(ctx);
+  drawLevelBanner(ctx);
   
   if(gameOver||victory) {
     ctx.fillStyle="rgba(0,0,0,0.75)"; ctx.fillRect(0,0,W,H);
@@ -1399,27 +1471,22 @@ function updateRat() {
   
   rat.animFrame++;
   
-  // Крыска следует за игроком на земле
   const distance = player.x - rat.x;
   const absDist = Math.abs(distance);
   
-  // Если игрок далеко — бежим за ним
   if (absDist > 60) {
     rat.vx = Math.sign(distance) * 3.5;
     rat.facing = Math.sign(distance) || 1;
   } else if (absDist < 40) {
-    // Слишком близко — отходим
     rat.vx = -Math.sign(distance) * 1.5;
   } else {
     rat.vx *= 0.8;
   }
   
-  // Гравитация
   rat.vy += getGravity();
   rat.x += rat.vx;
   rat.y += rat.vy;
   
-  // Проверка на землю
   rat.onGround = false;
   if (rat.y + rat.r >= GROUND_Y) {
     rat.y = GROUND_Y - rat.r;
@@ -1427,7 +1494,6 @@ function updateRat() {
     rat.onGround = true;
   }
   
-  // Проверка на платформы
   for (const p of platforms) {
     if (rat.vy >= 0 && rat.x + rat.r > p.x && rat.x - rat.r < p.x + p.w && rat.y + rat.r >= p.y && rat.y + rat.r <= p.y + 15) {
       rat.y = p.y - rat.r;
@@ -1436,9 +1502,7 @@ function updateRat() {
     }
   }
   
-  // Прыжок, если перед крыской пропасть или препятствие
   if (rat.onGround && absDist > 60) {
-    // Проверяем, есть ли пропасть впереди
     const checkX = rat.x + rat.facing * 40;
     const overGap = gaps.some(g => checkX > g.x && checkX < g.x + g.w);
     if (overGap) {
@@ -1446,7 +1510,6 @@ function updateRat() {
       rat.onGround = false;
     }
     
-    // Проверяем, есть ли платформа впереди (и мы под ней)
     for (const p of platforms) {
       if (checkX > p.x && checkX < p.x + p.w && rat.y > p.y && rat.y < p.y + p.h + 20) {
         rat.vy = -9;
@@ -1455,17 +1518,14 @@ function updateRat() {
     }
   }
   
-  // Ограничение по краям уровня
   rat.x = Math.max(20, Math.min(LEVEL_WIDTH - 20, rat.x));
   
-  // Если крыска упала в пропасть — телепортируем её к игроку
   if (rat.y > H + 50) {
     rat.x = player.x - 60;
     rat.y = GROUND_Y - 10;
     rat.vy = 0;
   }
   
-  // Автоматическая стрельба
   rat.shootTimer--;
   if (rat.shootTimer <= 0) {
     let closestEnemy = null;
@@ -1573,7 +1633,7 @@ function updateGopniks() {
         g.alive = false;
         player.vy = -10;
         sound(600, 0.1, "square");
-        spawnParticles(g.x, g.y, "#ff5555", 15);
+        spawnExplosion(g.x, g.y);
         totalStars += 1; saveProgress();
         say("А семки есть?");
       } else {
@@ -1597,7 +1657,7 @@ function updateEnemies() {
         e.alive = false;
         player.vy = -10;
         sound(600, 0.1, "square");
-        spawnParticles(e.x, e.y, "#ff5555", 15);
+        spawnExplosion(e.x, e.y);
         totalStars += 1; saveProgress();
         say("Ай!");
       } else {
@@ -1621,7 +1681,7 @@ function updateLizards() {
         l.alive = false;
         player.vy = -10;
         sound(600, 0.1, "square");
-        spawnParticles(l.x, l.y, "#ff5555", 15);
+        spawnExplosion(l.x, l.y);
         totalStars += 1; saveProgress();
         say("Ай!");
       } else {
@@ -1650,7 +1710,7 @@ function updateBears() {
         b.hp--; b.hurtFlash=20; player.vy = -10;
         sound(200, 0.08);
         spawnParticles(b.x, b.y, "#ff5555", 10);
-        if(b.hp<=0){ b.alive=false; pickups.push({ x: b.x, y: b.y - 30, type: "shield" }); say("Ай!"); totalStars+=5; }
+        if(b.hp<=0){ b.alive=false; pickups.push({ x: b.x, y: b.y - 30, type: "shield" }); spawnExplosion(b.x, b.y); say("Ай!"); totalStars+=5; }
         saveProgress();
       } else {
         hurtPlayer();
@@ -1732,7 +1792,7 @@ function updateBoss() {
       boss.hp--; player.vy = -10;
       sound(240, 0.08);
       spawnParticles(boss.x, boss.y, "#ff5555", 8);
-      if(boss.hp<=0){ boss.alive=false; say("Охохонюшки, Хо-Хо!"); totalStars+=10; }
+      if(boss.hp<=0){ boss.alive=false; spawnExplosion(boss.x, boss.y); say("Охохонюшки, Хо-Хо!"); totalStars+=10; }
       saveProgress();
     } else {
       hurtPlayer();
@@ -1746,34 +1806,34 @@ function updateBullets() {
     
     for(const g of gopniks) if(g.alive&&Math.abs(b.x-g.x)<30&&Math.abs(b.y-g.y)<30){ 
       g.alive=false; b.life=0; 
-      spawnParticles(g.x, g.y, "#ff5555", 10);
+      spawnExplosion(g.x, g.y);
       say("А семки есть?"); sound(330,0.12); totalStars+=1; saveProgress(); 
     }
     for(const e of enemies) if(e.alive&&Math.abs(b.x-e.x)<30&&Math.abs(b.y-e.y)<35){ 
       e.alive=false; b.life=0; 
-      spawnParticles(e.x, e.y, "#ff5555", 10);
+      spawnExplosion(e.x, e.y);
       if(Math.random() < 0.2) pickups.push({ x: e.x, y: e.y - 20, type: ["apple", "lightning", "shield"][Math.floor(Math.random()*3)] });
       say("Ай!"); sound(330,0.12); saveProgress(); 
     }
     for(const w of witches) if(w.alive&&Math.abs(b.x-w.x)<35&&Math.abs(b.y-w.y)<40){ 
       w.alive=false; b.life=0; 
-      spawnParticles(w.x, w.y, "#ff5555", 10);
+      spawnExplosion(w.x, w.y);
       if(Math.random() < 0.3) pickups.push({ x: w.x, y: w.y, type: "apple" });
       say("Ай!"); sound(220,0.15,"triangle"); saveProgress(); 
     }
     for(const bear of bears) if(bear.alive&&Math.abs(b.x-bear.x)<30&&Math.abs(b.y-bear.y)<30){
       bear.hp--; bear.hurtFlash=20; b.life=0; sound(200,0.08);
       spawnParticles(bear.x, bear.y, "#ff5555", 5);
-      if(bear.hp<=0){ bear.alive=false; pickups.push({ x: bear.x, y: bear.y - 30, type: "shield" }); say("Ай!"); totalStars+=5; }
+      if(bear.hp<=0){ bear.alive=false; pickups.push({ x: bear.x, y: bear.y - 30, type: "shield" }); spawnExplosion(bear.x, bear.y); say("Ай!"); totalStars+=5; }
       saveProgress();
     }
     if (world === 10) {
-      for(const m of mermaids) if(m.alive&&Math.abs(b.x-m.x)<30&&Math.abs(b.y-m.y)<30){ m.alive=false; b.life=0; spawnParticles(m.x, m.y, "#ff5555", 10); say("Ай!"); totalStars+=2; saveProgress(); }
-      for(const s of sharks) if(s.alive&&Math.abs(b.x-s.x)<40&&Math.abs(b.y-s.y)<30){ s.alive=false; b.life=0; spawnParticles(s.x, s.y, "#ff5555", 10); say("Ай!"); totalStars+=2; saveProgress(); }
+      for(const m of mermaids) if(m.alive&&Math.abs(b.x-m.x)<30&&Math.abs(b.y-m.y)<30){ m.alive=false; b.life=0; spawnExplosion(m.x, m.y); say("Ай!"); totalStars+=2; saveProgress(); }
+      for(const s of sharks) if(s.alive&&Math.abs(b.x-s.x)<40&&Math.abs(b.y-s.y)<30){ s.alive=false; b.life=0; spawnExplosion(s.x, s.y); say("Ай!"); totalStars+=2; saveProgress(); }
     } else if (world === 11) {
       for(const t of trees) if(t.alive&&Math.abs(b.x-t.x)<40&&Math.abs(b.y-t.y)<50){ 
         t.hp--; b.life=0; spawnParticles(t.x, t.y, "#44ff44", 10); sound(200,0.08);
-        if(t.hp<=0){ t.alive=false; say("Ай!"); totalStars+=3; }
+        if(t.hp<=0){ t.alive=false; spawnExplosion(t.x, t.y); say("Ай!"); totalStars+=3; }
         saveProgress();
       }
     }
@@ -1781,7 +1841,7 @@ function updateBullets() {
     if(boss && boss.isBossLevel && bossBattle && boss.alive && Math.abs(b.x-boss.x)<45 && Math.abs(b.y-boss.y)<50){
       boss.hp--; b.life=0; sound(240,0.08);
       spawnParticles(boss.x, boss.y, "#ff5555", 8);
-      if(boss.hp<=0){ boss.alive=false; say("Охохонюшки, Хо-Хо!"); totalStars+=10; }
+      if(boss.hp<=0){ boss.alive=false; spawnExplosion(boss.x, boss.y); say("Охохонюшки, Хо-Хо!"); totalStars+=10; }
       saveProgress();
     }
   }
